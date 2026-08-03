@@ -1,0 +1,9 @@
+data/
+node_modules/
+*.bak
+*.log
+.env
+.env.*
+*.db
+*.db-*
+admin-token
