@@ -69,6 +69,25 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true, ...erg, anleitung: 'Lausche mit GET /api/messages?kanal=<kanal>&seit=<cursor> (Bearer agent_token) oder per SSE /api/events. Sende mit POST /api/send.' });
   }
 
+  // Medien-Auslieferung OHNE Bearer (Capability-URL): <img>/<audio> im Browser können keine
+  // Auth-Header setzen; die ID ist 9 Zufalls-Bytes = unratbar. Upload bleibt token-pflichtig.
+  const mMediaPub = /^\/api\/media\/([a-z0-9.]+)$/.exec(url.pathname);
+  if (mMediaPub && req.method === 'GET') {
+    const meta = db.prepare('SELECT * FROM media WHERE id = ?').get(mMediaPub[1]);
+    const pfad = join(DATA, 'media', mMediaPub[1]);
+    if (!meta || !existsSync(pfad)) return json(res, 404, { ok: false });
+    const groesse = statSync(pfad).size;
+    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+    if (range) { // Range/206 — sonst schwarzer Player bei Voice/Video (Fleet-Lektion)
+      const start = range[1] ? Number(range[1]) : 0;
+      const ende = range[2] ? Number(range[2]) : groesse - 1;
+      res.writeHead(206, { 'content-type': meta.mime, 'content-range': `bytes ${start}-${ende}/${groesse}`, 'accept-ranges': 'bytes', 'content-length': ende - start + 1 });
+      return createReadStream(pfad, { start, end: ende }).pipe(res);
+    }
+    res.writeHead(200, { 'content-type': meta.mime, 'content-length': groesse, 'accept-ranges': 'bytes' });
+    return createReadStream(pfad).pipe(res);
+  }
+
   // Alles Weitere unter /api verlangt Token (Admin oder Agent).
   if (url.pathname.startsWith('/api/')) {
     if (!wer) return json(res, 401, { ok: false, fehler: 'Token fehlt oder ungültig (Bearer).' });
@@ -117,33 +136,19 @@ const server = http.createServer(async (req, res) => {
 
     // Medien: roher Upload (x-fc-name-Header), Auslieferung mit Range/206 (Lektion: Video/Voice braucht das).
     if (url.pathname === '/api/media' && req.method === 'POST') {
-      const id = crypto.randomBytes(9).toString('hex') + extname(String(req.headers['x-fc-name'] || '')).toLowerCase().replace(/[^.a-z0-9]/g, '').slice(0, 8);
+      let name = String(req.headers['x-fc-name'] || '');
+      try { name = decodeURIComponent(name); } catch { /* roh lassen */ }
+      const id = crypto.randomBytes(9).toString('hex') + extname(name).toLowerCase().replace(/[^.a-z0-9]/g, '').slice(0, 8);
       const ziel = join(DATA, 'media', id);
       const out = createWriteStream(ziel, { mode: 0o600 });
       req.pipe(out);
       out.on('finish', () => {
         db.prepare('INSERT INTO media (id, name, mime, groesse, erstellt_am) VALUES (?, ?, ?, ?, ?)')
-          .run(id, String(req.headers['x-fc-name'] || id).slice(0, 200), String(req.headers['content-type'] || 'application/octet-stream').slice(0, 100), statSync(ziel).size, nowIso());
+          .run(id, (name || id).slice(0, 200), String(req.headers['content-type'] || 'application/octet-stream').slice(0, 100), statSync(ziel).size, nowIso());
         json(res, 200, { ok: true, id, url: '/api/media/' + id });
       });
       out.on('error', () => json(res, 500, { ok: false }));
       return;
-    }
-    const mMedia = /^\/api\/media\/([a-z0-9.]+)$/.exec(url.pathname);
-    if (mMedia && req.method === 'GET') {
-      const meta = db.prepare('SELECT * FROM media WHERE id = ?').get(mMedia[1]);
-      const pfad = join(DATA, 'media', mMedia[1]);
-      if (!meta || !existsSync(pfad)) return json(res, 404, { ok: false });
-      const groesse = statSync(pfad).size;
-      const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
-      if (range) {
-        const start = range[1] ? Number(range[1]) : 0;
-        const ende = range[2] ? Number(range[2]) : groesse - 1;
-        res.writeHead(206, { 'content-type': meta.mime, 'content-range': `bytes ${start}-${ende}/${groesse}`, 'accept-ranges': 'bytes', 'content-length': ende - start + 1 });
-        return createReadStream(pfad, { start, end: ende }).pipe(res);
-      }
-      res.writeHead(200, { 'content-type': meta.mime, 'content-length': groesse, 'accept-ranges': 'bytes' });
-      return createReadStream(pfad).pipe(res);
     }
     return json(res, 404, { ok: false, fehler: 'Unbekannter Endpunkt.' });
   }

@@ -25,6 +25,17 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .composer{display:flex;gap:8px;padding:12px 18px;background:#fff;border-top:1px solid var(--n100)}
 .composer textarea{flex:1;border:1px solid var(--n200);border-radius:10px;padding:.55rem .7rem;font:inherit;resize:none;min-height:44px}
 .composer button{border:0;border-radius:10px;background:var(--blau);color:#fff;font-weight:700;padding:0 18px;cursor:pointer}
+.composer .clip{background:#fff;border:1px solid var(--n200);color:var(--n500);font-size:1.05rem;padding:0 12px}
+.msg .med img{max-width:320px;max-height:240px;border-radius:10px;display:block;margin-top:6px}
+.msg .med audio{margin-top:6px;width:280px}
+.msg .med a{color:var(--blau);font-size:.86rem}
+.agenten{margin-top:18px;border-top:1px solid var(--n100);padding-top:10px}
+.agenten h4{margin:.2rem 0 .5rem;font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n500)}
+.agent{display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.25rem .3rem;color:var(--n900)}
+.agent .dot{width:9px;height:9px;border-radius:50%;background:var(--n200);flex:none}
+.agent .dot.on{background:hsl(145 65% 42%)}
+.agent .seit{margin-left:auto;color:var(--n500);font-size:.72rem}
+body.drag main{outline:3px dashed var(--blau);outline-offset:-8px}
 dialog{border:1px solid var(--n200);border-radius:14px;padding:18px;max-width:340px}
 dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.5rem .6rem;font:inherit;margin:.35rem 0}
 .muted{color:var(--n500);font-size:.82rem}
@@ -33,10 +44,10 @@ dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.
 <body>
 <header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:#fff;border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
 <div class="lay">
-  <aside id="kanaele"></aside>
+  <aside><div id="kanaele"></div><div class="agenten"><h4>Agenten</h4><div id="agenten-liste" class="muted">–</div></div></aside>
   <main>
     <div id="msgs"></div>
-    <div class="composer"><textarea id="inp" placeholder="Nachricht … (Enter sendet)"></textarea><button id="senden">Senden</button></div>
+    <div class="composer"><button class="clip" id="clip" title="Datei anhängen">📎</button><input id="datei" type="file" multiple hidden><textarea id="inp" placeholder="Nachricht … (Enter sendet, Dateien einfach reinziehen)"></textarea><button id="senden">Senden</button></div>
   </main>
 </div>
 <dialog id="tokdlg"><b>Admin-Token</b><p class="muted">Steht in der Server-Konsole beim Start.</p><input id="tokinp" type="password" placeholder="adm_…"><button id="tokok" style="border:0;background:var(--blau);color:#fff;border-radius:9px;padding:.45rem .9rem;cursor:pointer">Los</button></dialog>
@@ -53,9 +64,20 @@ async function ladeKanaele(){
   document.querySelectorAll('.kanal').forEach(b=>b.onclick=()=>{KANAL=b.dataset.k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';ladeMsgs();ladeKanaele();});
   return true;
 }
+function medienHtml(m){
+  let liste=[]; try{liste=typeof m.media==='string'?JSON.parse(m.media):(m.media||[]);}catch{}
+  if(!Array.isArray(liste)||!liste.length)return '';
+  return '<div class="med">'+liste.map(x=>{
+    const url=esc(x.url||('/api/media/'+x.id)), mime=String(x.mime||'');
+    if(mime.startsWith('image/'))return `<a href="${url}" target="_blank"><img src="${url}" alt="${esc(x.name||'Bild')}"></a>`;
+    if(mime.startsWith('audio/'))return `<audio controls src="${url}"></audio>`;
+    if(mime.startsWith('video/'))return `<video controls style="max-width:320px;border-radius:10px" src="${url}"></video>`;
+    return `<a href="${url}" download="${esc(x.name||'datei')}">📄 ${esc(x.name||'Datei')}</a>`;
+  }).join('')+'</div>';
+}
 function zeige(m){
   const d=document.createElement('div');d.className='msg'+(m.typ==='system'?' system':'');
-  d.innerHTML=`<div class="kopf"><b>${esc(m.von)}</b><span>${esc(m.typ)}</span><span>${new Date(m.erstellt_am).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="txt">${esc(m.inhalt)}</div><button class="erin" title="Erinnerung zu dieser Nachricht">⏰</button>`;
+  d.innerHTML=`<div class="kopf"><b>${esc(m.von)}</b><span>${esc(m.typ)}</span><span>${new Date(m.erstellt_am).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="txt">${esc(m.inhalt)}</div>${medienHtml(m)}<button class="erin" title="Erinnerung zu dieser Nachricht">⏰</button>`;
   d.querySelector('.erin').onclick=async()=>{
     const wann=prompt('Wann erinnern? (z.B. 2026-08-04T09:00)');if(!wann)return;
     const r=await api('/api/reminders',{method:'POST',body:JSON.stringify({kanal:KANAL,titel:m.inhalt.slice(0,120),quelle_msg:m.id,faellig_am:new Date(wann).toISOString()})});
@@ -73,6 +95,32 @@ async function senden(){
 }
 $('#senden').onclick=senden;
 $('#inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();senden();}});
+// Datei-Upload: waehlen oder reinziehen → hochladen → sofort als Nachricht in den Kanal.
+async function ladeHoch(dateien){
+  for(const f of dateien){
+    const r=await fetch('/api/media',{method:'POST',headers:{authorization:'Bearer '+TOKEN,'x-fc-name':encodeURIComponent(f.name),'content-type':f.type||'application/octet-stream'},body:f}).then(x=>x.json()).catch(()=>null);
+    if(!r||!r.ok){alert('Upload fehlgeschlagen: '+f.name);continue;}
+    await api('/api/send',{method:'POST',body:JSON.stringify({kanal:KANAL,von:'du',inhalt:'📎 '+f.name,media:[{id:r.id,url:r.url,name:f.name,mime:f.type||'application/octet-stream'}]})});
+  }
+  ladeMsgs();
+}
+$('#clip').onclick=()=>$('#datei').click();
+$('#datei').onchange=()=>{ladeHoch([...$('#datei').files]);$('#datei').value='';};
+document.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('drag');});
+document.addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('drag');if(e.dataTransfer?.files?.length)ladeHoch([...e.dataTransfer.files]);});
+// Presence: verbundene Agenten mit Lampe (gruen = in den letzten 90s gesehen).
+async function ladeAgenten(){
+  const r=await api('/api/presence');if(!r.ok)return;
+  const jetzt=Date.now();
+  $('#agenten-liste').innerHTML=(r.agents||[]).map(a=>{
+    const t=a.zuletzt_gesehen?new Date(a.zuletzt_gesehen).getTime():0;
+    const on=jetzt-t<90000;
+    const seit=t?(on?'jetzt':Math.max(1,Math.round((jetzt-t)/60000))+'m'):'nie';
+    return `<div class="agent"><span class="dot${on?' on':''}"></span>${esc(a.name)}<span class="seit">${seit}</span></div>`;
+  }).join('')||'<span class="muted">Noch keine Agenten verbunden.</span>';
+}
+setInterval(ladeAgenten,10000);
 $('#tokok').onclick=async()=>{TOKEN=$('#tokinp').value.trim();localStorage.setItem('fc_token',TOKEN);$('#tokdlg').close();start();};
 $('#einladen').onclick=async()=>{
   const r=await api('/api/invites',{method:'POST',body:JSON.stringify({kanal:KANAL,basis:location.origin})});
@@ -83,7 +131,7 @@ function sse(){
   es.addEventListener('message',(e)=>{const m=JSON.parse(e.data);if(m.kanal===KANAL&&m.id>LAST){zeige(m);LAST=m.id;}});
   es.onerror=()=>es.close();
 }
-async function start(){ if(await ladeKanaele()){ladeMsgs();sse();setInterval(ladeMsgs,4000);$('#stand').textContent='verbunden';} }
+async function start(){ if(await ladeKanaele()){ladeMsgs();ladeAgenten();sse();setInterval(ladeMsgs,4000);$('#stand').textContent='verbunden';} }
 start();
 </script>
 </body>
