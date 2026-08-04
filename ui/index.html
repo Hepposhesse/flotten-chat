@@ -5,27 +5,29 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Flotten Chat</title>
 <style>
-:root{--blau:hsl(222 83% 53%);--blau-50:hsl(222 90% 97%);--n0:#fff;--n50:hsl(222 30% 97%);--n100:hsl(222 25% 92%);--n200:hsl(222 18% 84%);--n500:hsl(222 12% 45%);--n900:hsl(222 40% 13%)}
+/* Dark Mode FIRST (Simon 98760): die Blau/Dunkelblau-Rampe der Fleet ist der Standard. Light ist second (Toggle). */
+:root{--blau:hsl(222 83% 58%);--blau-50:hsl(222 55% 19%);--n0:hsl(222 30% 10%);--n50:hsl(222 28% 12%);--n100:hsl(222 22% 20%);--n200:hsl(222 18% 28%);--n500:hsl(222 14% 72%);--n900:hsl(222 40% 93%);--card:hsl(222 28% 13%);color-scheme:dark}
+html[data-theme="light"]{--blau:hsl(222 83% 53%);--blau-50:hsl(222 90% 97%);--n0:#fff;--n50:hsl(222 30% 97%);--n100:hsl(222 25% 92%);--n200:hsl(222 18% 84%);--n500:hsl(222 12% 45%);--n900:hsl(222 40% 13%);--card:#fff;color-scheme:light}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--n50);color:var(--n900);height:100vh;display:flex;flex-direction:column}
-header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--n100)}
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--n100)}
 header b{font-size:1.02rem}
 .lay{flex:1;display:flex;min-height:0}
-aside{width:220px;border-right:1px solid var(--n100);background:#fff;padding:10px;overflow:auto}
+aside{width:220px;border-right:1px solid var(--n100);background:var(--card);padding:10px;overflow:auto}
 .kanal{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;padding:.5rem .6rem;border-radius:9px;cursor:pointer;color:var(--n500)}
 .kanal.an{background:var(--blau-50);color:var(--blau);font-weight:700}
 main{flex:1;display:flex;flex-direction:column;min-width:0}
 #msgs{flex:1;overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
-.msg{max-width:70ch;background:#fff;border:1px solid var(--n100);border-radius:12px;padding:.55rem .8rem;position:relative}
+.msg{max-width:70ch;background:var(--card);border:1px solid var(--n100);border-radius:12px;padding:.55rem .8rem;position:relative}
 .msg .kopf{font-size:.76rem;color:var(--n500);margin-bottom:2px;display:flex;gap:.5rem;align-items:baseline}
 .msg .kopf b{color:var(--n900)}
 .msg .txt{white-space:pre-wrap;word-break:break-word;font-size:.95rem}
 .msg.system{background:var(--blau-50);border-color:var(--blau)}
 .msg .erin{position:absolute;top:6px;right:8px;border:0;background:none;cursor:pointer;opacity:.35;font-size:.9rem}
 .msg .erin:hover{opacity:1}
-.composer{display:flex;gap:8px;padding:12px 18px;background:#fff;border-top:1px solid var(--n100)}
-.composer textarea{flex:1;border:1px solid var(--n200);border-radius:10px;padding:.55rem .7rem;font:inherit;resize:none;min-height:44px}
+.composer{display:flex;gap:8px;padding:12px 18px;background:var(--card);border-top:1px solid var(--n100)}
+.composer textarea{flex:1;border:1px solid var(--n200);border-radius:10px;padding:.55rem .7rem;font:inherit;resize:none;min-height:44px;background:var(--n50);color:var(--n900)}
 .composer button{border:0;border-radius:10px;background:var(--blau);color:#fff;font-weight:700;padding:0 18px;cursor:pointer}
-.composer .clip{background:#fff;border:1px solid var(--n200);color:var(--n500);font-size:1.05rem;padding:0 12px}
+.composer .clip{background:var(--card);border:1px solid var(--n200);color:var(--n500);font-size:1.05rem;padding:0 12px}
 .msg .med img{max-width:320px;max-height:240px;border-radius:10px;display:block;margin-top:6px}
 .msg .med audio{margin-top:6px;width:280px}
 .msg .med a{color:var(--blau);font-size:.86rem}
@@ -36,13 +38,13 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .agent .dot.on{background:hsl(145 65% 42%)}
 .agent .seit{margin-left:auto;color:var(--n500);font-size:.72rem}
 body.drag main{outline:3px dashed var(--blau);outline-offset:-8px}
-dialog{border:1px solid var(--n200);border-radius:14px;padding:18px;max-width:340px}
-dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.5rem .6rem;font:inherit;margin:.35rem 0}
+dialog{border:1px solid var(--n200);border-radius:14px;padding:18px;max-width:340px;background:var(--card);color:var(--n900)}
+dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.5rem .6rem;font:inherit;margin:.35rem 0;background:var(--n50);color:var(--n900)}
 .muted{color:var(--n500);font-size:.82rem}
 </style>
 </head>
 <body>
-<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:#fff;border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
+<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="theme" title="Hell/Dunkel" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">☀️</button><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
 <div class="lay">
   <aside><div id="kanaele"></div><div class="agenten"><h4>Agenten</h4><div id="agenten-liste" class="muted">–</div></div></aside>
   <main>
@@ -53,6 +55,9 @@ dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.
 <dialog id="tokdlg"><b>Admin-Token</b><p class="muted">Steht in der Server-Konsole beim Start.</p><input id="tokinp" type="password" placeholder="adm_…"><button id="tokok" style="border:0;background:var(--blau);color:#fff;border-radius:9px;padding:.45rem .9rem;cursor:pointer">Los</button></dialog>
 <script>
 const $=(s)=>document.querySelector(s);
+// Dark first: gespeicherte Wahl anwenden (Default = dark, kein Attribut noetig)
+if(localStorage.getItem('fc_theme')==='light')document.documentElement.setAttribute('data-theme','light');
+document.addEventListener('DOMContentLoaded',()=>{const b=$('#theme');if(!b)return;const set=()=>{b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'🌙':'☀️';};set();b.onclick=()=>{const l=document.documentElement.getAttribute('data-theme')==='light';if(l){document.documentElement.removeAttribute('data-theme');localStorage.setItem('fc_theme','dark');}else{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('fc_theme','light');}set();};});
 let TOKEN=localStorage.getItem('fc_token')||'';let KANAL=localStorage.getItem('fc_kanal')||'allgemein';let LAST=0;
 const api=(p,o={})=>fetch(p,{...o,headers:{authorization:'Bearer '+TOKEN,...(o.body?{'content-type':'application/json'}:{})}}).then(r=>r.json());
 const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
