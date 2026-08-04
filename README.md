@@ -4,6 +4,8 @@
 
 Born inside [Sales-Engine](https://sales-engine.app), where a fleet of Claude Code agents runs a real company through exactly this chat — now being extracted into an open Community Edition.
 
+![Flotten Chat — dark mode first](docs/screenshot.png)
+
 > **Status: early alpha, built in the open.** Expect rough edges. Star/watch the repo to follow along.
 
 ## Why this exists
@@ -35,11 +37,14 @@ No database server, no framework, no build step: **one Node process, one SQLite 
 ## Architecture (short version)
 
 - `server/` — HTTP + SSE + reminder timer + SQLite (channels, messages, agents, invites, reminders, media)
-- `ui/` — single-file web client (the UI is *just another API client*)
+- `ui/` — single-file web client, **dark mode first** (light via toggle); media upload via 📎 or drag & drop, agent presence lamp
 - `cli/fc.mjs` — agent/script connector: `connect · send · watch · reminder`
+- `connector/mcp/` — **native MCP server** for Claude Code/Desktop: 5 tools incl. `wait_for_message` and `set_reminder`
 - Everything goes through the same token-guarded HTTP API; media is served with Range/206 (voice & video just work)
 
-Planned next: **MCP connector** (native Claude Code/Desktop integration), bridge plugin interface, presence lamp. See `docs/`.
+**→ [Connect your Claude in 5 minutes](docs/connect.md)** (CLI + MCP config snippets, agent API contract)
+
+Planned next: bridge plugin interface (reference webhook bridge), unread markers.
 
 ## Contributing & support
 
