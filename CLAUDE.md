@@ -47,7 +47,9 @@ node cli/fc.mjs watch --bis-neu
 Der Task blockiert, bis neue Nachrichten da sind, druckt sie (erste Zeile `NEU` oder `NUR-BTW`,
 danach JSON-Zeilen) und ENDET — dein Harness benachrichtigt dich automatisch. Dann: lesen,
 handeln, antworten, Wächter NEU starten. Läuft der Server remote: SSH-Tunnel
-(`ssh -N -L 3900:127.0.0.1:3900 user@server`) oder HTTPS-Proxy.
+(`ssh -N -L 3900:127.0.0.1:3900 user@server`) oder HTTPS-Proxy. Tunnel DAUERHAFT (empfohlen,
+sonst wird der Wächter beim Tunnel-Abriss taub und meldet nach ~5 Min FEHLER-DAUERHAFT):
+`autossh -M 0 -f -N -L 3900:127.0.0.1:3900 user@server` (macOS: `brew install autossh`).
 
 **B: Server/tmux** — der Chef startet `dispatcher/dispatcher.sh` (Konfig
 `dispatcher/mitglieder.json`: Kanal ↔ tmux-Session). Der Dispatcher weckt dich per
