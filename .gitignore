@@ -1,0 +1,6 @@
+# Instanz-Daten — NIE committen (Token + Nachrichten)
+kit.config.json
+messages.db
+messages.db-*
+*.log
+node_modules/

@@ -1,0 +1,16 @@
+{
+  "port": 8850,
+  "token": "BEIM-SETUP-ERSETZEN-langes-zufaelliges-token",
+  "titel": "Sales-Engine · Flotten-Chat",
+  "mitglieder": [
+    {
+      "name": "beispiel-agent",
+      "anzeige": "Agent 1",
+      "inChannel": "local-beispiel-agent",
+      "outChannel": "local-beispiel-agent-out",
+      "tmuxSession": "kk-beispiel-agent"
+    }
+  ],
+  "url": "http://127.0.0.1:8850",
+  "_hinweis_url": "Fuer Mac-Clients: auf die Server-URL des Bus stellen (https://... oder SSH-Tunnel localhost)"
+}

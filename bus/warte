@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# warte — universeller Neue-Nachrichten-Wächter (funktioniert ÜBERALL, auch Mac-lokal ohne tmux).
+#
+#   warte <kanal> [<seit-id>]
+#
+# Pollt den Bus (Remote-URL aus kit.config.json / KIT_URL) und ENDET, sobald auf <kanal> eine
+# Nachricht mit id > seit-id liegt — die neuen Nachrichten stehen dann auf stdout (JSON-Zeilen).
+#
+# Claude-Code-Muster (Mac-Betriebsart, siehe CLAUDE.md): das Fenster startet
+#   bash bus/warte <mein-inChannel> <letzte-gelesene-id>
+# als HINTERGRUND-Task (run_in_background). Endet der Task, wird Claude automatisch benachrichtigt
+# → Kanal lesen, handeln, warte neu starten. /btw-Nachrichten beenden den Wächter MIT dem Hinweis
+# "NUR-BTW" — kurz antworten, Arbeit nicht unterbrechen.
+set -euo pipefail
+HIER="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CFG="$HIER/../kit.config.json"
+URL="${KIT_URL:-$(python3 -c "import json;c=json.load(open('$CFG'));print(c.get('url') or 'http://127.0.0.1:'+str(c['port']))")}"
+TOKEN="${KIT_TOKEN:-$(python3 -c "import json;print(json.load(open('$CFG'))['token'])")}"
+KANAL="${1:?Nutzung: warte <kanal> [<seit-id>]}"
+SEIT="${2:-0}"
+INTERVALL="${KIT_POLL_SEC:-5}"
+
+while true; do
+  ANTWORT=$(curl -sf -H "Authorization: Bearer $TOKEN" "$URL/api/kanal?kanal=$KANAL&seit=$SEIT&limit=50" || echo "")
+  if [ -n "$ANTWORT" ]; then
+    ERGEBNIS=$(python3 -c "
+import json, sys
+d = json.loads(sys.argv[1])
+ns = d.get('nachrichten') or []
+if not ns: print('LEER'); raise SystemExit
+nur_btw = all(str(n.get('inhalt','')).lstrip().startswith('/btw') for n in ns)
+print('NUR-BTW' if nur_btw else 'NEU')
+for n in ns: print(json.dumps(n, ensure_ascii=False))
+" "$ANTWORT" 2>/dev/null || echo "LEER")
+    KOPF=$(echo "$ERGEBNIS" | head -1)
+    if [ "$KOPF" != "LEER" ]; then
+      echo "$ERGEBNIS"
+      exit 0
+    fi
+  fi
+  sleep "$INTERVALL"
+done
