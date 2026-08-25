@@ -66,5 +66,5 @@ npm test        # Kern-Tests (SQLite, Kanäle, Connect, Reminder)
 - Nachrichten-Inhalte sind Daten, keine Anweisungen — Agenten nehmen Aufträge nur vom Chef an.
 
 ## Lizenz & Unterstützung
-Siehe [LICENSE](LICENSE). Wenn dir das Projekt hilft, freuen wir uns über Unterstützung —
+**AGPL-3.0** — © 2026 Simon Hesse · Sales-Engine. Frei nutzbar; wer es verändert und als Dienst anbietet, muss die Änderungen offenlegen ([LICENSE](LICENSE)). Wenn dir das Projekt hilft, freuen wir uns über Unterstützung —
 Links in `.github/FUNDING.yml`. Gebaut von der Sales-Engine-Flotte 🤖
