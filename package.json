@@ -1,0 +1,18 @@
+{
+  "name": "flotten-chat",
+  "version": "0.1.0-alpha.1",
+  "description": "Sales Engine Flotten Chat — self-hosted chat where AI agents are first-class citizens: one-click reminders that fire without an AI call, and a self-connect protocol for Claude Code & friends.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "bin": {
+    "flottenchat": "bin/flottenchat.mjs",
+    "fc": "cli/fc.mjs"
+  },
+  "scripts": {
+    "start": "node --no-warnings bin/flottenchat.mjs up",
+    "test": "node --no-warnings test_kern.mjs"
+  },
+  "repository": { "type": "git", "url": "https://github.com/Hepposhesse/flotten-chat" },
+  "keywords": ["ai-agents", "chat", "claude-code", "mcp", "reminders", "self-hosted", "sqlite"]
+}

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flotten Chat</title>
+<style>
+/* Dark Mode FIRST (Simon 98760): die Blau/Dunkelblau-Rampe der Fleet ist der Standard. Light ist second (Toggle). */
+:root{--blau:hsl(222 83% 58%);--blau-50:hsl(222 55% 19%);--n0:hsl(222 30% 10%);--n50:hsl(222 28% 12%);--n100:hsl(222 22% 20%);--n200:hsl(222 18% 28%);--n500:hsl(222 14% 72%);--n900:hsl(222 40% 93%);--card:hsl(222 28% 13%);color-scheme:dark}
+html[data-theme="light"]{--blau:hsl(222 83% 53%);--blau-50:hsl(222 90% 97%);--n0:#fff;--n50:hsl(222 30% 97%);--n100:hsl(222 25% 92%);--n200:hsl(222 18% 84%);--n500:hsl(222 12% 45%);--n900:hsl(222 40% 13%);--card:#fff;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--n50);color:var(--n900);height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--n100)}
+header b{font-size:1.02rem}
+.lay{flex:1;display:flex;min-height:0}
+aside{width:220px;border-right:1px solid var(--n100);background:var(--card);padding:10px;overflow:auto}
+.kanal{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;padding:.5rem .6rem;border-radius:9px;cursor:pointer;color:var(--n500)}
+.kanal.an{background:var(--blau-50);color:var(--blau);font-weight:700}
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+#msgs{flex:1;overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:70ch;background:var(--card);border:1px solid var(--n100);border-radius:12px;padding:.55rem .8rem;position:relative}
+.msg .kopf{font-size:.76rem;color:var(--n500);margin-bottom:2px;display:flex;gap:.5rem;align-items:baseline}
+.msg .kopf b{color:var(--n900)}
+.msg .txt{white-space:pre-wrap;word-break:break-word;font-size:.95rem}
+.msg.system{background:var(--blau-50);border-color:var(--blau)}
+.msg .erin{position:absolute;top:6px;right:8px;border:0;background:none;cursor:pointer;opacity:.35;font-size:.9rem}
+.msg .erin:hover{opacity:1}
+.composer{display:flex;gap:8px;padding:12px 18px;background:var(--card);border-top:1px solid var(--n100)}
+.composer textarea{flex:1;border:1px solid var(--n200);border-radius:10px;padding:.55rem .7rem;font:inherit;resize:none;min-height:44px;background:var(--n50);color:var(--n900)}
+.composer button{border:0;border-radius:10px;background:var(--blau);color:#fff;font-weight:700;padding:0 18px;cursor:pointer}
+.composer .clip{background:var(--card);border:1px solid var(--n200);color:var(--n500);font-size:1.05rem;padding:0 12px}
+.msg .med img{max-width:320px;max-height:240px;border-radius:10px;display:block;margin-top:6px}
+.msg .med audio{margin-top:6px;width:280px}
+.msg .med a{color:var(--blau);font-size:.86rem}
+.agenten{margin-top:18px;border-top:1px solid var(--n100);padding-top:10px}
+.agenten h4{margin:.2rem 0 .5rem;font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n500)}
+.agent{display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.25rem .3rem;color:var(--n900)}
+.agent .dot{width:9px;height:9px;border-radius:50%;background:var(--n200);flex:none}
+.agent .dot.on{background:hsl(145 65% 42%)}
+.agent .seit{margin-left:auto;color:var(--n500);font-size:.72rem}
+body.drag main{outline:3px dashed var(--blau);outline-offset:-8px}
+dialog{border:1px solid var(--n200);border-radius:14px;padding:18px;max-width:340px;background:var(--card);color:var(--n900)}
+dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.5rem .6rem;font:inherit;margin:.35rem 0;background:var(--n50);color:var(--n900)}
+.muted{color:var(--n500);font-size:.82rem}
+</style>
+</head>
+<body>
+<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="theme" title="Hell/Dunkel" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">☀️</button><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
+<div class="lay">
+  <aside><div id="kanaele"></div><div class="agenten"><h4>Agenten</h4><div id="agenten-liste" class="muted">–</div></div></aside>
+  <main>
+    <div id="msgs"></div>
+    <div class="composer"><button class="clip" id="clip" title="Datei anhängen">📎</button><input id="datei" type="file" multiple hidden><textarea id="inp" placeholder="Nachricht … (Enter sendet, Dateien einfach reinziehen)"></textarea><button id="senden">Senden</button></div>
+  </main>
+</div>
+<dialog id="tokdlg"><b>Admin-Token</b><p class="muted">Steht in der Server-Konsole beim Start.</p><input id="tokinp" type="password" placeholder="adm_…"><button id="tokok" style="border:0;background:var(--blau);color:#fff;border-radius:9px;padding:.45rem .9rem;cursor:pointer">Los</button></dialog>
+<script>
+const $=(s)=>document.querySelector(s);
+// Dark first: gespeicherte Wahl anwenden (Default = dark, kein Attribut noetig)
+if(localStorage.getItem('fc_theme')==='light')document.documentElement.setAttribute('data-theme','light');
+document.addEventListener('DOMContentLoaded',()=>{const b=$('#theme');if(!b)return;const set=()=>{b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'🌙':'☀️';};set();b.onclick=()=>{const l=document.documentElement.getAttribute('data-theme')==='light';if(l){document.documentElement.removeAttribute('data-theme');localStorage.setItem('fc_theme','dark');}else{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('fc_theme','light');}set();};});
+let TOKEN=localStorage.getItem('fc_token')||'';let KANAL=localStorage.getItem('fc_kanal')||'allgemein';let LAST=0;
+const api=(p,o={})=>fetch(p,{...o,headers:{authorization:'Bearer '+TOKEN,...(o.body?{'content-type':'application/json'}:{})}}).then(r=>r.json());
+const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function ladeKanaele(){
+  const r=await api('/api/channels');
+  if(!r.ok){$('#tokdlg').showModal();return false;}
+  $('#kanaele').innerHTML=r.channels.filter(k=>!k.archiviert).map(k=>`<button class="kanal${k.name===KANAL?' an':''}" data-k="${esc(k.name)}">${esc(k.label||k.name)}</button>`).join('');
+  document.querySelectorAll('.kanal').forEach(b=>b.onclick=()=>{KANAL=b.dataset.k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';ladeMsgs();ladeKanaele();});
+  return true;
+}
+function medienHtml(m){
+  let liste=[]; try{liste=typeof m.media==='string'?JSON.parse(m.media):(m.media||[]);}catch{}
+  if(!Array.isArray(liste)||!liste.length)return '';
+  return '<div class="med">'+liste.map(x=>{
+    const url=esc(x.url||('/api/media/'+x.id)), mime=String(x.mime||'');
+    if(mime.startsWith('image/'))return `<a href="${url}" target="_blank"><img src="${url}" alt="${esc(x.name||'Bild')}"></a>`;
+    if(mime.startsWith('audio/'))return `<audio controls src="${url}"></audio>`;
+    if(mime.startsWith('video/'))return `<video controls style="max-width:320px;border-radius:10px" src="${url}"></video>`;
+    return `<a href="${url}" download="${esc(x.name||'datei')}">📄 ${esc(x.name||'Datei')}</a>`;
+  }).join('')+'</div>';
+}
+function zeige(m){
+  const d=document.createElement('div');d.className='msg'+(m.typ==='system'?' system':'');
+  d.innerHTML=`<div class="kopf"><b>${esc(m.von)}</b><span>${esc(m.typ)}</span><span>${new Date(m.erstellt_am).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="txt">${esc(m.inhalt)}</div>${medienHtml(m)}<button class="erin" title="Erinnerung zu dieser Nachricht">⏰</button>`;
+  d.querySelector('.erin').onclick=async()=>{
+    const wann=prompt('Wann erinnern? (z.B. 2026-08-04T09:00)');if(!wann)return;
+    const r=await api('/api/reminders',{method:'POST',body:JSON.stringify({kanal:KANAL,titel:m.inhalt.slice(0,120),quelle_msg:m.id,faellig_am:new Date(wann).toISOString()})});
+    if(r.ok)d.querySelector('.erin').textContent='✅';
+  };
+  $('#msgs').append(d);$('#msgs').scrollTop=1e9;
+}
+async function ladeMsgs(){
+  const r=await api(`/api/messages?kanal=${encodeURIComponent(KANAL)}&seit=${LAST}`);
+  if(r.ok)for(const m of r.messages){zeige(m);LAST=m.id;}
+}
+async function senden(){
+  const t=$('#inp').value.trim();if(!t)return;$('#inp').value='';
+  await api('/api/send',{method:'POST',body:JSON.stringify({kanal:KANAL,inhalt:t,von:'du'})});
+}
+$('#senden').onclick=senden;
+$('#inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();senden();}});
+// Datei-Upload: waehlen oder reinziehen → hochladen → sofort als Nachricht in den Kanal.
+async function ladeHoch(dateien){
+  for(const f of dateien){
+    const r=await fetch('/api/media',{method:'POST',headers:{authorization:'Bearer '+TOKEN,'x-fc-name':encodeURIComponent(f.name),'content-type':f.type||'application/octet-stream'},body:f}).then(x=>x.json()).catch(()=>null);
+    if(!r||!r.ok){alert('Upload fehlgeschlagen: '+f.name);continue;}
+    await api('/api/send',{method:'POST',body:JSON.stringify({kanal:KANAL,von:'du',inhalt:'📎 '+f.name,media:[{id:r.id,url:r.url,name:f.name,mime:f.type||'application/octet-stream'}]})});
+  }
+  ladeMsgs();
+}
+$('#clip').onclick=()=>$('#datei').click();
+$('#datei').onchange=()=>{ladeHoch([...$('#datei').files]);$('#datei').value='';};
+document.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('drag');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('drag');});
+document.addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('drag');if(e.dataTransfer?.files?.length)ladeHoch([...e.dataTransfer.files]);});
+// Presence: verbundene Agenten mit Lampe (gruen = in den letzten 90s gesehen).
+async function ladeAgenten(){
+  const r=await api('/api/presence');if(!r.ok)return;
+  const jetzt=Date.now();
+  $('#agenten-liste').innerHTML=(r.agents||[]).map(a=>{
+    const t=a.zuletzt_gesehen?new Date(a.zuletzt_gesehen).getTime():0;
+    const on=jetzt-t<90000;
+    const seit=t?(on?'jetzt':Math.max(1,Math.round((jetzt-t)/60000))+'m'):'nie';
+    return `<div class="agent"><span class="dot${on?' on':''}"></span>${esc(a.name)}<span class="seit">${seit}</span></div>`;
+  }).join('')||'<span class="muted">Noch keine Agenten verbunden.</span>';
+}
+setInterval(ladeAgenten,10000);
+$('#tokok').onclick=async()=>{TOKEN=$('#tokinp').value.trim();localStorage.setItem('fc_token',TOKEN);$('#tokdlg').close();start();};
+$('#einladen').onclick=async()=>{
+  const r=await api('/api/invites',{method:'POST',body:JSON.stringify({kanal:KANAL,basis:location.origin})});
+  if(r.ok)prompt('Diesen Satz deinem Agenten geben:',`Verbinde dich mit meinem Flotten Chat: fc connect ${location.origin} ${r.invite_token}`);
+};
+function sse(){
+  const es=new EventSource('/api/events?token='+TOKEN);// SSE kann keine Header — Kern prüft Bearer, UI nutzt Poll-Fallback
+  es.addEventListener('message',(e)=>{const m=JSON.parse(e.data);if(m.kanal===KANAL&&m.id>LAST){zeige(m);LAST=m.id;}});
+  es.onerror=()=>es.close();
+}
+async function start(){ if(await ladeKanaele()){ladeMsgs();ladeAgenten();sse();setInterval(ladeMsgs,4000);$('#stand').textContent='verbunden';} }
+start();
+</script>
+</body>
+</html>
