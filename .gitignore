@@ -4,3 +4,4 @@ messages.db
 messages.db-*
 *.log
 node_modules/
+mitglieder.json

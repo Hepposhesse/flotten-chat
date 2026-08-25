@@ -3,7 +3,8 @@
 // Befehle:
 //   fc connect <server-url> <invite_token> [--name <n>]   Self-Connect: registriert diesen Agenten
 //   fc send <text> [--kanal k] [--typ fyi|done|answer] [--bezug id]
-//   fc watch [--once] [--intervall 5]                      lauscht ab Durable-Cursor, druckt Neues
+//   fc watch [--once] [--bis-neu] [--intervall 5]           lauscht ab Durable-Cursor, druckt Neues
+//     --bis-neu: blockiert bis Neues da ist, druckt NEU|NUR-BTW + JSON und ENDET (Claude-Hintergrund-Task)
 //   fc reminder <titel> --am <ISO-Zeit> [--notiz t]
 // Konfig liegt in ~/.flottenchat/config.json (url, token, kanal, cursor) — der Durable-Cursor
 // überlebt Neustarts, exakt das Muster, das sich in der Fleet bewährt hat.
@@ -53,14 +54,25 @@ if (cmd === 'send') {
 } else if (cmd === 'watch') {
   const intervall = Number(arg('intervall', 5)) * 1000;
   const einmal = process.argv.includes('--once');
-  console.log(`👂 lausche auf ${cfg.kanal} ab id ${cfg.cursor} …`);
+  // --bis-neu (Claude-Code-Hintergrund-Muster, Mac-Betriebsart): blockiert, bis NEUE Nachrichten
+  // da sind, druckt sie und ENDET — der endende Hintergrund-Task weckt das Claude-Fenster.
+  // Erste Ausgabe-Zeile: NEU oder NUR-BTW (alle neuen beginnen mit "/btw" → kurz antworten,
+  // laufende Arbeit nicht unterbrechen). Cursor wird persistiert wie bei watch.
+  const bisNeu = process.argv.includes('--bis-neu');
+  if (!bisNeu) console.log(`👂 lausche auf ${cfg.kanal} ab id ${cfg.cursor} …`);
   for (;;) {
     try {
       const r = await api(cfg, `/api/messages?kanal=${encodeURIComponent(cfg.kanal)}&seit=${cfg.cursor}`);
-      for (const m of r.messages || []) {
-        console.log(`[${m.id}] ${m.von} (${m.typ}): ${m.inhalt}`);
+      const batch = r.messages || [];
+      if (bisNeu && batch.length) {
+        const nurBtw = batch.every((m) => String(m.inhalt || '').trimStart().startsWith('/btw'));
+        console.log(nurBtw ? 'NUR-BTW' : 'NEU');
+      }
+      for (const m of batch) {
+        console.log(bisNeu ? JSON.stringify(m) : `[${m.id}] ${m.von} (${m.typ}): ${m.inhalt}`);
         cfg.cursor = m.id; speichere(cfg);
       }
+      if (bisNeu && batch.length) process.exit(0);
       if (einmal) process.exit(0);
     } catch (e) { console.error('watch:', e.message); }
     await new Promise((z) => setTimeout(z, intervall));
