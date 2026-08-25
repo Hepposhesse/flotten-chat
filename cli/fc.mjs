@@ -60,7 +60,8 @@ if (cmd === 'send') {
   // laufende Arbeit nicht unterbrechen). Cursor wird persistiert wie bei watch.
   const bisNeu = process.argv.includes('--bis-neu');
   if (!bisNeu) console.log(`👂 lausche auf ${cfg.kanal} ab id ${cfg.cursor} …`);
-  for (;;) {
+  let fehlerFolge = 0; // Fail-Fast (--bis-neu): bei totem Server/Tunnel NICHT still taub bleiben —
+  for (;;) {           // nach ~5 Min Dauerfehler mit Meldung ENDEN, damit der Harness das Fenster weckt.
     try {
       const r = await api(cfg, `/api/messages?kanal=${encodeURIComponent(cfg.kanal)}&seit=${cfg.cursor}`);
       const batch = r.messages || [];
@@ -74,7 +75,11 @@ if (cmd === 'send') {
       }
       if (bisNeu && batch.length) process.exit(0);
       if (einmal) process.exit(0);
-    } catch (e) { console.error('watch:', e.message); }
+      fehlerFolge = 0;
+    } catch (e) {
+      console.error('watch:', e.message);
+      if (bisNeu && ++fehlerFolge >= 60) { console.log('FEHLER-DAUERHAFT'); console.error('watch --bis-neu: Server/Tunnel seit ~5 Min nicht erreichbar — beende, bitte Verbindung prüfen und Wächter neu starten.'); process.exit(1); }
+    }
     await new Promise((z) => setTimeout(z, intervall));
   }
 } else if (cmd === 'reminder') {

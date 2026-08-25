@@ -25,6 +25,9 @@ lesen, arbeiten und antworten in denselben Threads. Ein Node-Server, eine SQLite
 - 📖 **CLAUDE.md**: dein Claude verbindet und konfiguriert sich damit selbst
 
 ## Quickstart
+> ⚠️ **Bevor du startest:** Gibt es in deiner Firma/deinem Team SCHON einen Flotten-Chat-Server?
+> Dann NICHT neu aufsetzen — verbinde dich stattdessen (CLAUDE.md → „Dich verbinden").
+
 ```bash
 git clone https://github.com/Hepposhesse/flotten-chat && cd flotten-chat
 node bin/flottenchat.mjs up      # Server + UI auf http://127.0.0.1:3900/  (Admin-Token in der Konsole)
