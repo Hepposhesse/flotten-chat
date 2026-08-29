@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   openDb, kanalAnlegen, kanaele, senden, nachrichten,
   inviteAnlegen, connect, agentViaToken, presence,
-  reminderAnlegen, reminders, reminderErledigt, faelligeFeuern,
+  reminderAnlegen, reminders, reminderErledigt, reminderVerschieben, faelligeFeuern,
 } from './server/db.mjs';
 
 let pass = 0, fail = 0;
@@ -56,6 +56,14 @@ ok(gefeuert[0].message.typ === 'system' && gefeuert[0].message.inhalt.includes('
 ok(faelligeFeuern(db).length === 0, 'Gefeuerte feuert nicht doppelt');
 ok(reminderErledigt(db, r2.id).status === 'erledigt', 'Erledigt-Markierung');
 ok(reminders(db, { status: 'offen' }).length === 1, 'Status-Filter (r1 offen, r2 erledigt)');
+
+// Verschieben: neu terminieren macht wieder offen + ungefeuert → feuert zur NEUEN Zeit erneut
+const v = reminderVerschieben(db, r1.id, später);
+ok(v && v.faellig_am === später && v.status === 'offen' && v.gefeuert_am === null, 'Verschieben: neue Zeit + wieder offen/ungefeuert');
+ok(faelligeFeuern(db).length === 0, 'In die Zukunft verschoben → feuert (noch) nicht');
+reminderVerschieben(db, r1.id, new Date(Date.now() - 120000).toISOString());
+ok(faelligeFeuern(db).length === 1, 'In die Vergangenheit verschoben → feuert erneut');
+ok(reminderVerschieben(db, r1.id, null) === null, 'Verschieben ohne Zeit → null');
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`${pass} passed, ${fail} failed`);

@@ -44,7 +44,7 @@ dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.
 </style>
 </head>
 <body>
-<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="theme" title="Hell/Dunkel" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">☀️</button><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
+<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="theme" title="Hell/Dunkel" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">☀️</button><button id="remBtn" title="Erinnerungen" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">⏰</button><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
 <div class="lay">
   <aside><div id="kanaele"></div><div class="agenten"><h4>Agenten</h4><div id="agenten-liste" class="muted">–</div></div></aside>
   <main>
@@ -53,6 +53,14 @@ dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.
   </main>
 </div>
 <dialog id="tokdlg"><b>Admin-Token</b><p class="muted">Steht in der Server-Konsole beim Start.</p><input id="tokinp" type="password" placeholder="adm_…"><button id="tokok" style="border:0;background:var(--blau);color:#fff;border-radius:9px;padding:.45rem .9rem;cursor:pointer">Los</button></dialog>
+<dialog id="remdlg" style="max-width:460px;width:92vw">
+  <div style="display:flex;align-items:center;gap:8px"><b>⏰ Erinnerungen</b><button id="remclose" style="margin-left:auto;border:0;background:none;color:var(--n500);cursor:pointer;font-size:1.1rem">✕</button></div>
+  <div id="remliste" class="muted" style="margin:.6rem 0;max-height:52vh;overflow:auto">–</div>
+  <div style="border-top:1px solid var(--n100);padding-top:.6rem">
+    <input id="remtitel" placeholder="Woran erinnern?">
+    <div style="display:flex;gap:6px"><input id="remwann" type="datetime-local" style="flex:1;margin:.35rem 0"><button id="remneu" style="border:0;background:var(--blau);color:#fff;border-radius:9px;padding:0 14px;cursor:pointer;font-weight:700">+ Anlegen</button></div>
+  </div>
+</dialog>
 <script>
 const $=(s)=>document.querySelector(s);
 // Dark first: gespeicherte Wahl anwenden (Default = dark, kein Attribut noetig)
@@ -83,11 +91,7 @@ function medienHtml(m){
 function zeige(m){
   const d=document.createElement('div');d.className='msg'+(m.typ==='system'?' system':'');
   d.innerHTML=`<div class="kopf"><b>${esc(m.von)}</b><span>${esc(m.typ)}</span><span>${new Date(m.erstellt_am).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span></div><div class="txt">${esc(m.inhalt)}</div>${medienHtml(m)}<button class="erin" title="Erinnerung zu dieser Nachricht">⏰</button>`;
-  d.querySelector('.erin').onclick=async()=>{
-    const wann=prompt('Wann erinnern? (z.B. 2026-08-04T09:00)');if(!wann)return;
-    const r=await api('/api/reminders',{method:'POST',body:JSON.stringify({kanal:KANAL,titel:m.inhalt.slice(0,120),quelle_msg:m.id,faellig_am:new Date(wann).toISOString()})});
-    if(r.ok)d.querySelector('.erin').textContent='✅';
-  };
+  d.querySelector('.erin').onclick=()=>remOeffnen(m.inhalt.slice(0,120),m.id);
   $('#msgs').append(d);$('#msgs').scrollTop=1e9;
 }
 async function ladeMsgs(){
@@ -126,6 +130,37 @@ async function ladeAgenten(){
   }).join('')||'<span class="muted">Noch keine Agenten verbunden.</span>';
 }
 setInterval(ladeAgenten,10000);
+// ── Erinnerungen: Übersicht (überfällig/heute offen · Zukunft eingeklappt · verschieben/abhaken) ──
+let remZukunftAuf=false, remQuelle=null;
+function remZeit(iso){try{return new Date(iso).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch{return iso;}}
+function remGruppen(liste){
+  const jetzt=Date.now(),heute=new Date().toDateString(),ueber=[],heu=[],spaet=[];
+  (liste||[]).filter(r=>(r.status||'offen')==='offen'&&r.faellig_am)
+    .sort((a,b)=>Date.parse(a.faellig_am)-Date.parse(b.faellig_am))
+    .forEach(r=>{const t=Date.parse(r.faellig_am);if(t<=jetzt)ueber.push(r);else if(new Date(t).toDateString()===heute)heu.push(r);else spaet.push(r);});
+  return {ueber,heu,spaet};
+}
+function remZeile(r,rot){
+  return `<div class="remrow" data-id="${r.id}" style="display:flex;gap:8px;align-items:center;padding:.4rem .2rem;border-bottom:1px solid var(--n100)"><span style="color:${rot?'#e5484d':'var(--n500)'};font-size:.76rem;white-space:nowrap">${esc(remZeit(r.faellig_am))}</span><span style="flex:1;font-size:.9rem;word-break:break-word">${esc(r.titel)}</span><button class="rem-ver" title="Verschieben" style="border:0;background:none;cursor:pointer">🕐</button><button class="rem-erl" title="Erledigt" style="border:0;background:none;cursor:pointer">✅</button></div>`;
+}
+async function remLaden(){
+  const r=await api('/api/reminders?status=offen');if(!r.ok)return;
+  const g=remGruppen(r.reminders);let h='';
+  const kopf=(t,c)=>`<div style="font-size:.72rem;font-weight:700;color:${c};margin:.5rem 0 .1rem">${t}</div>`;
+  if(g.ueber.length)h+=kopf('Überfällig','#e5484d')+g.ueber.map(x=>remZeile(x,true)).join('');
+  if(g.heu.length)h+=kopf('Heute','var(--n500)')+g.heu.map(x=>remZeile(x,false)).join('');
+  if(g.spaet.length){h+=`<button id="remtoggle" style="border:0;background:none;color:var(--blau);cursor:pointer;font-size:.8rem;margin:.55rem 0 .1rem">${remZukunftAuf?'▾':'▸'} Später (${g.spaet.length})</button>`;if(remZukunftAuf)h+=g.spaet.map(x=>remZeile(x,false)).join('');}
+  $('#remliste').innerHTML=h||'<span class="muted">Keine offenen Erinnerungen.</span>';
+  const tg=$('#remtoggle');if(tg)tg.onclick=()=>{remZukunftAuf=!remZukunftAuf;remLaden();};
+  $('#remliste').querySelectorAll('.remrow').forEach(row=>{const id=row.dataset.id;
+    row.querySelector('.rem-erl').onclick=async()=>{await api('/api/reminders/'+id+'/erledigt',{method:'POST'});remLaden();};
+    row.querySelector('.rem-ver').onclick=()=>{const inp=document.createElement('input');inp.type='datetime-local';inp.style.marginLeft='6px';inp.onchange=async()=>{if(!inp.value)return;await api('/api/reminders/'+id+'/verschieben',{method:'POST',body:JSON.stringify({faellig_am:new Date(inp.value).toISOString()})});remLaden();};row.appendChild(inp);inp.showPicker?.();inp.focus();};
+  });
+}
+function remOeffnen(prefill,quelle){remQuelle=quelle||null;$('#remtitel').value=prefill||'';$('#remwann').value='';$('#remdlg').showModal();remLaden();(prefill?$('#remwann'):$('#remtitel')).focus();}
+$('#remBtn').onclick=()=>remOeffnen('',null);
+$('#remclose').onclick=()=>$('#remdlg').close();
+$('#remneu').onclick=async()=>{const t=$('#remtitel').value.trim(),w=$('#remwann').value;if(!t||!w){(t?$('#remwann'):$('#remtitel')).focus();return;}const r=await api('/api/reminders',{method:'POST',body:JSON.stringify({kanal:KANAL,titel:t.slice(0,120),quelle_msg:remQuelle,faellig_am:new Date(w).toISOString()})});if(r&&r.ok){$('#remtitel').value='';$('#remwann').value='';remQuelle=null;remLaden();}};
 $('#tokok').onclick=async()=>{TOKEN=$('#tokinp').value.trim();localStorage.setItem('fc_token',TOKEN);$('#tokdlg').close();start();};
 $('#einladen').onclick=async()=>{
   const r=await api('/api/invites',{method:'POST',body:JSON.stringify({kanal:KANAL,basis:location.origin})});

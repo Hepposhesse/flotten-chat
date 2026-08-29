@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import {
   openDb, neuerToken, kanalAnlegen, kanaele, senden, nachrichten,
   inviteAnlegen, connect, agentViaToken, cursorSetzen, presence,
-  reminderAnlegen, reminders, reminderErledigt, faelligeFeuern, nowIso,
+  reminderAnlegen, reminders, reminderErledigt, reminderVerschieben, faelligeFeuern, nowIso,
 } from './db.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -133,6 +133,12 @@ const server = http.createServer(async (req, res) => {
     }
     const mErl = /^\/api\/reminders\/(\d+)\/erledigt$/.exec(url.pathname);
     if (mErl && req.method === 'POST') return json(res, 200, { ok: true, reminder: reminderErledigt(db, mErl[1]) });
+    const mVer = /^\/api\/reminders\/(\d+)\/verschieben$/.exec(url.pathname);
+    if (mVer && req.method === 'POST') {
+      const b = await koerper(req);
+      const r = reminderVerschieben(db, mVer[1], b.faellig_am);
+      return r ? json(res, 200, { ok: true, reminder: r }) : json(res, 400, { ok: false, fehler: 'faellig_am ist Pflicht.' });
+    }
 
     // Medien: roher Upload (x-fc-name-Header), Auslieferung mit Range/206 (Lektion: Video/Voice braucht das).
     if (url.pathname === '/api/media' && req.method === 'POST') {

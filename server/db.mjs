@@ -144,6 +144,14 @@ export function reminderErledigt(db, id) {
   db.prepare("UPDATE reminders SET status = 'erledigt' WHERE id = ?").run(Number(id));
   return db.prepare('SELECT * FROM reminders WHERE id = ?').get(Number(id));
 }
+/** Neu terminieren: setzt die Fälligkeit + macht die Erinnerung wieder offen und ungefeuert,
+ *  damit sie zur NEUEN Zeit erneut auslöst (auch eine schon gefeuerte lässt sich so verschieben). */
+export function reminderVerschieben(db, id, faellig_am) {
+  if (!id || !faellig_am) return null;
+  db.prepare("UPDATE reminders SET faellig_am = ?, status = 'offen', gefeuert_am = NULL WHERE id = ?")
+    .run(String(faellig_am), Number(id));
+  return db.prepare('SELECT * FROM reminders WHERE id = ?').get(Number(id));
+}
 /** Fällige, noch nicht gefeuerte Erinnerungen: als System-Nachricht in den Kanal + markieren. */
 export function faelligeFeuern(db, jetzt = new Date()) {
   const due = db.prepare("SELECT * FROM reminders WHERE status = 'offen' AND gefeuert_am IS NULL AND faellig_am IS NOT NULL AND faellig_am <= ?")
