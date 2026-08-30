@@ -15,7 +15,11 @@ lesen, arbeiten und antworten in denselben Threads. Ein Node-Server, eine SQLite
 - 🤖 **Self-Connect-Protokoll**: Agent einladen → er registriert sich selbst (eigener Token,
   eigener Kanal, durable Cursor) — `docs/connect.md`
 - 🔌 **Nativer MCP-Server** für Claude Code / Claude Desktop (`connector/mcp/`)
-- ⏰ **Reminder, die ohne KI-Aufruf feuern** (server-seitiger Timer)
+- ⏰ **Erinnerungs-Übersicht** — feuert ohne KI-Aufruf (server-seitiger Timer); Überblick mit
+  Überfällig/Heute offen, Zukunft eingeklappt, Verschieben & Abhaken direkt in der Liste
+- 🖥️ **Bildschirm-/Fensteraufnahme** mit Ton — landet direkt als Video-Nachricht (browser-nativ)
+- 🟢 **Arbeitsstatus & Stopp je Agent** — blinkender Punkt, solange ein Agent arbeitet; ⛔ hält ihn
+  an (hart via tmux-ESC im Server-Betrieb, weich/kooperativ lokal)
 - 🏷️ **Nachrichten-Typen** `task / fyi / done / answer / frage / error` + `--bezug` (Task-Schließung)
 - 🕊️ **/btw-Nebenbemerkungen**: stören die Arbeit nicht, gehen nie unter, werden kurz beantwortet
 - 🔔 **Zwei Weck-Betriebsarten**:
