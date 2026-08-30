@@ -73,7 +73,7 @@ async function verarbeite(zeile) {
   const { id, method, params } = msg;
   try {
     if (method === 'initialize') {
-      antwort(id, { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'flotten-chat', version: '0.1.0' } });
+      antwort(id, { protocolVersion: params?.protocolVersion || '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'flotten-chat', version: '0.2.0' } });
     } else if (method === 'tools/list') {
       antwort(id, { tools: TOOLS });
     } else if (method === 'tools/call') {
