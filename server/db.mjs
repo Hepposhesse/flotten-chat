@@ -36,7 +36,10 @@ export function openDb(dataDir) {
       token TEXT UNIQUE NOT NULL,
       kanal TEXT NOT NULL,
       cursor INTEGER DEFAULT 0,
-      zuletzt_gesehen TEXT
+      zuletzt_gesehen TEXT,
+      status TEXT DEFAULT 'idle',
+      status_seit TEXT,
+      stop_angefordert INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS invites (
       token TEXT PRIMARY KEY,
@@ -65,6 +68,10 @@ export function openDb(dataDir) {
       erstellt_am TEXT NOT NULL
     );
   `);
+  // Migration für bestehende DBs (v0.2.0): Status-/Stopp-Spalten idempotent nachziehen.
+  for (const sp of ['status TEXT DEFAULT \'idle\'', 'status_seit TEXT', 'stop_angefordert INTEGER DEFAULT 0']) {
+    try { db.exec(`ALTER TABLE agents ADD COLUMN ${sp}`); } catch { /* Spalte existiert schon */ }
+  }
   return db;
 }
 
@@ -124,7 +131,37 @@ export function cursorSetzen(db, agentId, cursor) {
   db.prepare('UPDATE agents SET cursor = ?, zuletzt_gesehen = ? WHERE id = ?').run(Number(cursor) || 0, nowIso(), agentId);
 }
 export function presence(db) {
-  return db.prepare('SELECT id, name, kanal, cursor, zuletzt_gesehen FROM agents ORDER BY id').all();
+  return db.prepare('SELECT id, name, kanal, zuletzt_gesehen, status, status_seit, stop_angefordert FROM agents ORDER BY id').all();
+}
+// ── Arbeitsstatus (v0.2.0): busy/idle je Agent. EINE Presence-Wahrheit, zwei Quellen —
+//    lokal meldet der Agent sich selbst (Connector-Heartbeat), server+tmux meldet der Dispatcher.
+export function statusSetzen(db, agentId, status) {
+  const s = status === 'busy' ? 'busy' : 'idle';
+  db.prepare('UPDATE agents SET status = ?, status_seit = ?, zuletzt_gesehen = ? WHERE id = ?').run(s, nowIso(), nowIso(), Number(agentId) || 0);
+  return db.prepare('SELECT id, name, status, status_seit FROM agents WHERE id = ?').get(Number(agentId) || 0);
+}
+/** Für den Dispatcher (Server-Betrieb): Status je Agent-NAME setzen (der Dispatcher kennt keinen Token). */
+export function statusSetzenNachName(db, name, status) {
+  const s = status === 'busy' ? 'busy' : 'idle';
+  db.prepare('UPDATE agents SET status = ?, status_seit = ?, zuletzt_gesehen = ? WHERE name = ?').run(s, nowIso(), nowIso(), String(name || ''));
+}
+// ── Stopp anfordern (v0.2.0): setzt ein Flag; server+tmux → Dispatcher schickt ESC, lokal →
+//    der Connector prüft das Flag beim Heartbeat (kooperatives, weiches Stoppen). ──
+export function stopAnfordern(db, name) {
+  db.prepare("UPDATE agents SET stop_angefordert = 1 WHERE name = ?").run(String(name || ''));
+  return db.prepare('SELECT id, name FROM agents WHERE name = ?').get(String(name || ''));
+}
+/** Der Empfänger (Dispatcher/Connector) holt & quittiert die Stopp-Anforderung (einmalig). */
+export function stopHolenUndQuittieren(db, agentId) {
+  const a = db.prepare('SELECT stop_angefordert FROM agents WHERE id = ?').get(Number(agentId) || 0);
+  if (a && a.stop_angefordert) { db.prepare('UPDATE agents SET stop_angefordert = 0 WHERE id = ?').run(Number(agentId) || 0); return true; }
+  return false;
+}
+/** Für den Dispatcher (server+tmux): Stopp je Agent-NAME holen & quittieren (schickt dann ESC). */
+export function stopHolenUndQuittierenNachName(db, name) {
+  const a = db.prepare('SELECT id, stop_angefordert FROM agents WHERE name = ?').get(String(name || ''));
+  if (a && a.stop_angefordert) { db.prepare('UPDATE agents SET stop_angefordert = 0 WHERE id = ?').run(a.id); return true; }
+  return false;
 }
 
 // ── Erinnerungen (feuern OHNE AI — der Produkt-Kern) ────────────────────────

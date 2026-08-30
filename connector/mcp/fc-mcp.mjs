@@ -31,6 +31,10 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: { titel: { type: 'string' }, faellig_am: { type: 'string', description: 'ISO-Zeit' }, kanal: { type: 'string' }, notiz: { type: 'string' } }, required: ['titel'] } },
   { name: 'wait_for_message', description: 'Auf die nächste neue Nachricht im Kanal warten (Long-Poll, max. `timeout_s`, Default 25s).',
     inputSchema: { type: 'object', properties: { kanal: { type: 'string' }, seit: { type: 'number' }, timeout_s: { type: 'number' } } } },
+  { name: 'set_status', description: 'Deinen Arbeitsstatus melden: "busy" während du an einer Aufgabe arbeitest, "idle" wenn du fertig/wartend bist. Die UI zeigt einen blinkenden Punkt, solange du busy bist.',
+    inputSchema: { type: 'object', properties: { status: { type: 'string', enum: ['busy', 'idle'] } }, required: ['status'] } },
+  { name: 'check_stop', description: 'Prüfen, ob über die UI ein Stopp für DICH angefordert wurde. Liefert {stop:true|false}. Zwischen Arbeitsschritten aufrufen; bei true die aktuelle Aufgabe abbrechen.',
+    inputSchema: { type: 'object', properties: {} } },
 ];
 
 async function toolCall(name, a = {}) {
@@ -39,6 +43,8 @@ async function toolCall(name, a = {}) {
   if (name === 'read_channel') { const r = await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&seit=${a.seit || 0}`); return r.messages || r; }
   if (name === 'send_message') { const r = await api('/api/send', { method: 'POST', body: { kanal, inhalt: a.inhalt, typ: a.typ || 'fyi', bezug_id: a.bezug_id } }); return r.message || r; }
   if (name === 'set_reminder') { const r = await api('/api/reminders', { method: 'POST', body: { kanal, titel: a.titel, faellig_am: a.faellig_am, notiz: a.notiz || '' } }); return r.reminder || r; }
+  if (name === 'set_status') { const r = await api('/api/status', { method: 'POST', body: { status: a.status } }); return r; }
+  if (name === 'check_stop') { const r = await api('/api/stop-pending'); return { stop: !!r.stop }; }
   if (name === 'wait_for_message') {
     const ende = Date.now() + Math.min(Number(a.timeout_s) || 25, 120) * 1000;
     let seit = a.seit ?? null;

@@ -22,7 +22,7 @@ CFG="$HIER/mitglieder.json"
 mapfile -t MITGLIEDER < <(python3 -c "
 import json
 for m in json.load(open('$CFG')):
-    print(m['kanal'] + '|' + m['tmuxSession'])
+    print(m['kanal'] + '|' + m['tmuxSession'] + '|' + m.get('name', m['kanal']))
 ")
 
 declare -A CUR
@@ -37,13 +37,22 @@ if ns:
     print(max(n['id'] for n in ns), 1 if nur else 0)
 "
 }
-for z in "${MITGLIEDER[@]}"; do IFS='|' read -r kanal sess <<< "$z"
+for z in "${MITGLIEDER[@]}"; do IFS='|' read -r kanal sess name <<< "$z"
   r=$(neue "$kanal" 0 || true); CUR[$kanal]=${r%% *}; CUR[$kanal]=${CUR[$kanal]:-0}
 done
 echo "$(date +%T) dispatcher bereit: ${#MITGLIEDER[@]} Mitglied(er) @ $URL"
 
 while true; do
-  for z in "${MITGLIEDER[@]}"; do IFS='|' read -r kanal sess <<< "$z"
+  for z in "${MITGLIEDER[@]}"; do IFS='|' read -r kanal sess name <<< "$z"
+    # Hard-Stopp (v0.2.0): wurde über die UI ein Stopp für dieses Fenster angefordert? → echtes ESC.
+    if tmux -L "$SOCK" has-session -t "$sess" 2>/dev/null; then
+      STOP=$(curl -sf -H "Authorization: Bearer $TOKEN" "$URL/api/stop-pending?name=$name" 2>/dev/null \
+        | python3 -c "import json,sys;print('1' if json.load(sys.stdin).get('stop') else '0')" 2>/dev/null || echo 0)
+      if [ "$STOP" = "1" ]; then
+        tmux -L "$SOCK" send-keys -t "$sess" Escape 2>/dev/null
+        echo "$(date +%T) STOP (ESC) -> $sess"
+      fi
+    fi
     r=$(neue "$kanal" "${CUR[$kanal]:-0}" || true)
     [ -z "$r" ] && continue
     L=${r%% *}; BTW=${r##* }

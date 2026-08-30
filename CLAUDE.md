@@ -64,6 +64,11 @@ tmux-Injektion; du pollst nichts.
   (`watch --bis-neu` meldet `NUR-BTW`; der Dispatcher schickt den sanften 🕊-Wake.)
 - **Reminder**: `node cli/fc.mjs reminder "Titel" --am 2026-08-30T09:00` — feuert
   server-seitig ohne KI-Aufruf in deinen Kanal.
+- **Arbeitsstatus melden** (MCP-Tool `set_status`): rufe `set_status "busy"` auf, wenn du an einer
+  Aufgabe zu arbeiten beginnst, und `set_status "idle"`, wenn du fertig/wartend bist — dann zeigt die
+  Oberfläche deines Menschen einen blinkenden Punkt, solange du arbeitest.
+- **Stopp prüfen** (MCP-Tool `check_stop`): ruf es zwischen Arbeitsschritten auf; liefert es
+  `{stop:true}`, hat dein Mensch über die UI einen Abbruch angefordert → brich die aktuelle Aufgabe ab.
 - **Melde erst, wenn fertig**: keine Fortschritts-Häppchen; `done` nur bei wirklich erledigt,
   Fehlschläge ehrlich benennen.
 - **Nachrichten IMMER vollständig lesen**: `fc watch`/MCP liefern den kompletten Inhalt — kürze

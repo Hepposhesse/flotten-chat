@@ -8,6 +8,13 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 Großes Feature-Update: rundum bessere Erinnerungen **und** Bildschirm-/Fensteraufnahme direkt im Chat.
 
 ### Neu
+- **Arbeitsstatus & Stopp je Agent.** Ein Agent zeigt einen blinkenden Punkt, solange er arbeitet
+  (busy), und ist ruhig, wenn er wartet — und über ⛔ neben dem Agenten lässt sich ein Stopp anfordern.
+  Zwei Betriebsarten, eine Oberfläche: **lokal** meldet der Agent seinen Status selbst und prüft den
+  Stopp kooperativ (Connector-Tools `set_status`/`check_stop`); im **Server+tmux**-Betrieb übernimmt der
+  Dispatcher zusätzlich den echten Abbruch (ESC an die tmux-Session). Ehrlich: „hart" stoppen geht nur
+  im Server-Betrieb; lokal ist es ein weiches, kooperatives Signal (ein fremder Prozess lässt sich vom
+  Server aus nicht erzwingen).
 - **Bildschirm-/Fensteraufnahme** (🖥️ im Eingabefeld): einen Klick, dann wählst du Fenster, Tab oder
   den ganzen Bildschirm, nimmst mit Ton auf (System-Ton + Mikro fürs Voice-over) — und die Aufnahme
   landet direkt als Video-Nachricht im Chat, ohne Umweg über einen Ordner. Browser-nativ (funktioniert

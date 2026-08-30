@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   openDb, kanalAnlegen, kanaele, senden, nachrichten,
   inviteAnlegen, connect, agentViaToken, presence,
+  statusSetzen, stopAnfordern, stopHolenUndQuittieren,
   reminderAnlegen, reminders, reminderErledigt, reminderVerschieben, faelligeFeuern,
 } from './server/db.mjs';
 
@@ -42,6 +43,16 @@ const ag = agentViaToken(db, c1.agent_token);
 ok(ag && ag.name === 'claude-test', 'Agent per Token auflösbar');
 ok(agentViaToken(db, 'agt_falsch') === null, 'Falscher Agent-Token wird abgelehnt');
 ok(presence(db).length === 1, 'Presence listet den Agenten');
+
+// Arbeitsstatus + Stopp (v0.2.0): EINE Presence-Wahrheit, plus einmaliges Stopp-Signal
+statusSetzen(db, ag.id, 'busy');
+ok(presence(db)[0].status === 'busy', 'Status busy gesetzt + in presence sichtbar');
+statusSetzen(db, ag.id, 'wasauchimmer');
+ok(presence(db)[0].status === 'idle', 'unbekannter Status fällt auf idle zurück');
+stopAnfordern(db, 'claude-test');
+ok(presence(db)[0].stop_angefordert === 1, 'Stopp angefordert → Flag steht');
+ok(stopHolenUndQuittieren(db, ag.id) === true, 'Stopp wird geholt (true)');
+ok(stopHolenUndQuittieren(db, ag.id) === false, 'zweites Holen → false (einmalig quittiert)');
 
 // Erinnerungen: feuern serverseitig, ohne AI
 const früher = new Date(Date.now() - 60_000).toISOString();

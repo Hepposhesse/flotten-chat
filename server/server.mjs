@@ -11,6 +11,7 @@ import crypto from 'node:crypto';
 import {
   openDb, neuerToken, kanalAnlegen, kanaele, senden, nachrichten,
   inviteAnlegen, connect, agentViaToken, cursorSetzen, presence,
+  statusSetzen, statusSetzenNachName, stopAnfordern, stopHolenUndQuittieren, stopHolenUndQuittierenNachName,
   reminderAnlegen, reminders, reminderErledigt, reminderVerschieben, faelligeFeuern, nowIso,
 } from './db.mjs';
 
@@ -124,6 +125,33 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, invite_token: token, hinweis: `Gib deinem Agenten: "Verbinde dich mit meinem Flotten Chat: POST ${b.basis || ''}/api/connect mit invite_token=${token}"` });
     }
     if (url.pathname === '/api/presence' && req.method === 'GET') return json(res, 200, { ok: true, agents: presence(db) });
+    // Arbeitsstatus melden (v0.2.0): Agent meldet sich selbst {status:'busy'|'idle'} (lokaler Modus);
+    // Dispatcher (Admin-Token) darf per {name,status} für ein benanntes Fenster melden (server+tmux).
+    if (url.pathname === '/api/status' && req.method === 'POST') {
+      const b = await koerper(req);
+      if (wer.agent) statusSetzen(db, wer.agent.id, b.status);
+      else if (wer.rolle === 'admin' && b.name) statusSetzenNachName(db, b.name, b.status);
+      else return json(res, 403, { ok: false, fehler: 'Nur ein Agent (eigener Status) oder Admin (mit name).' });
+      broadcast('presence', { status: b.status });
+      return json(res, 200, { ok: true });
+    }
+    // Stopp anfordern (v0.2.0): Steuer-Aktion aus der UI (Admin). Setzt ein Flag je Agent-Name.
+    if (url.pathname === '/api/stop' && req.method === 'POST') {
+      if (wer.rolle !== 'admin') return json(res, 403, { ok: false, fehler: 'Nur Admin.' });
+      const b = await koerper(req);
+      if (!b.name) return json(res, 400, { ok: false, fehler: 'name ist Pflicht.' });
+      stopAnfordern(db, b.name); broadcast('presence', { stop: b.name });
+      return json(res, 200, { ok: true });
+    }
+    // Stopp-Abfrage (v0.2.0): „soll gestoppt werden?" (holt & quittiert einmalig).
+    //   • Agent-Token → für SICH selbst (lokaler Modus, Connector-check_stop).
+    //   • Admin-Token + ?name= → für ein benanntes Fenster (Dispatcher schickt dann ESC, server+tmux).
+    if (url.pathname === '/api/stop-pending' && req.method === 'GET') {
+      const name = url.searchParams.get('name');
+      if (wer.agent) return json(res, 200, { ok: true, stop: stopHolenUndQuittieren(db, wer.agent.id) });
+      if (wer.rolle === 'admin' && name) return json(res, 200, { ok: true, stop: stopHolenUndQuittierenNachName(db, name) });
+      return json(res, 403, { ok: false, fehler: 'Agent-Token (eigener) oder Admin (mit name).' });
+    }
 
     if (url.pathname === '/api/reminders' && req.method === 'GET') return json(res, 200, { ok: true, reminders: reminders(db, { status: url.searchParams.get('status') }) });
     if (url.pathname === '/api/reminders' && req.method === 'POST') {
