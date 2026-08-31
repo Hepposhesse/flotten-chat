@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [Unreleased] — 0.3.0 in Vorbereitung
+
+### Geändert
+- **Nachrichten-Kopf zeigt jetzt Datum + Uhrzeit** (statt nur der Uhrzeit) — auf einen Blick
+  erkennbar, wann eine Nachricht kam, auch bei älteren Einträgen.
+- **Kanal-Name im Nachrichten-Kopf.** Jede Nachricht trägt den aktuellen Kanal-Namen (`#name`);
+  wird ein Kanal umbenannt, zeigt der Kopf ab dann den neuen Namen.
+
 ## [0.2.0] — 2026-08-30
 
 Großes Feature-Update: rundum bessere Erinnerungen **und** Bildschirm-/Fensteraufnahme direkt im Chat.
