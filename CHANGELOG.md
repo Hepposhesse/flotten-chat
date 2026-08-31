@@ -11,6 +11,16 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 - **Kanal-Name im Nachrichten-Kopf.** Jede Nachricht trägt den aktuellen Kanal-Namen (`#name`);
   wird ein Kanal umbenannt, zeigt der Kopf ab dann den neuen Namen.
 
+### Sicherheit (Härtung nach eigenem Security-Review)
+- **Default-Bind auf `127.0.0.1`.** Der Server bindet jetzt standardmäßig auf localhost (wie in der
+  Doku beschrieben) statt versehentlich auf alle Interfaces. Für Remote-Betrieb hinter TLS-Proxy/Firewall
+  weiterhin per `FC_HOST=0.0.0.0` möglich.
+- **Agent-Tokens auf ihren Kanal beschränkt (Least Privilege).** Ein Agent-Token darf nur noch den
+  eigenen (eingeladenen) Kanal lesen und beschreiben; kanalübergreifender Zugriff ist dem Admin
+  vorbehalten. Wer mehrere Kanäle bespielen will, nutzt mehrere Invites.
+- **Admin-Token-Vergleich konstant-zeitig** (`crypto.timingSafeEqual` statt `===`) — schließt einen
+  theoretischen Timing-Seitenkanal.
+
 ## [0.2.0] — 2026-08-30
 
 Großes Feature-Update: rundum bessere Erinnerungen **und** Bildschirm-/Fensteraufnahme direkt im Chat.

@@ -49,7 +49,7 @@ const koerper = (req) => new Promise((resolve) => {
 function auth(req) {
   const h = String(req.headers.authorization || '');
   const tok = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
-  if (tok && crypto.timingSafeEqual !== undefined && tok === ADMIN) return { rolle: 'admin', name: 'admin' };
+  if (tok && ADMIN && tok.length === ADMIN.length && crypto.timingSafeEqual(Buffer.from(tok), Buffer.from(ADMIN))) return { rolle: 'admin', name: 'admin' };
   const agent = agentViaToken(db, tok);
   if (agent) return { rolle: 'agent', name: agent.name, agent };
   return null;
@@ -99,7 +99,10 @@ const server = http.createServer(async (req, res) => {
       return k ? json(res, 200, { ok: true, channel: k }) : json(res, 400, { ok: false, fehler: 'Name fehlt.' });
     }
     if (url.pathname === '/api/messages' && req.method === 'GET') {
-      const kanal = url.searchParams.get('kanal') || (wer.agent ? wer.agent.kanal : 'allgemein');
+      const angefragt = url.searchParams.get('kanal');
+      // v0.3.0-Härtung (Least Privilege): ein Agent-Token darf nur den eigenen (eingeladenen) Kanal lesen; Admin darf alles.
+      if (wer.rolle === 'agent' && angefragt && angefragt !== wer.agent.kanal) return json(res, 403, { ok: false, fehler: 'Dieser Token darf nur den eigenen Kanal lesen.' });
+      const kanal = angefragt || (wer.agent ? wer.agent.kanal : 'allgemein');
       const seit = url.searchParams.get('seit') || 0;
       const liste = nachrichten(db, { kanal, seit, limit: url.searchParams.get('limit') || 200 });
       if (wer.agent && liste.length) cursorSetzen(db, wer.agent.id, liste[liste.length - 1].id);
@@ -107,6 +110,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/send' && req.method === 'POST') {
       const b = await koerper(req);
+      // v0.3.0-Härtung (Least Privilege): ein Agent-Token darf nur in den eigenen Kanal senden; Admin darf alles.
+      if (wer.rolle === 'agent' && b.kanal && b.kanal !== wer.agent.kanal) return json(res, 403, { ok: false, fehler: 'Dieser Token darf nur in den eigenen Kanal senden.' });
       const m = senden(db, { kanal: b.kanal || (wer.agent ? wer.agent.kanal : ''), von: b.von || wer.name, typ: b.typ, inhalt: b.inhalt, bezug_id: b.bezug_id, media: b.media });
       if (!m) return json(res, 400, { ok: false, fehler: 'kanal und inhalt sind Pflicht.' });
       broadcast('message', m);
@@ -197,8 +202,10 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(404); res.end('nicht gefunden');
 });
 
-server.listen(PORT, () => {
-  console.log(`\n⚡ Sales Engine Flotten Chat läuft: http://localhost:${PORT}`);
+// v0.3.0-Härtung: Default-Bind auf localhost (Doku-konform). Für Remote-Betrieb hinter TLS-Proxy/Firewall FC_HOST=0.0.0.0 setzen.
+const HOST = process.env.FC_HOST || '127.0.0.1';
+server.listen(PORT, HOST, () => {
+  console.log(`\n⚡ Sales Engine Flotten Chat läuft: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${HOST === '0.0.0.0' ? '  ⚠ gebunden an 0.0.0.0 — nur hinter TLS-Proxy/Firewall betreiben!' : ''}`);
   console.log(`   Datenverzeichnis: ${DATA}`);
   console.log(`   Admin-Token (für UI/API, geheim halten): ${ADMIN}\n`);
 });

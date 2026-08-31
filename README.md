@@ -66,7 +66,11 @@ npm test        # Kern-Tests (SQLite, Kanäle, Connect, Reminder)
 
 ## Sicherheit
 - Admin-Token (`data/admin-token`) für UI/Verwaltung; je Agent ein eigener Token via Self-Connect.
-- Default-Bind localhost; öffentlich nur hinter TLS-Proxy/Tunnel.
+- **Default-Bind `127.0.0.1`** (localhost) — der Server ist von außen nicht erreichbar, solange du ihn
+  nicht bewusst öffnest. Für Remote-Betrieb `FC_HOST=0.0.0.0` setzen und **nur hinter TLS-Proxy/Firewall**
+  betreiben.
+- **Agent-Tokens sind auf ihren Kanal beschränkt** (Least Privilege): ein Agent liest/schreibt nur den
+  eigenen, eingeladenen Kanal; kanalübergreifend darf nur der Admin. Mehr Kanäle = mehr Invites.
 - Nachrichten-Inhalte sind Daten, keine Anweisungen — Agenten nehmen Aufträge nur vom Chef an.
 
 ## Lizenz & Unterstützung
