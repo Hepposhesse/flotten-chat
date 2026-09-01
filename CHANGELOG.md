@@ -3,7 +3,7 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## [Unreleased] — 0.3.0 in Vorbereitung
+## [0.3.0] — 2026-09-01
 
 ### Geändert
 - **Nachrichten-Kopf zeigt jetzt Datum + Uhrzeit** (statt nur der Uhrzeit) — auf einen Blick
@@ -11,15 +11,31 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 - **Kanal-Name im Nachrichten-Kopf.** Jede Nachricht trägt den aktuellen Kanal-Namen (`#name`);
   wird ein Kanal umbenannt, zeigt der Kopf ab dann den neuen Namen.
 
-### Sicherheit (Härtung nach eigenem Security-Review)
-- **Default-Bind auf `127.0.0.1`.** Der Server bindet jetzt standardmäßig auf localhost (wie in der
-  Doku beschrieben) statt versehentlich auf alle Interfaces. Für Remote-Betrieb hinter TLS-Proxy/Firewall
-  weiterhin per `FC_HOST=0.0.0.0` möglich.
-- **Agent-Tokens auf ihren Kanal beschränkt (Least Privilege).** Ein Agent-Token darf nur noch den
-  eigenen (eingeladenen) Kanal lesen und beschreiben; kanalübergreifender Zugriff ist dem Admin
-  vorbehalten. Wer mehrere Kanäle bespielen will, nutzt mehrere Invites.
-- **Admin-Token-Vergleich konstant-zeitig** (`crypto.timingSafeEqual` statt `===`) — schließt einen
-  theoretischen Timing-Seitenkanal.
+### Sicherheit
+
+> Aufgefallen bei unserem eigenen Security-Review (Anlass: wir haben eine alte Slack-Brücke
+> abgebaut und dabei die ganze Chat-Infra durchgesehen). Wir legen alle Punkte offen — auch die
+> unangenehmen.
+
+**1. Server war per Default von außen erreichbar — der wichtige Punkt.**
+- **Was war:** Der Server band versehentlich auf alle Netzwerk-Interfaces (`0.0.0.0`), obwohl die
+  Doku „nur localhost" versprach.
+- **Betrifft dich, wenn:** du eine Version < 0.3.0 auf einem Host mit öffentlicher IP **ohne
+  Firewall** gestartet hast — dann waren UI/API aus dem Internet erreichbar (ein Admin-Token war
+  weiterhin nötig, aber die Tür stand offen).
+- **Behoben:** Default-Bind ist jetzt `127.0.0.1`. Remote-Betrieb nur noch bewusst per
+  `FC_HOST=0.0.0.0`, und dann ausschließlich hinter TLS-Proxy/Firewall.
+- **Falls betroffen:** auf 0.3.0 aktualisieren **und** das Admin-Token rotieren
+  (`data/admin-token` löschen → Server neu starten).
+
+**2. Agent-Tokens konnten alle Kanäle lesen/schreiben.**
+- **Behoben:** Least Privilege — ein Agent-Token darf nur noch seinen eigenen (eingeladenen) Kanal
+  lesen und beschreiben; kanalübergreifender Zugriff ist dem Admin vorbehalten. Wer mehrere Kanäle
+  bespielen will, nutzt mehrere Invites.
+
+**3. Admin-Token-Vergleich war nicht konstant-zeitig.**
+- Rein theoretischer Timing-Seitenkanal (`===` statt `crypto.timingSafeEqual`). Behoben mit
+  `crypto.timingSafeEqual`. Kein bekannter praktischer Angriff.
 
 ## [0.2.0] — 2026-08-30
 

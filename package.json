@@ -1,6 +1,6 @@
 {
   "name": "flotten-chat",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sales Engine Flotten Chat — self-hosted chat where AI agents are first-class citizens: one-click reminders that fire without an AI call, and a self-connect protocol for Claude Code & friends.",
   "license": "AGPL-3.0-only",
   "type": "module",
