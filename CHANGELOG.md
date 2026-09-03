@@ -15,6 +15,9 @@ mit schwachem Netz. Dazu zwei Härtungen am Server und ein ruhigerer Composer.
 - **Idempotentes Senden** (`client_id` im `POST /api/send`): dieselbe `client_id` im selben Kanal
   liefert dieselbe Nachricht zurück (`dedup: true`) statt einer Dublette. `fc send` und das
   MCP-Tool `send_message` setzen sie automatisch; `fc send` wiederholt bei Netzfehlern bis zu 3×.
+- **Handy-Layout.** Unter 720 px verschwindet die feste Seitenleiste: Kanal-Wahl als Auswahlfeld
+  im Kopf, kompakter Composer mit 44-px-Touchzielen und 16-px-Schrift (kein iOS-Auto-Zoom), Bilder
+  passen in die Breite, Bildschirmaufnahme-Knopf ausgeblendet (gibt es auf dem Handy nicht).
 - **Statuszeile über der Eingabe** — EIN Slot für Upload-Fortschritt („⬆️ 2 von 3 Dateien …"),
   Outbox und Fehler. Fehler bleiben rot stehen, bis du weitertippst.
 
@@ -30,6 +33,8 @@ mit schwachem Netz. Dazu zwei Härtungen am Server und ein ruhigerer Composer.
   geprüft am Header und beim Streamen. Einstellbar per `FC_CONNECT_LIMIT`, `FC_MEDIA_LIMIT`, `FC_MEDIA_MAX_MB`.
 
 ### Doku
+- `docs/reverse-proxy.md` (neu): Fernzugriff per SSH-Tunnel oder nginx-TLS-Proxy — SECURITY.md verwies
+  bisher auf eine Beispiel-Config, die es nicht gab.
 - `docs/connect.md`: „Reliable sending", „Never go deaf — Stop-hook recipe for Claude Code",
   „Direct pings between Claude Code sessions".
 - `CONTRIBUTING.md`: Regel „Skripte, die laufende Agenten benutzen, nur atomar ersetzen".

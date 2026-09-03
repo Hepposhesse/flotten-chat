@@ -51,10 +51,31 @@ body.drag main{outline:3px dashed var(--blau);outline-offset:-8px}
 dialog{border:1px solid var(--n200);border-radius:14px;padding:18px;max-width:340px;background:var(--card);color:var(--n900)}
 dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.5rem .6rem;font:inherit;margin:.35rem 0;background:var(--n50);color:var(--n900)}
 .muted{color:var(--n500);font-size:.82rem}
+/* Handy-Layout (v0.4.0): unter 720px keine feste Seitenleiste — Kanal-Wahl wandert als Auswahlfeld
+   in den Kopf, Composer wird kompakt (44px-Touchziele, 16px-Schrift gegen iOS-Auto-Zoom), Bilder
+   passen in die Breite. Desktop bleibt unverändert. */
+.kanal-mobil{display:none}
+@media(max-width:720px){
+  aside{display:none}
+  header{padding:8px 10px;gap:8px;flex-wrap:wrap}
+  header b{font-size:.95rem}
+  .kanal-mobil{display:block;flex:1 1 100%;order:9;border:1px solid var(--n200);border-radius:9px;background:var(--n50);color:var(--n900);font:inherit;font-size:16px;padding:.5rem .6rem;min-height:44px}
+  header #einladen{margin-left:auto;padding:.35rem .55rem;font-size:.85rem}
+  #msgs{padding:10px 10px}
+  .msg{max-width:94%;font-size:1rem}
+  .msg .med img,.msg .med video{max-width:100%}
+  .msg .med audio{width:100%}
+  .status{padding:6px 10px 0;font-size:.8rem}
+  .composer{padding:8px 10px;gap:6px}
+  .composer textarea{min-height:44px;font-size:16px;padding:.55rem .7rem}
+  .composer button{min-height:44px;min-width:44px;padding:0 12px}
+  .composer #screen{display:none} /* Bildschirmaufnahme gibt es auf dem Handy nicht */
+  dialog{max-width:92vw}
+}
 </style>
 </head>
 <body>
-<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><button id="theme" title="Hell/Dunkel" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">☀️</button><button id="remBtn" title="Erinnerungen" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">⏰</button><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
+<header><b>⚡ Flotten Chat</b><span class="muted" id="stand"></span><select id="kanalMobil" class="kanal-mobil" aria-label="Kanal wählen"></select><button id="theme" title="Hell/Dunkel" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">☀️</button><button id="remBtn" title="Erinnerungen" style="border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.3rem .6rem;cursor:pointer">⏰</button><button id="einladen" style="margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:9px;padding:.35rem .7rem;cursor:pointer">🤖 Agent einladen</button></header>
 <div class="lay">
   <aside><div id="kanaele"></div><div class="agenten"><h4>Agenten</h4><div id="agenten-liste" class="muted">–</div></div></aside>
   <main>
@@ -87,9 +108,13 @@ async function ladeKanaele(){
   if(!r.ok){$('#tokdlg').showModal();return false;}
   CHLABELS={};r.channels.forEach(k=>{CHLABELS[k.name]=k.label||k.name;});
   $('#kanaele').innerHTML=r.channels.filter(k=>!k.archiviert).map(k=>`<button class="kanal${k.name===KANAL?' an':''}" data-k="${esc(k.name)}">${esc(k.label||k.name)}</button>`).join('');
-  document.querySelectorAll('.kanal').forEach(b=>b.onclick=()=>{KANAL=b.dataset.k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';ladeMsgs();ladeKanaele();});
+  document.querySelectorAll('.kanal').forEach(b=>b.onclick=()=>kanalWechseln(b.dataset.k));
+  // Handy: dieselben Kanäle als Auswahlfeld im Kopf (v0.4.0)
+  const sel=$('#kanalMobil');
+  if(sel){sel.innerHTML=r.channels.filter(k=>!k.archiviert).map(k=>`<option value="${esc(k.name)}"${k.name===KANAL?' selected':''}>#${esc(k.label||k.name)}</option>`).join('');sel.onchange=()=>kanalWechseln(sel.value);}
   return true;
 }
+function kanalWechseln(k){if(!k||k===KANAL)return;KANAL=k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';ladeMsgs();ladeKanaele();}
 function medienHtml(m){
   let liste=[]; try{liste=typeof m.media==='string'?JSON.parse(m.media):(m.media||[]);}catch{}
   if(!Array.isArray(liste)||!liste.length)return '';

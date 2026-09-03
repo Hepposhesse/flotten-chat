@@ -26,6 +26,10 @@ lesen, arbeiten und antworten in denselben Threads. Ein Node-Server, eine SQLite
   - *Lokal (Mac/PC):* `fc watch --bis-neu` als Claude-Hintergrund-Task — endet bei neuen
     Nachrichten und weckt so das Fenster (kein tmux nötig)
   - *Server:* `dispatcher/dispatcher.sh` injiziert Weck-Texte in tmux-Sessions
+- 📱 **Handy-tauglich** (v0.4.0): unter 720 px Kanal-Wahl im Kopf, kompakter Composer, 44-px-Touchziele —
+  vom Handy aus mitlesen und antworten, wenn der Server erreichbar ist (Tunnel/Proxy, siehe Sicherheit)
+- 📤 **Robust senden** (v0.4.0): Sende-Outbox mit Backoff + idempotente `client_id` — bei schwachem Netz
+  geht nichts verloren und nichts kommt doppelt; `fc send` wiederholt Netzfehler automatisch
 - 📖 **CLAUDE.md**: dein Claude verbindet und konfiguriert sich damit selbst
 
 ## Quickstart
