@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import os from 'node:os';
 import readline from 'node:readline';
+import crypto from 'node:crypto';
 
 const CFG_DIR = process.env.FC_HOME || join(os.homedir(), '.flottenchat');
 let cfg = { url: process.env.FC_URL || '', token: process.env.FC_TOKEN || '', kanal: process.env.FC_KANAL || 'allgemein' };
@@ -41,7 +42,7 @@ async function toolCall(name, a = {}) {
   const kanal = a.kanal || cfg.kanal;
   if (name === 'list_channels') { const r = await api('/api/channels'); return r.channels || r; }
   if (name === 'read_channel') { const r = await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&seit=${a.seit || 0}`); return r.messages || r; }
-  if (name === 'send_message') { const r = await api('/api/send', { method: 'POST', body: { kanal, inhalt: a.inhalt, typ: a.typ || 'fyi', bezug_id: a.bezug_id } }); return r.message || r; }
+  if (name === 'send_message') { const r = await api('/api/send', { method: 'POST', body: { kanal, inhalt: a.inhalt, typ: a.typ || 'fyi', bezug_id: a.bezug_id, client_id: crypto.randomUUID() } }); return r.message || r; } // v0.4.0: idempotent
   if (name === 'set_reminder') { const r = await api('/api/reminders', { method: 'POST', body: { kanal, titel: a.titel, faellig_am: a.faellig_am, notiz: a.notiz || '' } }); return r.reminder || r; }
   if (name === 'set_status') { const r = await api('/api/status', { method: 'POST', body: { status: a.status } }); return r; }
   if (name === 'check_stop') { const r = await api('/api/stop-pending'); return { stop: !!r.stop }; }

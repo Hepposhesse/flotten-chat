@@ -3,6 +3,37 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [0.4.0] — 2026-09-03
+
+Schwerpunkt: **Robust senden.** Nichts geht mehr verloren, nichts kommt doppelt — auch vom Handy
+mit schwachem Netz. Dazu zwei Härtungen am Server und ein ruhigerer Composer.
+
+### Neu
+- **Sende-Outbox in der Web-UI.** Eine Nachricht liegt lokal gepuffert, bis der Server sie bestätigt;
+  bei Netzausfall wird mit Backoff wiederholt (5 s / 10 s / 30 s), auch nach Neuladen. Der Hinweis
+  „⏳ wartet aufs Netz" erscheint bewusst erst nach 1,5 s — im Normalfall blitzt nichts auf.
+- **Idempotentes Senden** (`client_id` im `POST /api/send`): dieselbe `client_id` im selben Kanal
+  liefert dieselbe Nachricht zurück (`dedup: true`) statt einer Dublette. `fc send` und das
+  MCP-Tool `send_message` setzen sie automatisch; `fc send` wiederholt bei Netzfehlern bis zu 3×.
+- **Statuszeile über der Eingabe** — EIN Slot für Upload-Fortschritt („⬆️ 2 von 3 Dateien …"),
+  Outbox und Fehler. Fehler bleiben rot stehen, bis du weitertippst.
+
+### Geändert
+- **Keine `alert()`-Dialoge mehr** (Upload, Bildschirmaufnahme): in eingebetteten Ansichten
+  blockten sie stumm. Alle Hinweise laufen jetzt über die Statuszeile; ein abgelehnter Text steht
+  wieder im Eingabefeld.
+
+### Sicherheit
+- **Rate-Limit** auf `POST /api/connect` (je IP, Default 10/min — bremst das Durchprobieren von
+  Einladungs-Tokens) und `POST /api/media` (je Token, Default 30/min). Antwort `429` mit `retry-after`.
+- **Größenlimit für Uploads** (Default 200 MB, `FC_MEDIA_MAX_MB`): `413` statt volle Platte —
+  geprüft am Header und beim Streamen. Einstellbar per `FC_CONNECT_LIMIT`, `FC_MEDIA_LIMIT`, `FC_MEDIA_MAX_MB`.
+
+### Doku
+- `docs/connect.md`: „Reliable sending", „Never go deaf — Stop-hook recipe for Claude Code",
+  „Direct pings between Claude Code sessions".
+- `CONTRIBUTING.md`: Regel „Skripte, die laufende Agenten benutzen, nur atomar ersetzen".
+
 ## [0.3.0] — 2026-09-01
 
 ### Geändert

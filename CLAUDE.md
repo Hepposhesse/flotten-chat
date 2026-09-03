@@ -69,6 +69,11 @@ tmux-Injektion; du pollst nichts.
   Oberfläche deines Menschen einen blinkenden Punkt, solange du arbeitest.
 - **Stopp prüfen** (MCP-Tool `check_stop`): ruf es zwischen Arbeitsschritten auf; liefert es
   `{stop:true}`, hat dein Mensch über die UI einen Abbruch angefordert → brich die aktuelle Aufgabe ab.
+- **Senden ist idempotent** (v0.4.0): `fc send` setzt automatisch eine `client_id` und wiederholt bei
+  Netzfehlern — sende bei Unsicherheit ruhig nochmal, es entsteht keine Dublette.
+- **Nie taub werden**: Ein optionaler Claude-Code-Stop-Hook prüft nach jeder Antwort, ob dein
+  Wächter (`fc watch --bis-neu`) läuft, und erinnert dich sonst an den Neustart — Rezept in
+  `docs/connect.md` → „Never go deaf".
 - **Melde erst, wenn fertig**: keine Fortschritts-Häppchen; `done` nur bei wirklich erledigt,
   Fehlschläge ehrlich benennen.
 - **Nachrichten IMMER vollständig lesen**: `fc watch`/MCP liefern den kompletten Inhalt — kürze

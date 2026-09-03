@@ -25,6 +25,9 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .msg.system{background:var(--blau-50);border-color:var(--blau)}
 .msg .erin{position:absolute;top:6px;right:8px;border:0;background:none;cursor:pointer;opacity:.35;font-size:.9rem}
 .msg .erin:hover{opacity:1}
+.status{display:none;padding:6px 18px 0;background:var(--card);border-top:1px solid var(--n100);color:var(--n500);font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status.an{display:block}.status.fehler{color:#e5484d;white-space:normal}
+.status+.composer{border-top:0}
 .composer{display:flex;gap:8px;padding:12px 18px;background:var(--card);border-top:1px solid var(--n100)}
 .composer textarea{flex:1;border:1px solid var(--n200);border-radius:10px;padding:.55rem .7rem;font:inherit;resize:none;min-height:44px;background:var(--n50);color:var(--n900)}
 .composer button{border:0;border-radius:10px;background:var(--blau);color:#fff;font-weight:700;padding:0 18px;cursor:pointer}
@@ -56,6 +59,7 @@ dialog input{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.
   <aside><div id="kanaele"></div><div class="agenten"><h4>Agenten</h4><div id="agenten-liste" class="muted">–</div></div></aside>
   <main>
     <div id="msgs"></div>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
     <div class="composer"><button class="clip" id="clip" title="Datei anhängen">📎</button><button class="clip" id="screen" title="Bildschirm/Fenster aufnehmen (mit Ton)">🖥️</button><input id="datei" type="file" multiple hidden><textarea id="inp" placeholder="Nachricht … (Enter sendet, Dateien einfach reinziehen)"></textarea><button id="senden">Senden</button></div>
   </main>
 </div>
@@ -109,20 +113,65 @@ async function ladeMsgs(){
   const r=await api(`/api/messages?kanal=${encodeURIComponent(KANAL)}&seit=${LAST}`);
   if(r.ok)for(const m of r.messages){zeige(m);LAST=m.id;}
 }
-async function senden(){
+// ── Statuszeile (v0.4.0; fcStatus, weil window.status ein eingebautes Browser-Feld ist): EIN Slot über der Eingabe für Upload/Outbox/Fehler — statt Bubbles/alert().
+//    Fehler (⚠️) bleiben stehen, bis du weitertippst; alles andere räumt sich selbst weg.
+function fcStatus(text){const el=$('#status');if(!text){el.textContent='';el.className='status';return;}el.textContent=text;el.className='status an'+(/^⚠️/.test(text)?' fehler':'');}
+$('#inp').addEventListener('input',()=>{if(/^⚠️/.test($('#status').textContent)&&!uploadsLaufend)fcStatus(outboxText());});
+// ── Sende-Outbox (v0.4.0): Nachrichten überstehen schwaches Netz. Lokal gepuffert (localStorage),
+//    Wiederholung mit Backoff, client_id → der Server dedupt, es entsteht nie eine Dublette.
+//    Der Hinweis „wartet aufs Netz" erscheint erst, wenn nach 1,5 s noch etwas unversendet ist —
+//    im Normalfall (Antwort in <1 s) blitzt nichts auf.
+const OUTBOX='fc_outbox_v1';
+const obLaden=()=>{try{return JSON.parse(localStorage.getItem(OUTBOX)||'[]');}catch{return[];}};
+const obSpeichern=(a)=>{try{localStorage.setItem(OUTBOX,JSON.stringify(a));}catch{}};
+const cid=()=>(crypto.randomUUID?crypto.randomUUID():'m'+Date.now().toString(36)+Math.random().toString(36).slice(2,10));
+function outboxText(){const n=obLaden().filter(x=>Date.now()-x.seit>1500).length;return n?`⏳ ${n} Nachricht${n>1?'en warten':' wartet'} aufs Netz — bleibt erhalten, geht automatisch raus.`:'';}
+let obBusy=false,obTimer=null;
+async function outboxFlush(){
+  if(obBusy)return;const a=obLaden();if(!a.length){if(!uploadsLaufend&&!/^⚠️/.test($('#status').textContent))fcStatus('');return;}
+  const item=a.find(x=>!x.nextTry||x.nextTry<=Date.now());
+  if(!item){clearTimeout(obTimer);obTimer=setTimeout(outboxFlush,1000);return;}
+  obBusy=true;let r=null;
+  try{r=await api('/api/send',{method:'POST',body:JSON.stringify({kanal:item.kanal,inhalt:item.inhalt,von:item.von,media:item.media||undefined,client_id:item.client_id})});}catch{r=null;}
+  obBusy=false;
+  const arr=obLaden(),i=arr.findIndex(x=>x.client_id===item.client_id);
+  if(r&&r.ok){if(i>=0)arr.splice(i,1);obSpeichern(arr);ladeMsgs();setTimeout(outboxFlush,50);}
+  else if(r&&r.fehler){ // Server lehnt ab: Text zurück ins Feld, Grund bleibt stehen
+    if(i>=0)arr.splice(i,1);obSpeichern(arr);
+    if(item.kanal===KANAL&&!$('#inp').value.trim()&&!item.media)$('#inp').value=item.inhalt;
+    fcStatus('⚠️ Nicht gesendet: '+r.fehler+' — dein Text steht wieder im Feld, einfach nochmal senden.');
+    setTimeout(outboxFlush,50);
+  } else { // Netz weg: Backoff 5 s / 10 s / 30 s, nichts geht verloren
+    if(i>=0){arr[i].versuche=(arr[i].versuche||0)+1;arr[i].nextTry=Date.now()+(arr[i].versuche<=1?5000:arr[i].versuche<=3?10000:30000);obSpeichern(arr);}
+    clearTimeout(obTimer);obTimer=setTimeout(outboxFlush,2000);
+  }
+  if(!uploadsLaufend&&!/^⚠️/.test($('#status').textContent))fcStatus(outboxText());
+}
+setInterval(()=>{if(!uploadsLaufend&&!/^⚠️/.test($('#status').textContent))fcStatus(outboxText());},1500);
+function senden(){
   const t=$('#inp').value.trim();if(!t)return;$('#inp').value='';
-  await api('/api/send',{method:'POST',body:JSON.stringify({kanal:KANAL,inhalt:t,von:'du'})});
+  const a=obLaden();a.push({client_id:cid(),kanal:KANAL,inhalt:t,von:'du',seit:Date.now(),versuche:0,nextTry:0});obSpeichern(a);
+  outboxFlush();
 }
 $('#senden').onclick=senden;
 $('#inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();senden();}});
-// Datei-Upload: waehlen oder reinziehen → hochladen → sofort als Nachricht in den Kanal.
+// Datei-Upload: waehlen oder reinziehen → hochladen → als Nachricht in den Kanal (über die Outbox, idempotent).
+// Statuszeile zählt mit („⬆️ 2 von 3 Dateien …"); Fehler stehen rot in derselben Zeile statt in alert().
+let uploadsLaufend=0,uploadsGesamt=0;
+function uploadStatus(name){if(uploadsGesamt>1)fcStatus(`⬆️ ${uploadsGesamt-uploadsLaufend+1} von ${uploadsGesamt} Dateien werden hochgeladen …`);else fcStatus(`⬆️ ${name} wird hochgeladen …`);}
 async function ladeHoch(dateien){
-  for(const f of dateien){
+  const liste=[...dateien];uploadsLaufend+=liste.length;uploadsGesamt=Math.max(uploadsGesamt,uploadsLaufend);
+  let fehler=[];
+  for(const f of liste){
+    uploadStatus(f.name);
     const r=await fetch('/api/media',{method:'POST',headers:{authorization:'Bearer '+TOKEN,'x-fc-name':encodeURIComponent(f.name),'content-type':f.type||'application/octet-stream'},body:f}).then(x=>x.json()).catch(()=>null);
-    if(!r||!r.ok){alert('Upload fehlgeschlagen: '+f.name);continue;}
-    await api('/api/send',{method:'POST',body:JSON.stringify({kanal:KANAL,von:'du',inhalt:'📎 '+f.name,media:[{id:r.id,url:r.url,name:f.name,mime:f.type||'application/octet-stream'}]})});
+    uploadsLaufend--;
+    if(!r||!r.ok){fehler.push(f.name+(r&&r.fehler?' ('+r.fehler+')':''));continue;}
+    const a=obLaden();a.push({client_id:cid(),kanal:KANAL,von:'du',inhalt:'📎 '+f.name,media:[{id:r.id,url:r.url,name:f.name,mime:f.type||'application/octet-stream'}],seit:Date.now(),versuche:0,nextTry:0});obSpeichern(a);
   }
-  ladeMsgs();
+  if(uploadsLaufend<=0){uploadsLaufend=0;uploadsGesamt=0;}
+  fcStatus(fehler.length?'⚠️ Upload fehlgeschlagen: '+fehler.join(', ')+' — bitte nochmal anhängen.':'');
+  outboxFlush();
 }
 // Bildschirm-/Fensteraufnahme (mit Ton) → direkt als Video-Nachricht. Browser-nativ via getDisplayMedia;
 // im echten Chrome/Chromium sofort, im Electron-Cockpit über den setDisplayMediaRequestHandler des Hosts.
@@ -133,7 +182,7 @@ function screenCleanup(){
   const b=$('#screen');b.textContent='🖥️';b.classList.remove('rec');b.title='Bildschirm/Fenster aufnehmen (mit Ton)';
 }
 async function screenStart(){
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){alert('Bildschirmaufnahme wird hier nicht unterstützt (im echten Chrome/Chromium oder im Cockpit möglich).');return;}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){fcStatus('⚠️ Bildschirmaufnahme wird hier nicht unterstützt (im echten Chrome/Chromium oder im Cockpit möglich).');return;}
   let disp;try{disp=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});}catch(e){return;} // Abbruch im Picker
   scDisp=disp;scChunks=[];
   let mic=null;try{mic=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){mic=null;}scMic=mic;
@@ -145,15 +194,18 @@ async function screenStart(){
     }catch(e){if(sys.length)tracks.push(sys[0]);else if(mic)tracks.push(mic.getAudioTracks()[0]);}
   }
   const mixed=new MediaStream(tracks);
-  try{scRec=new MediaRecorder(mixed,{mimeType:'video/webm'});}catch(e){try{scRec=new MediaRecorder(mixed);}catch(e2){alert('Aufnahme nicht möglich');screenCleanup();return;}}
+  try{scRec=new MediaRecorder(mixed,{mimeType:'video/webm'});}catch(e){try{scRec=new MediaRecorder(mixed);}catch(e2){fcStatus('⚠️ Aufnahme nicht möglich — der Browser unterstützt MediaRecorder hier nicht.');screenCleanup();return;}}
   scRec.ondataavailable=e=>{if(e.data&&e.data.size)scChunks.push(e.data);};
   scRec.onstop=async()=>{const blob=new Blob(scChunks,{type:'video/webm'});const alt=scRec;scRec=null;screenCleanup();
     if(!blob.size)return;
     const name='Bildschirmaufnahme.webm';
+    uploadsLaufend++;uploadsGesamt=Math.max(uploadsGesamt,uploadsLaufend);fcStatus('⬆️ Bildschirmaufnahme wird hochgeladen …');
     const r=await fetch('/api/media',{method:'POST',headers:{authorization:'Bearer '+TOKEN,'x-fc-name':encodeURIComponent(name),'content-type':'video/webm'},body:blob}).then(x=>x.json()).catch(()=>null);
-    if(!r||!r.ok){alert('Upload der Aufnahme fehlgeschlagen');return;}
-    await api('/api/send',{method:'POST',body:JSON.stringify({kanal:KANAL,von:'du',inhalt:'🖥️ Bildschirmaufnahme',media:[{id:r.id,url:r.url,name:name,mime:'video/webm'}]})});
-    ladeMsgs();
+    uploadsLaufend--;if(uploadsLaufend<=0){uploadsLaufend=0;uploadsGesamt=0;}
+    if(!r||!r.ok){fcStatus('⚠️ Upload der Aufnahme fehlgeschlagen'+(r&&r.fehler?': '+r.fehler:'')+' — bitte nochmal aufnehmen.');return;}
+    fcStatus('');
+    const a=obLaden();a.push({client_id:cid(),kanal:KANAL,von:'du',inhalt:'🖥️ Bildschirmaufnahme',media:[{id:r.id,url:r.url,name:name,mime:'video/webm'}],seit:Date.now(),versuche:0,nextTry:0});obSpeichern(a);
+    outboxFlush();
   };
   vid.addEventListener('ended',()=>{if(scRec&&scRec.state!=='inactive')scRec.stop();}); // nativer „Freigabe beenden"
   scRec.start(1000);
@@ -224,7 +276,7 @@ function sse(){
   es.addEventListener('message',(e)=>{const m=JSON.parse(e.data);if(m.kanal===KANAL&&m.id>LAST){zeige(m);LAST=m.id;}});
   es.onerror=()=>es.close();
 }
-async function start(){ if(await ladeKanaele()){ladeMsgs();ladeAgenten();sse();setInterval(ladeMsgs,4000);$('#stand').textContent='verbunden';} }
+async function start(){ if(await ladeKanaele()){ladeMsgs();ladeAgenten();sse();setInterval(ladeMsgs,4000);$('#stand').textContent='verbunden';outboxFlush();} }
 start();
 </script>
 </body>

@@ -8,6 +8,7 @@ import {
   statusSetzen, stopAnfordern, stopHolenUndQuittieren,
   reminderAnlegen, reminders, reminderErledigt, reminderVerschieben, faelligeFeuern,
 } from './server/db.mjs';
+import { createLimiter, groesseErlaubt, clientIdSauber } from './server/limits.mjs';
 
 let pass = 0, fail = 0;
 const ok = (bed, name) => { if (bed) { pass++; } else { fail++; console.log('FAIL:', name); } };
@@ -75,6 +76,26 @@ ok(faelligeFeuern(db).length === 0, 'In die Zukunft verschoben → feuert (noch)
 reminderVerschieben(db, r1.id, new Date(Date.now() - 120000).toISOString());
 ok(faelligeFeuern(db).length === 1, 'In die Vergangenheit verschoben → feuert erneut');
 ok(reminderVerschieben(db, r1.id, null) === null, 'Verschieben ohne Zeit → null');
+
+// Idempotentes Senden (v0.4.0): gleiche client_id im selben Kanal → dieselbe Nachricht, keine Dublette
+const i1 = senden(db, { kanal: 'test', von: 'app', inhalt: 'einmal', client_id: 'abc-1' });
+const i2 = senden(db, { kanal: 'test', von: 'app', inhalt: 'einmal (Retry)', client_id: 'abc-1' });
+ok(i1 && !i1.dedup, 'Erste Sendung mit client_id ist neu');
+ok(i2 && i2.id === i1.id && i2.dedup === true && i2.inhalt === 'einmal', 'Retry mit gleicher client_id liefert dieselbe Nachricht (dedup)');
+ok(nachrichten(db, { kanal: 'test', seit: i1.id - 1 }).length === 1, 'Keine Dublette in der Liste');
+const i3 = senden(db, { kanal: 'anderer', von: 'app', inhalt: 'gleiche id, anderer kanal', client_id: 'abc-1' });
+ok(i3 && !i3.dedup && i3.id !== i1.id, 'client_id ist je Kanal eindeutig, nicht global');
+ok(senden(db, { kanal: 'test', von: 'app', inhalt: 'ohne id' }) && senden(db, { kanal: 'test', von: 'app', inhalt: 'ohne id' }), 'Ohne client_id bleibt Senden wie bisher (zwei Nachrichten)');
+
+// Limits (v0.4.0, rein): Sliding Window + Größen-Check + client_id-Säuberung
+const lim = createLimiter({ limit: 2, windowMs: 1000 });
+ok(lim.check('ip', 1000).ok && lim.check('ip', 1100).ok, 'Zwei Treffer im Fenster erlaubt');
+const dritter = lim.check('ip', 1200);
+ok(dritter.ok === false && dritter.retryAfterS >= 1, 'Dritter Treffer im Fenster → gesperrt mit retryAfter');
+ok(lim.check('andere-ip', 1200).ok, 'Anderer Schlüssel ist unabhängig');
+ok(lim.check('ip', 2100).ok, 'Nach Ablauf des Fensters wieder erlaubt');
+ok(groesseErlaubt(undefined, 100) && groesseErlaubt(100, 100) && !groesseErlaubt(101, 100), 'Größen-Check: unbekannt/gleich ok, drüber nicht');
+ok(clientIdSauber(' abc-1.2:x ') === 'abc-1.2:x' && clientIdSauber('böse id') === null && clientIdSauber('') === null && clientIdSauber('x'.repeat(65)) === null, 'client_id nur [A-Za-z0-9_.:-] ≤64');
 
 rmSync(dir, { recursive: true, force: true });
 console.log(`${pass} passed, ${fail} failed`);

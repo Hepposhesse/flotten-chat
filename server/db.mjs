@@ -72,6 +72,10 @@ export function openDb(dataDir) {
   for (const sp of ['status TEXT DEFAULT \'idle\'', 'status_seit TEXT', 'stop_angefordert INTEGER DEFAULT 0']) {
     try { db.exec(`ALTER TABLE agents ADD COLUMN ${sp}`); } catch { /* Spalte existiert schon */ }
   }
+  // v0.4.0: idempotentes Senden — client_id je Nachricht (vom Sender erzeugt). Gleiche client_id im
+  // selben Kanal = dieselbe Nachricht (Netz-Retry erzeugt keine Dublette). Teil-Index nur für gesetzte IDs.
+  try { db.exec('ALTER TABLE messages ADD COLUMN client_id TEXT'); } catch { /* existiert schon */ }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client ON messages(kanal, client_id) WHERE client_id IS NOT NULL');
   return db;
 }
 
@@ -92,12 +96,20 @@ export function kanaele(db) {
 }
 
 // ── Nachrichten ─────────────────────────────────────────────────────────────
-export function senden(db, { kanal, von, typ = 'fyi', inhalt, bezug_id = null, media = null }) {
+/** Senden. Mit `client_id` idempotent: existiert im Kanal schon eine Nachricht mit dieser ID, kommt
+ *  SIE zurück (mit `dedup: true`) statt einer Dublette — der Sender darf also bei Netzfehlern
+ *  gefahrlos wiederholen (Outbox-Muster, v0.4.0). */
+export function senden(db, { kanal, von, typ = 'fyi', inhalt, bezug_id = null, media = null, client_id = null }) {
   if (!kanal || !inhalt || !von) return null;
   const t = ['fyi', 'done', 'answer', 'error', 'system'].includes(typ) ? typ : 'fyi';
-  const r = db.prepare('INSERT INTO messages (kanal, von, typ, inhalt, bezug_id, media, erstellt_am) VALUES (?, ?, ?, ?, ?, ?, ?)')
+  const cid = client_id ? String(client_id).slice(0, 64) : null;
+  if (cid) {
+    const alt = db.prepare('SELECT * FROM messages WHERE kanal = ? AND client_id = ?').get(String(kanal).slice(0, 60), cid);
+    if (alt) return { ...alt, dedup: true };
+  }
+  const r = db.prepare('INSERT INTO messages (kanal, von, typ, inhalt, bezug_id, media, erstellt_am, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     .run(String(kanal).slice(0, 60), String(von).slice(0, 80), t, String(inhalt).slice(0, 20000),
-      bezug_id ? Number(bezug_id) : null, media ? JSON.stringify(media).slice(0, 4000) : null, nowIso());
+      bezug_id ? Number(bezug_id) : null, media ? JSON.stringify(media).slice(0, 4000) : null, nowIso(), cid);
   return db.prepare('SELECT * FROM messages WHERE id = ?').get(r.lastInsertRowid);
 }
 export function nachrichten(db, { kanal, seit = 0, limit = 200 }) {

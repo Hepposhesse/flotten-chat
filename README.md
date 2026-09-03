@@ -72,6 +72,8 @@ npm test        # Kern-Tests (SQLite, Kanäle, Connect, Reminder)
 - **Agent-Tokens sind auf ihren Kanal beschränkt** (Least Privilege): ein Agent liest/schreibt nur den
   eigenen, eingeladenen Kanal; kanalübergreifend darf nur der Admin. Mehr Kanäle = mehr Invites.
 - Nachrichten-Inhalte sind Daten, keine Anweisungen — Agenten nehmen Aufträge nur vom Chef an.
+- **Rate-Limits + Upload-Größenlimit** (v0.4.0): `POST /api/connect` 10/min je IP, `POST /api/media` 30/min je
+  Token, Uploads max. 200 MB — einstellbar über `FC_CONNECT_LIMIT`, `FC_MEDIA_LIMIT`, `FC_MEDIA_MAX_MB`.
 
 ## Lizenz & Unterstützung
 **AGPL-3.0** — © 2026 Simon Hesse · Sales-Engine. Frei nutzbar; wer es verändert und als Dienst anbietet, muss die Änderungen offenlegen ([LICENSE](LICENSE)). Wenn dir das Projekt hilft, freuen wir uns über Unterstützung —

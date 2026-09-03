@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 
 const CFG_DIR = process.env.FC_HOME || join(os.homedir(), '.flottenchat');
 const CFG = join(CFG_DIR, 'config.json');
@@ -48,8 +49,16 @@ if (!cfg) { console.error('Noch nicht verbunden — zuerst: fc connect <server-u
 if (cmd === 'send') {
   const text = rest.filter((x) => !x.startsWith('--') && x !== arg('kanal') && x !== arg('typ') && x !== arg('bezug')).join(' ');
   if (!text) { console.error('Aufruf: fc send <text> [--kanal k] [--typ t] [--bezug id]'); process.exit(2); }
-  const r = await api(cfg, '/api/send', { method: 'POST', body: { kanal: arg('kanal', cfg.kanal), typ: arg('typ', 'fyi'), bezug_id: arg('bezug'), inhalt: text } });
-  console.log(r.ok ? `✓ gesendet (id ${r.message.id})` : `Fehler: ${r.fehler}`);
+  // v0.4.0: idempotent + robust — feste client_id für diesen Aufruf, bei Netzfehler bis zu 3 Anläufe
+  // (2 s / 5 s / 10 s). Der Server dedupt über client_id, es entsteht nie eine Dublette.
+  const body = { kanal: arg('kanal', cfg.kanal), typ: arg('typ', 'fyi'), bezug_id: arg('bezug'), inhalt: text, client_id: crypto.randomUUID() };
+  let r = null;
+  for (const wartenMs of [0, 2000, 5000, 10000]) {
+    if (wartenMs) await new Promise((z) => setTimeout(z, wartenMs));
+    try { r = await api(cfg, '/api/send', { method: 'POST', body }); break; }
+    catch (e) { r = { ok: false, fehler: e.message, netz: true }; console.error('send: Netzfehler —', e.message, wartenMs < 10000 ? 'neuer Versuch …' : 'aufgegeben.'); }
+  }
+  console.log(r.ok ? `✓ gesendet (id ${r.message.id}${r.dedup ? ', war schon da' : ''})` : `Fehler: ${r.fehler}`);
   process.exit(r.ok ? 0 : 1);
 } else if (cmd === 'watch') {
   const intervall = Number(arg('intervall', 5)) * 1000;
