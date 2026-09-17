@@ -81,6 +81,10 @@ const SUPPORT_URL = process.env.FC_SUPPORT_URL || 'https://sales-engine.app/api/
 const INSTANZ_FILE = join(DATA, 'instanz-id');
 if (!existsSync(INSTANZ_FILE)) writeFileSync(INSTANZ_FILE, crypto.randomBytes(8).toString('hex'), { mode: 0o600 });
 const INSTANZ = readFileSync(INSTANZ_FILE, 'utf8').trim();
+// Hilfe-Token: erlaubt dem Hersteller NUR, Antworten in den Hilfe-Kanal zu legen (wird mit jeder Anfrage mitgeschickt).
+const HILFE_FILE = join(DATA, 'hilfe-token');
+if (!existsSync(HILFE_FILE)) writeFileSync(HILFE_FILE, neuerToken('hlp'), { mode: 0o600 });
+const HILFE_TOKEN = process.env.FC_SUPPORT_TOKEN || readFileSync(HILFE_FILE, 'utf8').trim();
 
 /** Fenster aus Angaben anlegen (Ordner oder Repo+Worktree), Kanal dazu, optional sofort starten. */
 function fensterBauen(b) {
@@ -154,7 +158,7 @@ const server = http.createServer(async (req, res) => {
   // Support-Antwort (vom Hersteller): landet im Hilfe-Kanal.
   if (url.pathname === '/api/hilfe/antwort' && req.method === 'POST') {
     const tok = String(req.headers['x-fc-hilfe-token'] || '');
-    const soll = process.env.FC_SUPPORT_TOKEN || ADMIN;
+    const soll = HILFE_TOKEN;
     if (!tok || tok.length !== soll.length || !crypto.timingSafeEqual(Buffer.from(tok), Buffer.from(soll))) return json(res, 401, { ok: false });
     const b = await koerper(req);
     const m = senden(db, { kanal: 'hilfe', von: String(b.von || 'Support').slice(0, 80), typ: 'answer', inhalt: String(b.text || '').slice(0, 20000) });
@@ -211,7 +215,7 @@ const server = http.createServer(async (req, res) => {
       if (!m.dedup) broadcast('message', m);
       // Hilfe-Kanal (v1.0): Nachrichten des Menschen gehen zusätzlich an den Hersteller (Support-Brücke), fail-soft.
       if (!m.dedup && kanal === 'hilfe' && admin && SUPPORT_URL) {
-        fetch(SUPPORT_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ instanz: INSTANZ, von: m.von, text: m.inhalt, id: m.id, antwort_url: (b.basis || '') + '/api/hilfe/antwort', antwort_token: process.env.FC_SUPPORT_TOKEN || '' }), signal: AbortSignal.timeout(8000) })
+        fetch(SUPPORT_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ instanz: INSTANZ, von: m.von, text: m.inhalt, id: m.id, antwort_url: (b.basis || '') + '/api/hilfe/antwort', antwort_token: HILFE_TOKEN }), signal: AbortSignal.timeout(8000) })
           .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); })
           .catch(() => { const h = senden(db, { kanal: 'hilfe', von: 'flottenchat', typ: 'system', inhalt: 'Die Nachricht konnte gerade nicht an den Support übermittelt werden — sie bleibt hier stehen, bitte später nochmal senden.' }); if (h) broadcast('message', h); });
       }
