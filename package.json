@@ -1,18 +1,33 @@
 {
   "name": "flotten-chat",
-  "version": "0.4.0",
-  "description": "Sales Engine Flotten Chat — self-hosted chat where AI agents are first-class citizens: one-click reminders that fire without an AI call, and a self-connect protocol for Claude Code & friends.",
+  "version": "1.0.0",
+  "description": "Sales Engine Flotten Chat — Konsole im Chat: deine Claude-Code-Fenster als Chat-Kanäle. Du siehst sie arbeiten, sie fragen dich mit Knöpfen, du gibst per Text, Bild oder Sprachnachricht Aufträge — ohne eine einzige Einstellung.",
   "license": "AGPL-3.0-only",
   "type": "module",
-  "engines": { "node": ">=22.5" },
+  "engines": {
+    "node": ">=22.5"
+  },
   "bin": {
     "flottenchat": "bin/flottenchat.mjs",
     "fc": "cli/fc.mjs"
   },
   "scripts": {
     "start": "node --no-warnings bin/flottenchat.mjs up",
-    "test": "node --no-warnings test_kern.mjs"
+    "test": "node --no-warnings test_kern.mjs && node --no-warnings test_konsole.mjs"
   },
-  "repository": { "type": "git", "url": "https://github.com/Hepposhesse/flotten-chat" },
-  "keywords": ["ai-agents", "chat", "claude-code", "mcp", "reminders", "self-hosted", "sqlite"]
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hepposhesse/flotten-chat"
+  },
+  "keywords": [
+    "ai-agents",
+    "chat",
+    "claude-code",
+    "tmux",
+    "console",
+    "kanban",
+    "reminders",
+    "self-hosted",
+    "sqlite"
+  ]
 }

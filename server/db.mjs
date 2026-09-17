@@ -76,6 +76,53 @@ export function openDb(dataDir) {
   // selben Kanal = dieselbe Nachricht (Netz-Retry erzeugt keine Dublette). Teil-Index nur für gesetzte IDs.
   try { db.exec('ALTER TABLE messages ADD COLUMN client_id TEXT'); } catch { /* existiert schon */ }
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client ON messages(kanal, client_id) WHERE client_id IS NOT NULL');
+  // v1.0 „Konsole im Chat": meta (JSON: Dialog-Optionen für Knöpfe, Karten-Bezug), Fenster-Registry,
+  // Themen-Board, Nutzer-Login (E-Mail + Passwort) und Browser-Sitzungen — alles additiv/idempotent.
+  try { db.exec('ALTER TABLE messages ADD COLUMN meta TEXT'); } catch { /* existiert schon */ }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS fenster (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,          -- Kanal-Name = Fenster-Name (slug)
+      label TEXT DEFAULT '',
+      ort TEXT DEFAULT 'lokal',           -- 'lokal' (tmux auf dem Chat-Server) | 'ssh:<host>' (tmux auf einem anderen Rechner)
+      ordner TEXT NOT NULL,               -- Arbeitsordner des Fensters
+      config_dir TEXT DEFAULT '',         -- CLAUDE_CONFIG_DIR (leer = Standard ~/.claude)
+      start_modus TEXT DEFAULT 'auto',    -- Claude permission-mode beim Start
+      start_text TEXT DEFAULT '',         -- erster Satz ans Fenster (Thema)
+      tmux TEXT NOT NULL,                 -- tmux-Session-Name
+      karte_id INTEGER,                   -- verknüpfte Karte (Themen-Board)
+      worktree INTEGER DEFAULT 0,         -- 1 = Ordner ist ein eigener git-Worktree dieses Fensters
+      cursor INTEGER DEFAULT 0,           -- Chat-Cursor der Zustellung
+      spiegel TEXT DEFAULT '{}',          -- Spiegel-Stand (Sitzung, Offset) als JSON
+      status TEXT DEFAULT 'aus',          -- aus | laeuft | schliesst
+      gestartet_am TEXT,
+      erstellt_am TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS karten (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      titel TEXT NOT NULL,
+      beschreibung TEXT DEFAULT '',
+      spalte TEXT DEFAULT 'ideen',        -- ideen | in_arbeit | freigabe | pruefen | erledigt
+      fenster TEXT DEFAULT '',            -- Name des verbundenen Fensters
+      verlauf TEXT DEFAULT '[]',          -- [{am, von, text, media?}]
+      erstellt_am TEXT NOT NULL,
+      stand_am TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS nutzer (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT DEFAULT '',
+      salt TEXT NOT NULL,
+      hash TEXT NOT NULL,
+      erstellt_am TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sitzungen (
+      token TEXT PRIMARY KEY,
+      nutzer_id INTEGER NOT NULL,
+      erstellt_am TEXT NOT NULL,
+      zuletzt TEXT
+    );
+  `);
   return db;
 }
 
@@ -99,18 +146,27 @@ export function kanaele(db) {
 /** Senden. Mit `client_id` idempotent: existiert im Kanal schon eine Nachricht mit dieser ID, kommt
  *  SIE zurück (mit `dedup: true`) statt einer Dublette — der Sender darf also bei Netzfehlern
  *  gefahrlos wiederholen (Outbox-Muster, v0.4.0). */
-export function senden(db, { kanal, von, typ = 'fyi', inhalt, bezug_id = null, media = null, client_id = null }) {
+export function senden(db, { kanal, von, typ = 'fyi', inhalt, bezug_id = null, media = null, client_id = null, meta = null }) {
   if (!kanal || !inhalt || !von) return null;
-  const t = ['fyi', 'done', 'answer', 'error', 'system'].includes(typ) ? typ : 'fyi';
+  const t = ['fyi', 'done', 'answer', 'error', 'system', 'question', 'task'].includes(typ) ? typ : 'fyi';
   const cid = client_id ? String(client_id).slice(0, 64) : null;
   if (cid) {
     const alt = db.prepare('SELECT * FROM messages WHERE kanal = ? AND client_id = ?').get(String(kanal).slice(0, 60), cid);
     if (alt) return { ...alt, dedup: true };
   }
-  const r = db.prepare('INSERT INTO messages (kanal, von, typ, inhalt, bezug_id, media, erstellt_am, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+  const r = db.prepare('INSERT INTO messages (kanal, von, typ, inhalt, bezug_id, media, erstellt_am, client_id, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(String(kanal).slice(0, 60), String(von).slice(0, 80), t, String(inhalt).slice(0, 20000),
-      bezug_id ? Number(bezug_id) : null, media ? JSON.stringify(media).slice(0, 4000) : null, nowIso(), cid);
+      bezug_id ? Number(bezug_id) : null, media ? JSON.stringify(media).slice(0, 4000) : null, nowIso(), cid,
+      meta ? JSON.stringify(meta).slice(0, 8000) : null);
   return db.prepare('SELECT * FROM messages WHERE id = ?').get(r.lastInsertRowid);
+}
+/** Meta einer Nachricht nachträglich setzen/ändern (z. B. Dialog als beantwortet markieren). */
+export function metaSetzen(db, id, meta) {
+  db.prepare('UPDATE messages SET meta = ? WHERE id = ?').run(meta ? JSON.stringify(meta).slice(0, 8000) : null, Number(id));
+  return db.prepare('SELECT * FROM messages WHERE id = ?').get(Number(id));
+}
+export function letzteNachrichtId(db, kanal) {
+  return db.prepare('SELECT COALESCE(MAX(id),0) AS m FROM messages WHERE kanal = ?').get(String(kanal)).m;
 }
 export function nachrichten(db, { kanal, seit = 0, limit = 200 }) {
   return db.prepare('SELECT * FROM messages WHERE kanal = ? AND id > ? ORDER BY id LIMIT ?')
@@ -214,3 +270,100 @@ export function faelligeFeuern(db, jetzt = new Date()) {
   }
   return gefeuert;
 }
+
+// ── v1.0: Fenster-Registry ─────────────────────────────────────────────────
+// EIN Ort für alles, was ein Fenster ausmacht (Name = Kanal, Ort, Ordner, tmux-Session, Karte, Stand).
+export function fensterAnlegen(db, { name, label = '', ort = 'lokal', ordner, config_dir = '', start_modus = 'auto', start_text = '', karte_id = null, worktree = 0 }) {
+  const sauber = String(name || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  if (!sauber || !ordner) return null;
+  const modus = ['auto', 'default', 'plan', 'acceptEdits'].includes(start_modus) ? start_modus : 'auto';
+  try {
+    db.prepare('INSERT INTO fenster (name, label, ort, ordner, config_dir, start_modus, start_text, tmux, karte_id, worktree, erstellt_am) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(sauber, String(label || sauber).slice(0, 120), String(ort || 'lokal').slice(0, 120), String(ordner).slice(0, 400), String(config_dir || '').slice(0, 400),
+        modus, String(start_text || '').slice(0, 4000), 'fc-' + sauber, karte_id ? Number(karte_id) : null, worktree ? 1 : 0, nowIso());
+  } catch { return null; } // Name vergeben
+  kanalAnlegen(db, { name: sauber, label: label || sauber });
+  return fensterHolen(db, sauber);
+}
+export function fensterHolen(db, name) { return db.prepare('SELECT * FROM fenster WHERE name = ?').get(String(name || '')) || null; }
+export function fensterAlle(db) { return db.prepare('SELECT * FROM fenster ORDER BY id').all(); }
+export function fensterAendern(db, name, patch = {}) {
+  const f = fensterHolen(db, name); if (!f) return null;
+  const erlaubt = ['label', 'status', 'gestartet_am', 'cursor', 'spiegel', 'karte_id', 'start_text', 'start_modus', 'worktree'];
+  for (const k of erlaubt) if (patch[k] !== undefined) {
+    const v = k === 'spiegel' ? JSON.stringify(patch[k] || {}) : patch[k];
+    db.prepare(`UPDATE fenster SET ${k} = ? WHERE id = ?`).run(v == null ? null : (typeof v === 'number' ? v : String(v)), f.id);
+  }
+  return fensterHolen(db, name);
+}
+export function fensterLoeschen(db, name) {
+  const f = fensterHolen(db, name); if (!f) return false;
+  db.prepare('DELETE FROM fenster WHERE id = ?').run(f.id);
+  db.prepare('UPDATE channels SET archiviert = 1 WHERE name = ?').run(f.name);
+  return true;
+}
+
+// ── v1.0: Themen-Board (Karte = Thema) ─────────────────────────────────────
+export const SPALTEN = ['ideen', 'in_arbeit', 'freigabe', 'pruefen', 'erledigt'];
+export function karteAnlegen(db, { titel, beschreibung = '', spalte = 'ideen', fenster = '' }) {
+  if (!titel) return null;
+  const sp = SPALTEN.includes(spalte) ? spalte : 'ideen';
+  const r = db.prepare('INSERT INTO karten (titel, beschreibung, spalte, fenster, erstellt_am, stand_am) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(String(titel).slice(0, 200), String(beschreibung || '').slice(0, 8000), sp, String(fenster || '').slice(0, 40), nowIso(), nowIso());
+  return karteHolen(db, r.lastInsertRowid);
+}
+export function karteHolen(db, id) {
+  const k = db.prepare('SELECT * FROM karten WHERE id = ?').get(Number(id));
+  if (!k) return null;
+  try { k.verlauf = JSON.parse(k.verlauf || '[]'); } catch { k.verlauf = []; }
+  return k;
+}
+export function karten(db) { return db.prepare('SELECT * FROM karten ORDER BY stand_am DESC').all().map((k) => { try { k.verlauf = JSON.parse(k.verlauf || '[]'); } catch { k.verlauf = []; } return k; }); }
+export function karteAendern(db, id, patch = {}) {
+  const k = karteHolen(db, id); if (!k) return null;
+  if (patch.titel != null) db.prepare('UPDATE karten SET titel = ? WHERE id = ?').run(String(patch.titel).slice(0, 200), k.id);
+  if (patch.beschreibung != null) db.prepare('UPDATE karten SET beschreibung = ? WHERE id = ?').run(String(patch.beschreibung).slice(0, 8000), k.id);
+  if (patch.spalte != null && SPALTEN.includes(patch.spalte)) db.prepare('UPDATE karten SET spalte = ? WHERE id = ?').run(patch.spalte, k.id);
+  if (patch.fenster !== undefined) db.prepare('UPDATE karten SET fenster = ? WHERE id = ?').run(String(patch.fenster || '').slice(0, 40), k.id);
+  db.prepare('UPDATE karten SET stand_am = ? WHERE id = ?').run(nowIso(), k.id);
+  return karteHolen(db, id);
+}
+/** Verlaufs-Eintrag (für Menschen): kurzer Text, optional ein Medium {id,url,name,mime}. */
+export function karteVerlauf(db, id, { von = '', text = '', media = null }) {
+  const k = karteHolen(db, id); if (!k || !text) return null;
+  k.verlauf.push({ am: nowIso(), von: String(von || '').slice(0, 80), text: String(text).slice(0, 4000), ...(media ? { media } : {}) });
+  db.prepare('UPDATE karten SET verlauf = ?, stand_am = ? WHERE id = ?').run(JSON.stringify(k.verlauf.slice(-200)), nowIso(), k.id);
+  return karteHolen(db, id);
+}
+export function karteLoeschen(db, id) { db.prepare('DELETE FROM karten WHERE id = ?').run(Number(id)); return true; }
+
+// ── v1.0: Nutzer-Login (E-Mail + Passwort, scrypt) + Browser-Sitzungen ─────
+export function nutzerAnlegen(db, { email, passwort, name = '' }) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) || String(passwort || '').length < 8) return null;
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(String(passwort), salt, 64).toString('hex');
+  try { db.prepare('INSERT INTO nutzer (email, name, salt, hash, erstellt_am) VALUES (?, ?, ?, ?, ?)').run(e, String(name || '').slice(0, 80), salt, hash, nowIso()); } catch { return null; }
+  return db.prepare('SELECT id, email, name, erstellt_am FROM nutzer WHERE email = ?').get(e);
+}
+export function nutzerAnzahl(db) { return db.prepare('SELECT COUNT(*) AS n FROM nutzer').get().n; }
+export function nutzerPruefen(db, { email, passwort }) {
+  const u = db.prepare('SELECT * FROM nutzer WHERE email = ?').get(String(email || '').trim().toLowerCase());
+  if (!u) return null;
+  const hash = crypto.scryptSync(String(passwort || ''), u.salt, 64);
+  const soll = Buffer.from(u.hash, 'hex');
+  if (hash.length !== soll.length || !crypto.timingSafeEqual(hash, soll)) return null;
+  return { id: u.id, email: u.email, name: u.name };
+}
+export function sitzungAnlegen(db, nutzerId) {
+  const token = neuerToken('ses');
+  db.prepare('INSERT INTO sitzungen (token, nutzer_id, erstellt_am, zuletzt) VALUES (?, ?, ?, ?)').run(token, Number(nutzerId), nowIso(), nowIso());
+  return token;
+}
+export function sitzungNutzer(db, token) {
+  if (!token) return null;
+  const s = db.prepare('SELECT s.token, u.id, u.email, u.name FROM sitzungen s JOIN nutzer u ON u.id = s.nutzer_id WHERE s.token = ?').get(String(token));
+  if (s) db.prepare('UPDATE sitzungen SET zuletzt = ? WHERE token = ?').run(nowIso(), s.token);
+  return s ? { id: s.id, email: s.email, name: s.name } : null;
+}
+export function sitzungLoeschen(db, token) { db.prepare('DELETE FROM sitzungen WHERE token = ?').run(String(token || '')); }

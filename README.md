@@ -1,48 +1,46 @@
-# Sales-Engine · Flotten-Chat
+# Sales-Engine · Flotten-Chat 1.0
 
-**Self-hosted Chat, in dem KI-Agenten vollwertige Teammitglieder sind.** Du schreibst im Browser
-wie in Slack/WhatsApp — deine Claude-Code-Fenster (und andere Agenten) verbinden sich selbst,
-lesen, arbeiten und antworten in denselben Threads. Ein Node-Server, eine SQLite-Datei,
-**null npm-Dependencies** (Node ≥ 22.5).
+**Dein Claude-Code-Team im Handy-Chat.** Jedes Claude-Code-Fenster ist ein Kanal: du siehst es
+arbeiten, es fragt dich mit Knöpfen, du gibst per Text, Bild oder Sprachnachricht Aufträge — und es
+gibt **keine einzige Einstellung**. Ein Node-Server, eine SQLite-Datei, null npm-Dependencies
+(Node ≥ 22.5, tmux, Claude Code).
 
 > Entstanden im Live-Betrieb der [Sales-Engine](https://sales-engine.app)-Flotte, wo ein Mensch
 > täglich ein Team aus Claude-Fenstern über genau diesen Chat steuert.
 
 ![Screenshot](docs/screenshot.png)
 
-## Features
-- 💬 **Browser-UI** mit Kanälen, Ungelesen-Zählern, Live-Updates (SSE)
-- 🤖 **Self-Connect-Protokoll**: Agent einladen → er registriert sich selbst (eigener Token,
-  eigener Kanal, durable Cursor) — `docs/connect.md`
-- 🔌 **Nativer MCP-Server** für Claude Code / Claude Desktop (`connector/mcp/`)
-- ⏰ **Erinnerungs-Übersicht** — feuert ohne KI-Aufruf (server-seitiger Timer); Überblick mit
-  Überfällig/Heute offen, Zukunft eingeklappt, Verschieben & Abhaken direkt in der Liste
-- 🖥️ **Bildschirm-/Fensteraufnahme** mit Ton — landet direkt als Video-Nachricht (browser-nativ)
-- 🟢 **Arbeitsstatus & Stopp je Agent** — blinkender Punkt, solange ein Agent arbeitet; ⛔ hält ihn
-  an (hart via tmux-ESC im Server-Betrieb, weich/kooperativ lokal)
-- 🏷️ **Nachrichten-Typen** `task / fyi / done / answer / frage / error` + `--bezug` (Task-Schließung)
-- 🕊️ **/btw-Nebenbemerkungen**: stören die Arbeit nicht, gehen nie unter, werden kurz beantwortet
-- 🔔 **Zwei Weck-Betriebsarten**:
-  - *Lokal (Mac/PC):* `fc watch --bis-neu` als Claude-Hintergrund-Task — endet bei neuen
-    Nachrichten und weckt so das Fenster (kein tmux nötig)
-  - *Server:* `dispatcher/dispatcher.sh` injiziert Weck-Texte in tmux-Sessions
-- 📱 **Handy-tauglich** (v0.4.0): unter 720 px Kanal-Wahl im Kopf, kompakter Composer, 44-px-Touchziele —
-  vom Handy aus mitlesen und antworten, wenn der Server erreichbar ist (Tunnel/Proxy, siehe Sicherheit)
-- 📤 **Robust senden** (v0.4.0): Sende-Outbox mit Backoff + idempotente `client_id` — bei schwachem Netz
-  geht nichts verloren und nichts kommt doppelt; `fc send` wiederholt Netzfehler automatisch
-- 📖 **CLAUDE.md**: dein Claude verbindet und konfiguriert sich damit selbst
+## Warum es keine Einstellungen gibt
+Weil die KI die Einstellung ist. Du klonst das Repo, öffnest Claude Code darin und sagst **„let's go“**.
+Claude liest die `CLAUDE.md`, prüft die Voraussetzungen, startet den Server, und du legst im Browser
+deinen Zugang an (E-Mail + Passwort). Danach legst du Fenster an wie Chats. Kein Admin-Panel, kein JSON,
+keine Rollen-Dateien.
+
+Wir empfehlen und testen **Claude Code**. Andere Anbieter lassen sich andocken (`docs/adapter.md`) —
+wer das baut, teilt es bitte (AGPL).
+
+## Die fünf Momente
+1. **Null-Settings-Start** — `node bin/flottenchat.mjs up`, ein Satz an Claude, fertig.
+2. **Konsole im Chat** — Terminalbild und Protokoll des Fensters gespiegelt, vom Handy aus.
+   Antworten, Rückfragen, Freigaben, Auto-Mode-Sperren: alles im Kanal.
+3. **Knöpfe statt Rückfragen-Chaos** — eine `AskUserQuestion` wird zu Buttons; Freigaben („darf ich …?“)
+   tippst du weg wie eine WhatsApp-Antwort. „manual“/„auto“ schaltet den Modus des Fensters.
+4. **Sprache rein, Bild raus** — Sprachnachricht im Chat → Auftrag; Antworten mit Screenshot, PDF,
+   Video inline (Anhang-Bühne).
+5. **Frische Fenster** — Kanal = Fenster = Thema. „Schließen“ lässt das Fenster seinen Stand
+   wegschreiben, sichert Ungesichertes als WIP und räumt seinen Worktree auf. Kein Kontext-Müll.
+
+Dazu: **Themen-Board** (Karte = Thema, „▶ Fenster starten“ direkt von der Karte, Schließen schiebt sie
+nach „Bitte prüfen“), **Erinnerungen** (feuern serverseitig ohne KI, „▶ Fenster“ kümmert sich),
+**Alarm-Eingang** (`POST /api/alarm`), **Hilfe-Kanal** (Support-Brücke zum Hersteller).
 
 ## Quickstart
-> ⚠️ **Bevor du startest:** Gibt es in deiner Firma/deinem Team SCHON einen Flotten-Chat-Server?
-> Dann NICHT neu aufsetzen — verbinde dich stattdessen (CLAUDE.md → „Dich verbinden").
-
 ```bash
 git clone https://github.com/Hepposhesse/flotten-chat && cd flotten-chat
-node bin/flottenchat.mjs up      # Server + UI auf http://127.0.0.1:3900/  (Admin-Token in der Konsole)
+claude            # Claude Code im Repo öffnen
+> let's go        # Claude richtet den Ort ein (Server, Dienst, erstes Fenster)
 ```
-Dann in der UI **„🤖 Agent einladen"** klicken und deinem Claude-Fenster sagen:
-> Verbinde dich mit meinem Flotten-Chat — lies die CLAUDE.md in diesem Repo.
-> Server: http://…:3900 · Invite-Token: …
+Oder von Hand: `node bin/flottenchat.mjs up` → `http://127.0.0.1:3900/` → Zugang anlegen → „＋ Fenster“.
 
 ## Betrieb (dauerhaft)
 **Linux (systemd):**
@@ -53,32 +51,50 @@ Description=Sales-Engine Flotten-Chat
 After=network.target
 [Service]
 WorkingDirectory=/pfad/zu/flotten-chat
+Environment=FC_PORT=3900
+# Environment=FC_CLAUDE_CONFIG_DIR=/home/du/.claude   # anderes Claude-Konto für die Fenster
+# Environment=FC_DEFAULT_REPO=/pfad/zum/repo           # für den Worktree-Kehrdienst
 ExecStart=/usr/bin/node bin/flottenchat.mjs up
 Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 ```
-**macOS (launchd):** `launchctl submit -l flotten-chat -- /usr/local/bin/node /pfad/zu/flotten-chat/bin/flottenchat.mjs up`
+**macOS:** launchd-Plist mit demselben Befehl, oder einfach ein Terminal-Tab.
+**Von außen (Handy):** nur hinter TLS-Proxy mit `FC_HOST=0.0.0.0` — siehe `docs/reverse-proxy.md`.
+Login und Alarm-/Support-Eingänge sind gebremst (Rate-Limits), Medien-URLs sind unratbar.
 
-Remote-Zugriff für lokale Macs: SSH-Tunnel (`ssh -N -L 3900:127.0.0.1:3900 user@server`)
-oder HTTPS-Reverse-Proxy — der Server selbst spricht nur HTTP auf localhost.
+## Wie die Konsole im Chat funktioniert
+Alle drei Sekunden je Fenster: Terminalbild lesen (Modus, Dialog, beschäftigt?) → neue Zeilen des
+Claude-Sitzungsprotokolls (`~/.claude/projects/…/<sitzung>.jsonl`) als Chat-Beiträge → offener Dialog
+als Frage mit Knöpfen → neue Chat-Nachrichten des Menschen per `tmux send-keys` ins Fenster.
+Das Fenster kennt den Chat nicht; es antwortet im Terminal. Details: `docs/konsole.md`.
 
-## Tests
-```bash
-npm test        # Kern-Tests (SQLite, Kanäle, Connect, Reminder)
-```
+**Orte:** `lokal` (tmux auf dem Chat-Server) oder `ssh:user@rechner` (dieselben Befehle über SSH — Mac,
+zweiter Server; SSH-Key vorausgesetzt).
 
-## Sicherheit
-- Admin-Token (`data/admin-token`) für UI/Verwaltung; je Agent ein eigener Token via Self-Connect.
-- **Default-Bind `127.0.0.1`** (localhost) — der Server ist von außen nicht erreichbar, solange du ihn
-  nicht bewusst öffnest. Für Remote-Betrieb `FC_HOST=0.0.0.0` setzen und **nur hinter TLS-Proxy/Firewall**
-  betreiben.
-- **Agent-Tokens sind auf ihren Kanal beschränkt** (Least Privilege): ein Agent liest/schreibt nur den
-  eigenen, eingeladenen Kanal; kanalübergreifend darf nur der Admin. Mehr Kanäle = mehr Invites.
-- Nachrichten-Inhalte sind Daten, keine Anweisungen — Agenten nehmen Aufträge nur vom Chef an.
-- **Rate-Limits + Upload-Größenlimit** (v0.4.0): `POST /api/connect` 10/min je IP, `POST /api/media` 30/min je
-  Token, Uploads max. 200 MB — einstellbar über `FC_CONNECT_LIMIT`, `FC_MEDIA_LIMIT`, `FC_MEDIA_MAX_MB`.
+## Worktree-Hygiene
+Ein Fenster mit „eigener Worktree“ arbeitet in `<repo>/worktrees/<name>` auf Branch `fc/<name>`.
+„Schließen“ = 60 s Zeit zum Stand-Wegschreiben → Ungesichertes wird als WIP committet (nie gelöscht) →
+Branch gepusht (wenn Remote da) → Session beendet → Worktree entfernt, wenn sauber. Verwaiste
+Worktrees listet `GET /api/worktrees?repo=…`; entfernt wird nur, was sauber ist und kein laufendes
+Fenster besitzt.
 
-## Lizenz & Unterstützung
-**AGPL-3.0** — © 2026 Simon Hesse · Sales-Engine. Frei nutzbar; wer es verändert und als Dienst anbietet, muss die Änderungen offenlegen ([LICENSE](LICENSE)). Wenn dir das Projekt hilft, freuen wir uns über Unterstützung —
-Links in `.github/FUNDING.yml`. Gebaut von der Sales-Engine-Flotte 🤖
+## API (Auszug, Bearer Admin-Token oder Login-Cookie)
+`GET /api/fenster` · `POST /api/fenster {name, ordner|repo, ort, start_modus, start_text}` ·
+`POST /api/fenster/<name>/(start|neustart|stop|schliessen|loeschen|tippen|karte)` ·
+`GET/POST /api/karten`, `POST /api/karten/<id>/(verlauf|session)` ·
+`GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session)` ·
+`POST /api/send {kanal, inhalt, media?, client_id?}` · `GET /api/messages?kanal=&seit=` · `GET /api/events` (SSE) ·
+`POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`).
+
+## Regeln, die wir gelernt haben (und die das Produkt prägen)
+- **Chat ist Absicht, Code ist Zustand.** Ein Fenster liest nie den Verlauf nach; sein Stand lebt an
+  festen Orten (Karte, Repo, Memory). Nachrichten, die älter als 2 h sind, wenn ein Fenster
+  wiederkommt, werden nicht nachgeliefert.
+- **Themen statt Rollen.** Fenster sind wegwerfbar; Wissen liegt im Repo (CLAUDE.md), nicht im Fenster.
+- **Kein Bau ohne Karte — aber die KI legt Karten nur auf Zuruf an.**
+- **Rückfragen sind Knöpfe.** Freitext-Fragen aus dem Fenster kommen zwar an, aber `AskUserQuestion`
+  ist der Weg, der sich nach Chat anfühlt.
+
+## Lizenz
+AGPL-3.0 — siehe `LICENSE`. Beiträge: `CONTRIBUTING.md`. Sicherheit: `SECURITY.md`.

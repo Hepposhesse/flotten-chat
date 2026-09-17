@@ -3,6 +3,42 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [1.0.0] — 2026-09-17
+
+Schwerpunkt: **Konsole im Chat.** Jedes Claude-Code-Fenster ist ein Kanal — der Server tippt hinein
+und spiegelt heraus. Kein Bus, kein Watcher, kein Re-Arm im Fenster mehr. Und: keine Einstellungen.
+
+### Neu
+- **Konsole im Chat** (`server/konsole.mjs`, `server/protokoll.mjs`, `server/orte.mjs`): Terminalbild +
+  Sitzungsprotokoll → Chat (Antworten, Rückfragen als Knöpfe, Freigaben, Auto-Mode-Sperren);
+  Chat → Fenster per tmux (Text, Zahl = Wahl, „nein" = Esc, „manual"/„auto" = Modus).
+- **Fenster-Registry** (Tabelle `fenster`): Name = Kanal, Ort (`lokal` | `ssh:host`), Ordner, Konto,
+  Start-Modus, Karte, Worktree, Stand. „＋ Fenster" in der UI, `POST /api/fenster` per API.
+- **Kopfzeile je Fenster**: Name grün/rot + „seit", verknüpfte Karte mittig, Modus-Schalter,
+  Schließen und Neu starten rechts.
+- **Worktree-Hygiene**: eigener Worktree je Fenster (`<repo>/worktrees/<name>`, Branch `fc/<name>`),
+  Schließ-Ritual (60 s Stand wegschreiben → WIP sichern → Session beenden → Worktree weg, wenn sauber),
+  Kehrdienst für verwaiste Worktrees (`GET /api/worktrees`).
+- **Themen-Board** (Tabelle `karten`): 5 Spalten, „▶ Fenster starten" von der Karte, Verlauf mit Medien,
+  Schließen → „Bitte prüfen".
+- **Login mit E-Mail + Passwort** (scrypt, Cookie-Sitzungen, Rate-Limit). Admin-Token bleibt für
+  Skripte/Agenten.
+- **Anhang-Bühne**: Bilder mit Lightbox, Video/Audio nativ, PDF inline; Sprachnachricht aus dem Mikro.
+- **Erinnerungen als Standard-Kanal** mit „▶ Fenster" (Session zur Erinnerung), **Alarm-Eingang**
+  (`POST /api/alarm`), **Hilfe-Kanal** (Support-Brücke zum Hersteller, Antworten landen im Kanal).
+- **Nachrichten-Typen** `question` und `task`, Feld `meta` (JSON) für Knöpfe/Bezüge.
+- Neue Tests: `test_konsole.mjs` (58 Checks) für die reine Logik + Registry/Board/Login.
+
+### Geändert
+- `CLAUDE.md` neu geschrieben: „Ort einrichten" heißt jetzt: Claude-Session öffnen, „let's go" sagen.
+- README neu: die fünf Momente, Regeln aus dem Betrieb, keine Einstellungen.
+- Standard-Kanäle: `erinnerungen`, `hilfe`, `allgemein` (statt nur `allgemein`).
+- SSE `/api/events` funktioniert mit Login-Cookie (kein Token in der URL nötig).
+
+### Weiter vorhanden (Betriebsart ohne tmux)
+- Self-Connect, `fc watch --bis-neu`, MCP-Connector, Dispatcher — für Agenten, die nicht in tmux auf dem
+  Chat-Server laufen. Empfehlung: Fenster per `ssh:`-Ort statt Watcher.
+
 ## [0.4.0] — 2026-09-03
 
 Schwerpunkt: **Robust senden.** Nichts geht mehr verloren, nichts kommt doppelt — auch vom Handy
