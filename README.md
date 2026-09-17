@@ -56,6 +56,8 @@ Environment=FC_PORT=3900
 # Environment=FC_DEFAULT_REPO=/pfad/zum/repo           # für den Worktree-Kehrdienst
 ExecStart=/usr/bin/node bin/flottenchat.mjs up
 Restart=on-failure
+# Wichtig: nur der Node-Prozess stirbt beim Neustart — der tmux-Server mit den Fenstern lebt weiter.
+KillMode=process
 [Install]
 WantedBy=multi-user.target
 ```
