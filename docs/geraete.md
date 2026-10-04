@@ -17,7 +17,11 @@ und muss dafür **nicht** als root laufen. Ist `fcgeraet` schon belegt: dritter 
 im Chat-Server `FC_GERAETE_NUTZER=fckit`.
 
 Umgebung (optional): `FC_PUBLIC_URL` (Adresse, unter der Geräte den Chat erreichen; sonst aus der Anfrage),
-`FC_GERAETE_HOST` (ssh-Host für den Tunnel; sonst der Host aus der Adresse), `FC_GERAETE_SSH_PORT` (Standard 22).
+`FC_GERAETE_HOST` (ssh-Host für den Tunnel; sonst der Host aus der Adresse), `FC_GERAETE_SSH_PORT` (Standard 22),
+`FC_GERAETE_PORT_BASIS` (erster Tunnel-Port, Standard 22101; Ports, auf denen schon etwas lauscht, werden übersprungen —
+wichtig, wenn mehrere Instanzen auf einem Server laufen).
+
+Getestet: Linux-Gerät im Container (inkl. Sperrproben) und ein MacBook mit macOS 15.5 (LaunchAgent, Fenster, Entfernen).
 Hinter einem Reverse-Proxy muss `/geraet/` mit durchgereicht werden.
 
 ## Ein Gerät koppeln
