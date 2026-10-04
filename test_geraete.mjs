@@ -23,6 +23,7 @@ eq(geraetSlug('Büro-Rechner Ü'), 'buero-rechner-ue', 'Umlaute');
 eq(geraeteListe([{ id: 'air', name: 'Air' }, null, { name: 'ohne id' }, { id: '../x' }]).map((g) => g.id), ['air'], 'kaputte Einträge raus');
 eq(freierPort([]), PORT_BASIS, 'erster Port');
 eq(freierPort([{ port: PORT_BASIS }, { port: PORT_BASIS + 1 }]), PORT_BASIS + 2, 'nächster freier Port');
+eq(freierPort([{ port: PORT_BASIS }], [PORT_BASIS + 1]), PORT_BASIS + 2, 'lauschender fremder Port wird übersprungen');
 ok(codeFormOk(codeAus(BYTES)) && codeAus(BYTES).length === 8, 'Code 8 Zeichen, gültige Form');
 ok(!codeFormOk('abc') && !codeFormOk('ABCDEFGH') && !codeFormOk('abcdefg0') && !codeFormOk('../etc/p'), 'kaputte Codes abgelehnt');
 

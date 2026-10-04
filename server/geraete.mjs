@@ -14,7 +14,7 @@
 // steht auf dem Gerät mit from="127.0.0.1,::1" — er gilt also nur durch den Tunnel. Der Host-Schlüssel des
 // Geräts wird beim Anmelden festgehalten (known_hosts je Port), damit niemand anderes den Port übernehmen kann.
 
-export const PORT_BASIS = 22101;
+export const PORT_BASIS = Number(process.env.FC_GERAETE_PORT_BASIS) || 22101;
 export const CODE_GUELTIG_MS = 30 * 60 * 1000;
 export const TUNNEL_NUTZER = 'fcgeraet'; // Standard; Env FC_GERAETE_NUTZER, falls der Name schon belegt ist
 const RESERVIERT = ['lokal', 'ssh', 'geraet', 'server'];
@@ -33,9 +33,10 @@ export function geraeteListe(roh) {
   return (Array.isArray(roh) ? roh : []).filter((g) => g && typeof g === 'object' && /^[a-z0-9-]{1,40}$/.test(String(g.id || '')));
 }
 
-/** Nächster freier Tunnel-Port. */
-export function freierPort(liste) {
-  const belegt = new Set((liste || []).map((g) => Number(g.port)).filter(Boolean));
+/** Nächster freier Tunnel-Port (ab PORT_BASIS, Env FC_GERAETE_PORT_BASIS). */
+export function freierPort(liste, schonBelegt = []) {
+  // Auch Ports, auf denen schon etwas lauscht (z. B. eine zweite Instanz mit eigenen Geräten), sind tabu.
+  const belegt = new Set([...(liste || []).map((g) => Number(g.port)), ...schonBelegt].filter(Boolean));
   let p = PORT_BASIS; while (belegt.has(p)) p++;
   return p;
 }
@@ -48,7 +49,7 @@ export function codeAus(zufall) {
 export const codeFormOk = (code) => /^[a-hj-km-np-z2-9]{8}$/.test(String(code || ''));
 
 /** Neues Gerät anlegen (wartet auf Kopplung). → { geraet } | { fehler } */
-export function geraetAnlegen(liste, { name, zufall, jetzt }) {
+export function geraetAnlegen(liste, { name, zufall, jetzt, portsBelegt = [] }) {
   const n = String(name || '').trim().slice(0, 60);
   let id = geraetSlug(n);
   if (!id) return { fehler: 'Name fehlt.' };
@@ -60,7 +61,7 @@ export function geraetAnlegen(liste, { name, zufall, jetzt }) {
   const t = new Date(jetzt).getTime();
   return {
     geraet: {
-      id, name: n, status: 'wartet', port: freierPort(liste), code,
+      id, name: n, status: 'wartet', port: freierPort(liste, portsBelegt), code,
       code_bis: new Date(t + CODE_GUELTIG_MS).toISOString(), angelegt: new Date(t).toISOString(),
       ssh_ziel: '', heimordner: '', tmux: '', system: '', tunnel_key: '', host_key: '',
     },
@@ -189,7 +190,7 @@ SSH_PORT=${Number(sshPort)}
 BASIS=${q(basisUrl)}
 SERVER_PUB=${q(serverPubKey)}
 SERVER_HOSTKEY=${q(`${hostEintrag} ${serverHostKey}`)}
-KEY="$HOME/.ssh/fleet_geraet_ed25519"
+KEY="$HOME/.ssh/flotten_chat_ed25519"
 SYSTEM=$(uname)
 ok(){ printf '✓ %s\\n' "$*"; }
 nein(){ printf '✗ %s\\n' "$*"; }
@@ -233,7 +234,7 @@ HOSTKEY=$(cat /etc/ssh/ssh_host_ed25519_key.pub 2>/dev/null || true)
 
 # 3 · Schlüssel für den Tunnel
 mkdir -p "$HOME/.ssh"; chmod 700 "$HOME/.ssh"
-[ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -C "fleet-geraet-$(hostname -s)" -f "$KEY"
+[ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -C "flotten-chat-$(hostname -s)" -f "$KEY"
 ok "Schlüssel $KEY"
 
 # 4 · Server darf sich anmelden — nur durch den Tunnel (from=127.0.0.1)

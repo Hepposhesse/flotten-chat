@@ -326,7 +326,7 @@ const server = http.createServer(async (req, res) => {
       const b0 = geraete.bereit(); if (!b0.ok) return json(res, 503, { ok: false, fehler: b0.fehler });
       const b = await koerper(req);
       const liste = geraete.alle();
-      const r = geraetAnlegen(liste, { name: b.name, zufall: crypto.randomBytes(8), jetzt: new Date() });
+      const r = geraetAnlegen(liste, { name: b.name, zufall: crypto.randomBytes(8), jetzt: new Date(), portsBelegt: [...geraete.lauschendePorts()] });
       if (r.fehler) return json(res, 400, { ok: false, fehler: r.fehler });
       geraete.speichern([...liste, r.geraet]);
       return json(res, 200, { ok: true, geraet: geraetOeffentlich(r.geraet), code: r.geraet.code, block: einfuegeBlock({ code: r.geraet.code, basisUrl: basisUrl(req), name: r.geraet.name }) });
