@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "node --no-warnings bin/flottenchat.mjs up",
-    "test": "node --no-warnings test_kern.mjs && node --no-warnings test_konsole.mjs"
+    "test": "node --no-warnings test_kern.mjs && node --no-warnings test_konsole.mjs && node --no-warnings test_geraete.mjs"
   },
   "repository": {
     "type": "git",

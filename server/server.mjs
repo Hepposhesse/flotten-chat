@@ -19,8 +19,10 @@ import {
 } from './db.mjs';
 import { createLimiter, groesseErlaubt, clientIdSauber } from './limits.mjs';
 import { starteKonsole } from './konsole.mjs';
-import { sessionStarten, sessionNeustart, sessionBeenden, prozessVon, paneLesen, paneFarbigLesen, tastenSenden, textSenden, worktreeAnlegen, worktreeSichern, worktreeEntfernen, worktreeSauber, worktreesVerwaist, repoWurzel, istSsh } from './orte.mjs';
+import { setGeraeteQuelle, TMUX_SOCKET, sessionStarten, sessionNeustart, sessionBeenden, prozessVon, paneLesen, paneFarbigLesen, tastenSenden, textSenden, worktreeAnlegen, worktreeSichern, worktreeEntfernen, worktreeSauber, worktreesVerwaist, repoWurzel, istSsh } from './orte.mjs';
 import { ansiZuHtml, TERMINAL_TASTEN } from './terminal.mjs';
+import { geraetAnlegen, geraetZumCode, geraetAnmelden, geraetOeffentlich, einfuegeBlock, einrichtungsSkript, sshArgs, tunnelUebergaenge } from './geraete.mjs';
+import { createGeraeteDienst } from './geraeteDienst.mjs';
 import { slug } from './protokoll.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -59,6 +61,28 @@ setInterval(() => {
 // ── Konsole im Chat: die Runde über alle Fenster ────────────────────────────
 const konsole = starteKonsole({ db, dataDir: DATA, broadcast });
 
+// ── Geräte koppeln: Rückkanal-Tunnel je Gerät, Ort „geraet:<id>" ──
+const geraete = createGeraeteDienst(DATA);
+setGeraeteQuelle((id) => geraete.holen(id), (g) => sshArgs(g, { schluessel: geraete.schluessel, knownHostsDatei: geraete.knownHostsDatei }));
+const geraetLimiter = createLimiter({ limit: Number(process.env.FC_GERAET_LIMIT || 20), windowMs: 10 * 60_000 });
+/** Öffentliche Adresse dieser Instanz (für das Einrichtungs-Skript): FC_PUBLIC_URL oder aus dem Request. */
+const basisUrl = (req) => (process.env.FC_PUBLIC_URL || `${String(req.headers['x-forwarded-proto'] || 'http').split(',')[0]}://${req.headers['x-forwarded-host'] || req.headers.host}`).replace(/\/$/, '');
+const formular = (req) => new Promise((resolve) => {
+  let buf = ''; req.on('data', (d) => { buf += d; if (buf.length > 20_000) req.destroy(); });
+  req.on('end', () => resolve(Object.fromEntries(new URLSearchParams(buf))));
+});
+// Wächter: geht ein Tunnel zu oder wieder auf, steht es im Kanal „alarm".
+let tunnelStand = {};
+setInterval(() => {
+  try {
+    const liste = geraete.alle().filter((g) => g.status === 'gekoppelt');
+    const neu = Object.fromEntries(liste.map((g) => [g.id, geraete.tunnelOffen(g)]));
+    for (const u of tunnelUebergaenge(tunnelStand, neu, liste)) { kanalAnlegen(db, { name: 'alarm', label: '🚨 Alarm' }); const m = senden(db, { kanal: 'alarm', von: 'Geräte', typ: 'error', inhalt: u.text }); if (m) broadcast('message', m); }
+    if (liste.some((g) => neu[g.id])) geraete.speichern(geraete.alle().map((g) => (neu[g.id] ? { ...g, zuletzt_offen: new Date().toISOString() } : g)));
+    tunnelStand = neu;
+  } catch { /* Wächter darf nie den Server stören */ }
+}, 120_000).unref();
+
 // ── Hilfen ──────────────────────────────────────────────────────────────────
 const json = (res, code, obj, extra = {}) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', ...extra }); res.end(JSON.stringify(obj)); };
 const koerper = (req) => new Promise((resolve) => {
@@ -94,14 +118,22 @@ function fensterBauen(b) {
   if (fensterHolen(db, name)) return { ok: false, fehler: `Fenster „${name}" gibt es schon.` };
   let ordner = String(b.ordner || '').trim();
   let worktree = 0;
-  const ort = /^ssh:\S+$/.test(String(b.ort || '')) ? String(b.ort) : 'lokal';
+  let ort = /^ssh:\S+$/.test(String(b.ort || '')) ? String(b.ort) : 'lokal';
+  const mG = /^geraet:([a-z0-9-]+)$/.exec(String(b.ort || ''));
+  if (mG) {
+    const g = geraete.holen(mG[1]);
+    if (!g || g.status !== 'gekoppelt') return { ok: false, fehler: 'Gerät unbekannt oder noch nicht gekoppelt.' };
+    if (!geraete.tunnelOffen(g)) return { ok: false, fehler: `${g.name} ist gerade nicht erreichbar (Tunnel zu${g.zuletzt_offen ? ', zuletzt offen ' + new Date(g.zuletzt_offen).toLocaleString('de-DE') : ''}). Gerät einschalten/aufwecken.` };
+    ort = `geraet:${g.id}`;
+    if (!ordner) ordner = `${g.heimordner}/fleet-themen/${name}`;
+  }
   if (b.repo && ort === 'lokal') {
     const w = worktreeAnlegen(String(b.repo), name);
     if (!w.ok) return { ok: false, fehler: w.fehler };
     ordner = w.ordner; worktree = 1;
   }
   if (!ordner) ordner = process.env.FC_DEFAULT_ORDNER || process.cwd();
-  const f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || process.env.FC_CLAUDE_CONFIG_DIR || '', start_modus: b.start_modus || 'auto', start_text: b.start_text || '', worktree });
+  const f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || (ort === 'lokal' ? process.env.FC_CLAUDE_CONFIG_DIR || '' : ''), start_modus: b.start_modus || 'auto', start_text: b.start_text || '', worktree });
   if (!f) return { ok: false, fehler: 'Fenster konnte nicht angelegt werden.' };
   let start = { ok: false };
   if (b.starten !== false) { start = sessionStarten(f); if (start.ok) fensterAendern(db, f.name, { status: 'laeuft', gestartet_am: nowIso() }); }
@@ -164,6 +196,38 @@ const server = http.createServer(async (req, res) => {
     const m = senden(db, { kanal: 'hilfe', von: String(b.von || 'Support').slice(0, 80), typ: 'answer', inhalt: String(b.text || '').slice(0, 20000) });
     if (!m) return json(res, 400, { ok: false });
     broadcast('message', m); return json(res, 200, { ok: true, id: m.id });
+  }
+
+  // Geräte koppeln (öffentlich, Einmal-Code im Pfad, Fehlversuche gebremst):
+  //   GET /geraet/<code> → Einrichtungs-Skript · POST …/anmelden → Schlüssel melden · GET …/status → Tunnel offen?
+  const mGeraet = /^\/geraet\/([a-z0-9]{8})(?:\/(anmelden|status))?$/.exec(url.pathname);
+  if (mGeraet) {
+    const ip = req.socket?.remoteAddress || 'unbekannt';
+    const [, code, teil] = mGeraet;
+    const text = (code_, t) => { res.writeHead(code_, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }); res.end(t); };
+    const liste = geraete.alle();
+    if (teil === 'status' && req.method === 'GET') {
+      const g = geraetZumCode(liste, code, new Date(), { nurWartend: false });
+      if (!g) { const l = geraetLimiter.check(ip); if (!l.ok) return zuViele(res, l); return json(res, 404, { ok: false }); }
+      return json(res, 200, { ok: true, gekoppelt: g.status === 'gekoppelt', offen: geraete.tunnelOffen(g) });
+    }
+    const g = geraetZumCode(liste, code, new Date());
+    if (!g) { const l = geraetLimiter.check(ip); if (!l.ok) return zuViele(res, l); return teil ? json(res, 404, { ok: false, fehler: 'Code ungültig oder abgelaufen.' }) : text(404, 'echo "✗ Code ungültig oder abgelaufen — im Flotten-Chat neu erzeugen."; exit 1\n'); }
+    if (!teil && req.method === 'GET') {
+      const b = geraete.bereit();
+      if (!b.ok) return text(503, `echo ${JSON.stringify('✗ Server noch nicht eingerichtet: ' + b.fehler)}; exit 1\n`);
+      const basis = basisUrl(req);
+      return text(200, einrichtungsSkript({ code, port: g.port, host: process.env.FC_GERAETE_HOST || new URL(basis).hostname, sshPort: Number(process.env.FC_GERAETE_SSH_PORT || 22), basisUrl: basis, serverPubKey: geraete.serverPubKey(), serverHostKey: geraete.serverHostKey(), name: g.name, tmuxSocket: TMUX_SOCKET, tunnelNutzer: geraete.tunnelNutzer }));
+    }
+    if (teil === 'anmelden' && req.method === 'POST') {
+      const r = geraetAnmelden(g, await formular(req), new Date());
+      if (r.fehler) return json(res, 400, { ok: false, fehler: r.fehler });
+      geraete.speichern(liste.map((x) => (x.id === g.id ? r.geraet : x)));
+      const m = senden(db, { kanal: 'allgemein', von: 'flottenchat', typ: 'system', inhalt: `🔗 Gerät „${g.name}" ist gekoppelt — unter ＋ Fenster → Ort wählbar.` }); if (m) broadcast('message', m);
+      broadcast('presence', { geraet: g.id });
+      return json(res, 200, { ok: true });
+    }
+    return json(res, 405, { ok: false });
   }
 
   // Medien-Auslieferung OHNE Bearer (Capability-URL, 9 Zufalls-Bytes), mit Range/206.
@@ -251,6 +315,30 @@ const server = http.createServer(async (req, res) => {
       if (wer.agent) return json(res, 200, { ok: true, stop: stopHolenUndQuittieren(db, wer.agent.id) });
       if (admin && name) return json(res, 200, { ok: true, stop: stopHolenUndQuittierenNachName(db, name) });
       return json(res, 403, { ok: false });
+    }
+
+    // ── Geräte ──
+    if (url.pathname === '/api/geraete' && req.method === 'GET') {
+      return json(res, 200, { ok: true, bereit: geraete.bereit(), geraete: geraete.alle().map((g) => geraetOeffentlich(g, { tunnelOffen: geraete.tunnelOffen(g) })) });
+    }
+    if (url.pathname === '/api/geraete' && req.method === 'POST') {
+      if (!admin) return json(res, 403, { ok: false });
+      const b0 = geraete.bereit(); if (!b0.ok) return json(res, 503, { ok: false, fehler: b0.fehler });
+      const b = await koerper(req);
+      const liste = geraete.alle();
+      const r = geraetAnlegen(liste, { name: b.name, zufall: crypto.randomBytes(8), jetzt: new Date() });
+      if (r.fehler) return json(res, 400, { ok: false, fehler: r.fehler });
+      geraete.speichern([...liste, r.geraet]);
+      return json(res, 200, { ok: true, geraet: geraetOeffentlich(r.geraet), code: r.geraet.code, block: einfuegeBlock({ code: r.geraet.code, basisUrl: basisUrl(req), name: r.geraet.name }) });
+    }
+    const mGe = /^\/api\/geraete\/([a-z0-9-]+)\/entfernen$/.exec(url.pathname);
+    if (mGe && req.method === 'POST') {
+      if (!admin) return json(res, 403, { ok: false });
+      const g = geraete.holen(mGe[1]); if (!g) return json(res, 404, { ok: false, fehler: 'Gerät unbekannt.' });
+      if (fensterAlle(db).some((f) => f.ort === `geraet:${g.id}`)) return json(res, 409, { ok: false, fehler: 'Auf dem Gerät gibt es noch Fenster — erst schließen.' });
+      geraete.speichern(geraete.alle().filter((x) => x.id !== g.id)); // Schlüssel raus → kein neuer Tunnel
+      const k = geraete.tunnelKappen(g);
+      return json(res, 200, { ok: true, gekappt: k.beendet || 0 });
     }
 
     // ── Fenster (v1.0): Registry + Steuerung ──

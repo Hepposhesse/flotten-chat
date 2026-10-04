@@ -3,6 +3,7 @@
 // Ein Fenster ist eine tmux-Session mit einem Claude-Code-Prozess. Sie läuft an einem „Ort“:
 //   lokal       auf dem Rechner, auf dem der Chat-Server läuft (tmux direkt)
 //   ssh:<host>  auf einem anderen Rechner (Mac, zweiter Server) — dieselben Befehle über ssh
+//   geraet:<id> auf einem gekoppelten Gerät — ssh durch dessen Rückkanal-Tunnel (server/geraete.mjs)
 // Alles hier ist bewusst dünn: tmux + ps + Dateien lesen. Die Logik (Protokoll deuten, Dialoge,
 // Tasten) steht rein in protokoll.mjs.
 import fs from 'node:fs';
@@ -15,18 +16,36 @@ const SOCK = process.env.FC_TMUX_SOCKET || 'flottenchat';
 const CLAUDE = process.env.FC_CLAUDE_BIN || 'claude';
 
 const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
-export function istSsh(f) { return /^ssh:/.test(String(f && f.ort || '')); }
+// „~/…" am entfernten Ort: $HOME ausserhalb der Anführungszeichen, damit die Shell ihn auflöst.
+const rq = (p) => (String(p).startsWith('~/') ? `"$HOME"/${q(String(p).slice(2))}` : q(p));
+
+// Gekoppelte Geräte (server/geraete.mjs): Ort „geraet:<id>" → ssh durch den Rückkanal-Tunnel.
+let geraetHolen = () => null, geraetSsh = () => [];
+export function setGeraeteQuelle(holen, sshArgsFuer) { geraetHolen = holen; geraetSsh = sshArgsFuer; }
+export function geraetVon(f) { const m = /^geraet:([a-z0-9-]+)$/.exec(String(f && f.ort || '')); return m ? geraetHolen(m[1]) : null; }
+
+export function istSsh(f) { return /^(ssh|geraet):/.test(String(f && f.ort || '')); }
 export function sshHost(f) { return String(f.ort).slice(4).trim(); }
+/** ssh-Argumente bis vor den Befehl: Gerät → Tunnel-Argumente, sonst der Host aus „ssh:<host>". */
+function sshZiel(f) {
+  if (/^geraet:/.test(String(f.ort))) { const g = geraetVon(f); return g && g.status === 'gekoppelt' ? geraetSsh(g) : null; }
+  return ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', sshHost(f)];
+}
 
 /** Befehl am Ort ausführen (lokal direkt, sonst via ssh). Rückgabe stdout oder '' bei Fehler. */
 export function run(f, cmd, args = [], { timeout = 8000 } = {}) {
   try {
     if (!istSsh(f)) return execFileSync(cmd, args, { encoding: 'utf8', timeout, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const ziel = sshZiel(f);
+    if (!ziel) return '';
     const zeile = [cmd, ...args].map(q).join(' ');
-    return execFileSync('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', sshHost(f), zeile], { encoding: 'utf8', timeout: timeout + 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync('ssh', [...ziel, zeile], { encoding: 'utf8', timeout: timeout + 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch { return ''; }
 }
-const tm = (f, args, opt) => run(f, TMUX, ['-L', SOCK, ...args], opt);
+// Auf einem Gerät liegt tmux oft nicht im PATH einer ssh-Sitzung (macOS: /opt/homebrew/bin) — Pfad aus der Kopplung.
+const tmuxBin = (f) => { const g = geraetVon(f); return (g && g.tmux) || TMUX; };
+const tm = (f, args, opt) => run(f, tmuxBin(f), ['-L', SOCK, ...args], opt);
+export const TMUX_SOCKET = SOCK;
 
 /** ps-„etime“ ([[dd-]hh:]mm:ss) → Sekunden (portabel Linux/macOS). */
 export function etimeSekunden(s) {
@@ -62,6 +81,7 @@ export function sessionStarten(f) {
   const sessions = () => tm(f, ['list-sessions', '-F', '#{session_name}']).split('\n');
   if (sessions().includes(f.tmux)) { if (prozessVon(f).lebt) return { ok: true, schon: true }; return sessionNeustart(f); }
   if (!istSsh(f) && !fs.existsSync(f.ordner)) return { ok: false, fehler: `Ordner fehlt: ${f.ordner}` };
+  if (istSsh(f)) run(f, 'mkdir', ['-p', f.ordner]);
   tm(f, ['new-session', '-d', '-s', f.tmux, '-c', f.ordner]);
   if (!sessions().includes(f.tmux)) return { ok: false, fehler: 'tmux-Session konnte nicht angelegt werden (tmux installiert? Ort erreichbar?)' };
   tm(f, ['send-keys', '-t', `${f.tmux}:0`, startBefehl(f), 'Enter']);
@@ -124,7 +144,8 @@ export function textSenden(f, text) {
 
 // ── Protokoll-Dateien ───────────────────────────────────────────────────────
 export function protokollDir(f) {
-  const cfg = f.config_dir || (istSsh(f) ? '~/.claude' : path.join(process.env.HOME || '/root', '.claude'));
+  const g = geraetVon(f);
+  const cfg = f.config_dir || (g && g.heimordner ? `${g.heimordner}/.claude` : (istSsh(f) ? '~/.claude' : path.join(process.env.HOME || '/root', '.claude')));
   return protokollOrdner(cfg, f.ordner);
 }
 /** Dateiliste {name, geburtMs, letzteMs, groesse} im Protokoll-Ordner. */
@@ -135,7 +156,7 @@ export function protokollDateien(f) {
     return namen.map((name) => { const st = fs.statSync(path.join(dir, name)); return { name, geburtMs: st.birthtimeMs || st.ctimeMs, letzteMs: st.mtimeMs, groesse: st.size }; });
   }
   // Remote: GNU stat zuerst, sonst BSD (macOS).
-  const out = run(f, 'sh', ['-c', `cd ${q(dir)} 2>/dev/null && (stat -c '%n %s %W %Y' *.jsonl 2>/dev/null || stat -f '%N %z %B %m' *.jsonl 2>/dev/null)`], { timeout: 8000 });
+  const out = run(f, 'sh', ['-c', `cd ${rq(dir)} 2>/dev/null && (stat -c '%n %s %W %Y' *.jsonl 2>/dev/null || stat -f '%N %z %B %m' *.jsonl 2>/dev/null)`], { timeout: 8000 });
   return out.split('\n').filter(Boolean).map((z) => { const [name, groesse, geburt, letzte] = z.trim().split(/\s+/); return { name, groesse: Number(groesse) || 0, geburtMs: (Number(geburt) || Number(letzte) || 0) * 1000, letzteMs: (Number(letzte) || 0) * 1000 }; }).filter((d) => d.name && d.name.endsWith('.jsonl'));
 }
 /** Das laufende Protokoll dieses Fensters (Datei, Sitzung, Start), oder null. */
@@ -159,8 +180,8 @@ export function dateiAb(f, datei, ab = 0) {
     try { fs.readSync(fd, buf, 0, buf.length, start); } finally { fs.closeSync(fd); }
     return { roh: buf.toString('utf8'), groesse: st.size };
   }
-  const roh = run(f, 'sh', ['-c', `tail -c +${start + 1} ${q(datei)} | head -c 4194304`], { timeout: 15000 });
-  const groesse = Number(run(f, 'sh', ['-c', `stat -c %s ${q(datei)} 2>/dev/null || stat -f %z ${q(datei)}`])) || 0;
+  const roh = run(f, 'sh', ['-c', `tail -c +${start + 1} ${rq(datei)} | head -c 4194304`], { timeout: 15000 });
+  const groesse = Number(run(f, 'sh', ['-c', `stat -c %s ${rq(datei)} 2>/dev/null || stat -f %z ${rq(datei)}`])) || 0;
   return { roh, groesse };
 }
 

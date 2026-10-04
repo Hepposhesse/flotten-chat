@@ -31,7 +31,8 @@ wer das baut, teilt es bitte (AGPL).
    wegschreiben, sichert Ungesichertes als WIP, räumt seinen Worktree auf — dann ist der Kanal weg.
    Kein Kontext-Müll.
 
-Dazu: **Live-Terminal** im Kanal-Kopf (echtes Terminalbild + Tastenleiste), **Themen-Board** (Karte =
+Dazu: **Geräte koppeln** (Mac, Linux-Server, Laptop per Einmal-Code und Rückkanal — Fenster laufen dort
+wie hier, siehe [docs/geraete.md](docs/geraete.md)), **Live-Terminal** im Kanal-Kopf (echtes Terminalbild + Tastenleiste), **Themen-Board** (Karte =
 Thema, lose zu den Fenstern — Fenster schreiben ihren Stand in den Verlauf), **Erinnerungen** (feuern serverseitig ohne KI, „▶ Fenster“ kümmert sich),
 **Alarm-Eingang** (`POST /api/alarm`), **Hilfe-Kanal** (Support-Brücke zum Hersteller).
 

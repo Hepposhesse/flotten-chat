@@ -172,7 +172,8 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <h3>Neues Fenster</h3>
   <p class="hinweis">Ein Fenster ist ein Kanal hier im Chat und eine frische Claude-Code-Sitzung am gewählten Ort. Du schreibst hier, es arbeitet dort — und du siehst alles.</p>
   <label>Thema / Name</label><input id="fName" placeholder="z. B. Buchhaltung, Aron Gutschrift, Website-Relaunch">
-  <label>Ort</label><select id="fOrt"><option value="lokal">Dieser Server (tmux)</option><option value="ssh">Anderer Rechner per SSH …</option></select>
+  <label>Ort</label><select id="fOrt"><option value="lokal">Dieser Server (tmux)</option></select>
+  <p class="hinweis" id="fOrtHinweis" hidden></p>
   <input id="fHost" placeholder="user@rechner (SSH-Key muss eingerichtet sein)" hidden style="margin-top:.35rem">
   <label>Arbeitsordner <span class="hinweis">— oder ein Repo, dann bekommt das Fenster einen eigenen Worktree</span></label>
   <input id="fOrdner" placeholder="/pfad/zum/projekt">
@@ -180,6 +181,18 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <label>Start-Modus</label><select id="fModus"><option value="auto">Auto (arbeitet, fragt bei heiklen Schritten)</option><option value="default">Manual (fragt bei jeder Änderung)</option><option value="plan">Planen (nur lesen und planen)</option><option value="acceptEdits">Bearbeiten frei</option></select>
   <label>Erster Satz ans Fenster (optional)</label><textarea id="fText" placeholder="z. B. Lies die CLAUDE.md und kümmere dich um …"></textarea>
   <div class="reihe"><button class="knopf" id="fAbbr">Abbrechen</button><button class="knopf pri" id="fOk">Fenster starten</button></div>
+</dialog>
+<dialog id="dlgGeraet">
+  <h3>Geräte</h3>
+  <p class="hinweis">Ein gekoppeltes Gerät (Mac, zweiter Server, Laptop) öffnet einen Rückkanal zu diesem Server. Danach startest du Fenster dort wie hier — ohne offenen Port am Gerät.</p>
+  <div id="gListe"></div>
+  <label>Neues Gerät — Name</label><input id="gName" placeholder="z. B. MacBook, Mac mini, Server Frankfurt">
+  <div id="gBlock" hidden>
+    <p class="hinweis">Füge diesen Text am Gerät in Claude Code ein — es richtet alles ein und fragt dich, wo nötig:</p>
+    <pre id="gText" style="white-space:pre-wrap;background:var(--n50);border:1px solid var(--n100);border-radius:8px;padding:.6rem;font-size:.8rem;margin:.3rem 0"></pre>
+    <p class="hinweis" id="gStatus" role="status">Wartet auf das Gerät …</p>
+  </div>
+  <div class="reihe"><button class="knopf" id="gZu">Schließen</button><button class="knopf" id="gKopie" hidden>Text kopieren</button><button class="knopf pri" id="gOk">Code erzeugen</button></div>
 </dialog>
 <dialog id="dlgKarte"><div id="karteInhalt"></div></dialog>
 <dialog id="dlgRem">
@@ -377,14 +390,51 @@ $('#screen').onclick=async()=>{
 };
 
 // ── Neues Fenster ──
-$('#neuFenster').onclick=()=>{$('#dlgFenster').showModal();$('#fName').focus();};
-$('#fOrt').onchange=()=>{$('#fHost').hidden=$('#fOrt').value!=='ssh';};
+let GERAETE=[];
+async function ladeGeraete(){const r=await api('/api/geraete');GERAETE=r&&r.ok?r.geraete:[];return r;}
+function vorZeit(iso){const t=Date.parse(iso);if(!t)return '';const m=Math.round((Date.now()-t)/60000);return m<60?`vor ${m} min`:(m<2160?`vor ${Math.round(m/60)} h`:`vor ${Math.round(m/1440)} Tagen`);}
+async function ortListe(wahl){
+  await ladeGeraete();const sel=$('#fOrt');const alt=wahl||sel.value;
+  const gek=GERAETE.filter(g=>g.status==='gekoppelt');
+  sel.innerHTML='<option value="lokal">Dieser Server (tmux)</option>'+gek.map(g=>`<option value="geraet:${esc(g.id)}"${g.offen?'':' disabled'}>${g.offen?'🟢':'🔴'} ${esc(g.name)}${g.offen?'':' — nicht erreichbar'+(g.zuletzt_offen?' · zuletzt '+vorZeit(g.zuletzt_offen):'')}</option>`).join('')+'<option value="ssh">Anderer Rechner per SSH …</option><option value="koppeln">＋ Gerät koppeln …</option>';
+  if([...sel.options].some(o=>o.value===alt&&!o.disabled))sel.value=alt;ortGeaendert();
+}
+function ortGeaendert(){const v=$('#fOrt').value;$('#fHost').hidden=v!=='ssh';const g=v.startsWith('geraet:');$('#fWorktree').closest('label').hidden=v!=='lokal';
+  $('#fOrdner').placeholder=g?'Standard: ~/fleet-themen/<name> auf dem Gerät':'/pfad/zum/projekt';
+  const h=$('#fOrtHinweis');const aus=GERAETE.filter(x=>x.status==='gekoppelt'&&!x.offen);h.hidden=!aus.length;h.textContent=aus.length?`Nicht erreichbar: ${aus.map(x=>x.name).join(', ')} — Gerät einschalten/aufwecken, dann neu öffnen.`:'';
+  if(v==='koppeln'){$('#fOrt').value='lokal';ortGeaendert();geraetDialog();}}
+$('#neuFenster').onclick=()=>{$('#dlgFenster').showModal();$('#fName').focus();ortListe();};
+$('#fOrt').onchange=ortGeaendert;
+// ── Gerät koppeln: Name → Einmal-Code + Text für Claude Code am Gerät → warten, bis der Tunnel offen ist ──
+let gTimer=null;
+function geraeteZeichnen(){
+  $('#gListe').innerHTML=GERAETE.filter(g=>g.status==='gekoppelt').map(g=>`<div class="reihe" style="justify-content:space-between;margin:.2rem 0"><span>${g.offen?'🟢':'🔴'} <b>${esc(g.name)}</b> <span class="muted">${g.system==='linux'?'Linux':'macOS'}${g.offen?'':' · nicht erreichbar'+(g.zuletzt_offen?', zuletzt '+vorZeit(g.zuletzt_offen):'')}</span></span><button class="knopf klein" data-weg="${esc(g.id)}">Entfernen</button></div>`).join('')||'<p class="muted">Noch kein Gerät gekoppelt.</p>';
+  $('#gListe').querySelectorAll('[data-weg]').forEach(b=>b.onclick=async()=>{if(b.dataset.frag!=='1'){b.dataset.frag='1';b.textContent='Wirklich entfernen?';setTimeout(()=>{b.dataset.frag='';b.textContent='Entfernen';},6000);return;}
+    b.disabled=true;const r=await api(`/api/geraete/${encodeURIComponent(b.dataset.weg)}/entfernen`,{method:'POST',body:'{}'});if(!r||!r.ok){b.disabled=false;fcStatus('⚠️ '+((r&&r.fehler)||'Ging nicht'));return;}toast('Gerät entfernt, Tunnel gekappt.');await ladeGeraete();geraeteZeichnen();ortListe();});
+}
+async function geraetDialog(){
+  const d=$('#dlgGeraet');$('#gBlock').hidden=true;$('#gKopie').hidden=true;$('#gOk').hidden=false;$('#gOk').disabled=false;$('#gName').value='';$('#gName').disabled=false;
+  const r=await ladeGeraete();geraeteZeichnen();d.showModal();
+  if(r&&r.bereit&&!r.bereit.ok){$('#gOk').disabled=true;$('#gStatus').textContent='';fcStatus('⚠️ '+r.bereit.fehler);}else $('#gName').focus();
+}
+$('#gZu').onclick=()=>{if(gTimer){clearInterval(gTimer);gTimer=null;}$('#dlgGeraet').close();ortListe();};
+$('#gKopie').onclick=async()=>{try{await navigator.clipboard.writeText($('#gText').textContent);toast('Text kopiert — am Gerät in Claude Code einfügen.');}catch{fcStatus('Kopieren ging nicht — Text markieren und kopieren.');}};
+$('#gOk').onclick=async()=>{const name=$('#gName').value.trim();if(!name){$('#gName').focus();return;}
+  $('#gOk').disabled=true;const r=await api('/api/geraete',{method:'POST',body:JSON.stringify({name})});
+  if(!r||!r.ok){$('#gOk').disabled=false;fcStatus('⚠️ '+((r&&r.fehler)||'Ging nicht'));return;}
+  $('#gName').disabled=true;$('#gOk').hidden=true;$('#gKopie').hidden=false;$('#gBlock').hidden=false;$('#gText').textContent=r.block;$('#gStatus').textContent='Wartet auf das Gerät … (Code gilt 30 Minuten)';
+  const id=r.geraet.id;if(gTimer)clearInterval(gTimer);
+  gTimer=setInterval(async()=>{await ladeGeraete();const g=GERAETE.find(x=>x.id===id);
+    if(!g){clearInterval(gTimer);gTimer=null;$('#gStatus').textContent='Code abgelaufen — bitte neu erzeugen.';return;}
+    if(g.status==='gekoppelt'&&g.offen){clearInterval(gTimer);gTimer=null;$('#gStatus').textContent=`✓ ${g.name} ist gekoppelt und erreichbar.`;geraeteZeichnen();ortListe('geraet:'+id);}
+    else if(g.status==='gekoppelt')$('#gStatus').textContent='Gerät angemeldet — Tunnel wird aufgebaut …';},3000);
+};
 $('#fAbbr').onclick=()=>$('#dlgFenster').close();
 $('#fOk').onclick=async()=>{
   const name=$('#fName').value.trim();if(!name){$('#fName').focus();return;}
-  const ort=$('#fOrt').value==='ssh'?('ssh:'+$('#fHost').value.trim()):'lokal';
+  const ov=$('#fOrt').value;const ort=ov==='ssh'?('ssh:'+$('#fHost').value.trim()):(ov.startsWith('geraet:')?ov:'lokal');
   const ordner=$('#fOrdner').value.trim();const b={name,label:name,ort,start_modus:$('#fModus').value,start_text:$('#fText').value.trim()};
-  if($('#fWorktree').checked&&ordner)b.repo=ordner;else if(ordner)b.ordner=ordner;
+  if(ort==='lokal'&&$('#fWorktree').checked&&ordner)b.repo=ordner;else if(ordner)b.ordner=ordner;
   $('#fOk').disabled=true;$('#fOk').textContent='startet …';
   const r=await api('/api/fenster',{method:'POST',body:JSON.stringify(b)});
   $('#fOk').disabled=false;$('#fOk').textContent='Fenster starten';

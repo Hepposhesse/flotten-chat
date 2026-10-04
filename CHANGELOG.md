@@ -13,8 +13,13 @@ und spiegelt heraus. Kein Bus, kein Watcher, kein Re-Arm im Fenster mehr. Und: k
   Sitzungsprotokoll → Chat (Antworten, Rückfragen als Knöpfe, Freigaben, Auto-Mode-Sperren);
   Chat → Fenster per tmux (Text, Zahl = Wahl, „nein" = Esc, „manual"/„auto" = Modus).
 - **Fenster-Registry** (Tabelle `fenster`): Name = Kanal, Ort (`lokal` | `ssh:host`), Ordner, Konto,
-  Start-Modus, Worktree, Stand. „＋ Fenster" in der UI, `POST /api/fenster` per API.
+  Start-Modus, Worktree, Stand. Orte: `lokal`, `ssh:<host>`, `geraet:<id>`. „＋ Fenster" in der UI, `POST /api/fenster` per API.
 - **Kopfzeile je Fenster**: Name grün/rot + „seit", Modus-Schalter, Terminal, Schließen und Neu starten.
+- **Geräte koppeln** (`server/geraete.mjs`, `server/geraeteDienst.mjs`, `bin/geraete-server-einrichten.sh`): jeder Mac
+  oder Linux-Rechner wird per Einmal-Code zum Ort `geraet:<id>` — Rückkanal-Tunnel (ssh -R) auf einen eigenen Port,
+  Tunnel-Nutzer ohne Shell, Server-Schlüssel nur durch den Tunnel, Host-Schlüssel festgehalten; Status 🟢/🔴 im
+  Ort-Menü, Wächter meldet Tunnel-Wechsel im Kanal „Alarm". Der Chat-Server muss dafür nicht als root laufen.
+  Tests: `test_geraete.mjs` (48 Checks).
 - **Live-Terminal** (`server/terminal.mjs`): Knopf „Terminal" zeigt das echte Terminalbild mit Farben (alle 2 s,
   nur lesen) plus Tastenleiste mit fester Liste — für alles, was der Spiegel nicht kennt. Handy: Vollbild-Blatt.
 - **Rückfragen vollständig im Chat**: Frage, Kopf und Beschreibungen aus dem Protokoll; der Text über der
