@@ -32,6 +32,21 @@ aside h4 .knopf{margin-left:auto}
 main{flex:1;display:flex;flex-direction:column;min-width:0}
 /* Kopfzeile eines Fensters: links Name (grün/rot) + seit · mittig Karte · rechts Modus + Schließen/Neustart */
 .kopf{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:8px 14px;background:var(--card);border-bottom:1px solid var(--n100);font-size:.8rem;color:var(--n500)}
+/* Live-Terminal: echtes Terminalbild unter dem Kanal-Kopf, in beiden Themes dunkel; am Handy Vollbild-Blatt */
+:root{--term-bg:#0d1117;--term-ink:#c9d1d9}
+.term-panel{display:flex;flex-direction:column;flex:0 0 auto;margin:10px 12px;border:1px solid var(--n100);border-radius:10px;background:var(--card);height:min(55vh,640px);overflow:hidden;position:relative}
+.term-kopf{display:none}
+.term-bild{flex:1 1 auto;min-height:0;overflow:auto;background:var(--term-bg);color:var(--term-ink);padding:12px;font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;margin:0}
+.term-bild.leer{white-space:normal;font-family:inherit;font-size:.85rem;opacity:.8}
+.term-unten{position:absolute;right:16px;bottom:74px;font-size:.72rem;padding:4px 10px;border-radius:999px;border:1px solid var(--n200);background:var(--card);color:var(--n900);cursor:pointer}
+.term-leiste{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--n100);background:var(--card)}
+.term-leiste button{min-height:44px;white-space:nowrap;border-radius:10px;border:1px solid var(--n200);background:var(--n50);color:var(--n900);font-size:.95rem;cursor:pointer}
+.term-leiste button.primaer{background:var(--blau);border-color:var(--blau);color:#fff;font-weight:600}
+.term-leiste button.klick{border-color:var(--ok)}
+.term-leiste.sendet button{opacity:.55;pointer-events:none}
+.kopf #termBtn[aria-expanded="true"]{border-color:var(--blau);color:var(--blau)}
+@media(max-width:720px){.term-panel{position:fixed;inset:0;z-index:85;margin:0;border:0;border-radius:0;height:auto}.term-kopf{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--n100);font-size:.85rem}.term-leiste button{font-size:.85rem}}
+.opts small.ob{display:block;font-size:.76rem;color:var(--n400);font-weight:400;margin-top:2px}
 .kopf .l,.kopf .r{display:flex;align-items:center;gap:8px;min-width:0}.kopf .r{justify-content:flex-end}
 .kopf .m{display:flex;justify-content:center;min-width:0}
 .kopf b{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;color:var(--n900)}
@@ -144,6 +159,7 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   </aside>
   <main id="main">
     <div class="kopf" id="kopf" hidden></div>
+    <div class="term-panel" id="term" role="region" aria-label="Terminal" hidden><div class="term-kopf"><span id="termTitel">Terminal</span><button class="knopf klein" id="termZu" aria-label="Terminal schließen">✕</button></div><pre class="term-bild leer" id="termBild">Terminal wird geladen …</pre><button type="button" class="term-unten" id="termUnten" hidden>Nach unten ↓</button><div class="term-leiste" id="termLeiste"></div></div>
     <div id="msgs"></div>
     <div id="board" class="board" hidden></div>
     <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -166,16 +182,6 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <div class="reihe"><button class="knopf" id="fAbbr">Abbrechen</button><button class="knopf pri" id="fOk">Fenster starten</button></div>
 </dialog>
 <dialog id="dlgKarte"><div id="karteInhalt"></div></dialog>
-<dialog id="dlgSession">
-  <h3>Fenster zu diesem Thema starten</h3>
-  <p class="hinweis" id="sThema"></p>
-  <label>Ort</label><select id="sOrt"><option value="lokal">Dieser Server (tmux)</option><option value="ssh">Anderer Rechner per SSH …</option></select>
-  <input id="sHost" placeholder="user@rechner" hidden style="margin-top:.35rem">
-  <label>Arbeitsordner oder Repo</label><input id="sOrdner" placeholder="/pfad/zum/projekt">
-  <label style="display:flex;align-items:center;gap:8px;margin-top:.5rem"><input type="checkbox" id="sWorktree" style="width:auto">Eigener git-Worktree</label>
-  <label>Start-Modus</label><select id="sModus"><option value="auto">Auto</option><option value="default">Manual</option><option value="plan">Planen</option></select>
-  <div class="reihe"><button class="knopf" id="sAbbr">Abbrechen</button><button class="knopf pri" id="sOk">Starten</button></div>
-</dialog>
 <dialog id="dlgRem">
   <h3>⏰ Erinnerung</h3>
   <label>Woran erinnern?</label><input id="remTitel">
@@ -227,38 +233,48 @@ async function ladeKanaele(){
   kopfZeichnen();
   return true;
 }
-function kanalWechseln(k){if(!k)return;ANSICHT='chat';$('#board').hidden=true;$('#msgs').hidden=false;$('#composer').hidden=false;if(k!==KANAL){KANAL=k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';}ladeMsgs(true);ladeKanaele();}
+function kanalWechseln(k){if(!k)return;if(TERM&&TERM!==k)termZu();ANSICHT='chat';$('#board').hidden=true;$('#msgs').hidden=false;$('#composer').hidden=false;if(k!==KANAL){KANAL=k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';}ladeMsgs(true);ladeKanaele();}
 const fensterVon=(k)=>FENSTER.find(f=>f.name===k)||null;
 const MN={auto:'Auto',default:'Manual',accept:'Bearbeiten frei',plan:'Planen',bypass:'Ohne Nachfragen'};
 function seitText(ms){if(!ms)return '';const m=Math.round((Date.now()-ms)/60000);return m<60?`seit ${m} Min`:(m<2880?`seit ${Math.round(m/60)} Std`:`seit ${Math.round(m/1440)} Tagen`);}
 let KARTEN=[];
+// ── Live-Terminal: Terminalbild alle 2 s (nur lesen), Tastenleiste mit fester Liste; unten verankert,
+// außer man hat selbst hochgescrollt. Zu beim Kanalwechsel.
+let TERM='',termTimer=null,termAnker=true;
+const TERM_TASTEN=[['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['Up','↑'],['Down','↓'],['Tab','Tab'],['Escape','Esc'],['BTab','Modus ⇧⇥'],['Enter','Enter']];
+function termZu(){if(termTimer){clearInterval(termTimer);termTimer=null;}TERM='';$('#term').hidden=true;const b=$('#termBtn');if(b)b.setAttribute('aria-expanded','false');}
+function termAuf(f){
+  termZu();TERM=f.name;termAnker=true;
+  const p=$('#term'),bild=$('#termBild'),unten=$('#termUnten'),leiste=$('#termLeiste');
+  $('#termTitel').textContent='Terminal · '+(f.label||f.name);bild.className='term-bild leer';bild.textContent='Terminal wird geladen …';p.hidden=false;
+  const b=$('#termBtn');if(b)b.setAttribute('aria-expanded','true');
+  leiste.innerHTML=TERM_TASTEN.map(t=>`<button type="button" data-taste="${t[0]}"${t[0]==='Enter'?' class="primaer"':''}>${t[1]}</button>`).join('');
+  const name=f.name;
+  const holen=async()=>{const r=await api(`/api/fenster/${encodeURIComponent(name)}/terminal`);if(TERM!==name)return;
+    if(!r||!r.ok){bild.className='term-bild leer';bild.textContent='Terminal gerade nicht erreichbar — nächster Versuch in 2 s.';return;}
+    if(!r.lebt){bild.className='term-bild leer';bild.textContent='Das Fenster läuft gerade nicht. Starte es oben mit „Starten“.';return;}
+    bild.className='term-bild';bild.innerHTML=r.html||'';if(termAnker)bild.scrollTop=bild.scrollHeight;};
+  bild.onscroll=()=>{termAnker=bild.scrollHeight-bild.scrollTop-bild.clientHeight<40;unten.hidden=termAnker;};
+  unten.onclick=()=>{termAnker=true;unten.hidden=true;bild.scrollTop=bild.scrollHeight;};
+  leiste.onclick=async(e)=>{const k=e.target.closest('button[data-taste]');if(!k||leiste.classList.contains('sendet'))return;leiste.classList.add('sendet');
+    const r=await api(`/api/fenster/${encodeURIComponent(name)}/tasten`,{method:'POST',body:JSON.stringify({tasten:[k.dataset.taste]})});leiste.classList.remove('sendet');
+    if(!r||!r.ok){fcStatus('⚠️ Taste kam nicht an'+(r&&r.fehler?': '+r.fehler:''));return;}
+    k.classList.add('klick');setTimeout(()=>k.classList.remove('klick'),600);termAnker=true;setTimeout(holen,350);};
+  holen();termTimer=setInterval(holen,2000);
+}
+$('#termZu').onclick=termZu;
 function kopfZeichnen(){
   const kopf=$('#kopf');const f=fensterVon(KANAL);
   if(ANSICHT!=='chat'||!f){kopf.hidden=true;return;}
   kopf.hidden=false;const z=f.zustand||{};
-  const karte=KARTEN.find(k=>k.id===f.karte_id);
   kopf.innerHTML=`<div class="l"><b class="${f.laeuft?'an':'aus'}" title="${f.laeuft?'läuft':'läuft nicht'}">${esc(f.label||f.name)}</b><span>${f.laeuft?esc(seitText(f.gestartet_ms)):'aus'}</span>${z.dialog?`<span class="dlg" id="dlgHin">${z.dialog.art==='freigabe'?'wartet auf deine Freigabe ↓':'wartet auf deine Antwort ↓'}</span>`:''}</div>
-    <div class="m">${karte?`<a class="karte-link" href="#karte-${karte.id}" id="karteLink" title="${esc(karte.titel)} — Karte öffnen">🗂 ${esc(karte.titel)}</a>`:`<span class="karte-link leer" id="karteLink">Karte verknüpfen …</span>`}</div>
-    <div class="r">${f.laeuft&&z.modus&&MN[z.modus]?`<button class="modus ${z.modus==='auto'?'auto':(z.modus==='default'?'manual':'')}" id="modusBtn" title="Modus umschalten (Auto ⇄ Manual)">Modus: ${MN[z.modus]}</button>`:''}${f.laeuft?`<button class="knopf klein" id="schliessenBtn" title="Stand wegschreiben lassen, dann schließen">Schließen</button>`:''}<button class="knopf klein ${f.laeuft?'rot':'pri'}" id="neuBtn">${f.laeuft?'Neu starten':'Starten'}</button></div>`;
+    <div class="m"></div>
+    <div class="r">${f.laeuft&&z.modus&&MN[z.modus]?`<button class="modus ${z.modus==='auto'?'auto':(z.modus==='default'?'manual':'')}" id="modusBtn" title="Modus umschalten (Auto ⇄ Manual)">Modus: ${MN[z.modus]}</button>`:''}${f.laeuft?`<button class="knopf klein" id="termBtn" aria-expanded="${TERM===f.name}" title="Echtes Terminalbild ansehen und Tasten drücken">Terminal</button>`:''}<button class="knopf klein" id="schliessenBtn" title="${f.laeuft?'Stand wegschreiben lassen, dann schließen':'Fenster läuft nicht — sofort schließen'}">Schließen</button><button class="knopf klein ${f.laeuft?'rot':'pri'}" id="neuBtn">${f.laeuft?'Neu starten':'Starten'}</button></div>`;
   const dh=$('#dlgHin');if(dh)dh.onclick=()=>{const q=[...document.querySelectorAll('.msg.question')].pop();if(q)q.scrollIntoView({block:'center'});};
   const mb=$('#modusBtn');if(mb)mb.onclick=()=>{sende(z.modus==='auto'?'manual':'auto');toast('Fenster schaltet um …');};
   const nb=$('#neuBtn');nb.onclick=async()=>{if(f.laeuft&&nb.dataset.frag!=='1'){nb.dataset.frag='1';nb.textContent='Wirklich neu starten?';setTimeout(()=>{if(nb.dataset.frag==='1'){nb.dataset.frag='';nb.textContent='Neu starten';}},6000);return;}nb.disabled=true;nb.textContent='…';const r=await api(`/api/fenster/${f.name}/${f.laeuft?'neustart':'start'}`,{method:'POST',body:'{}'});toast(r&&r.ok?'Fenster startet — es meldet sich hier.':'⚠️ '+((r&&r.fehler)||'Ging nicht'));setTimeout(ladeKanaele,3000);};
-  const sb=$('#schliessenBtn');if(sb)sb.onclick=async()=>{if(sb.dataset.frag!=='1'){sb.dataset.frag='1';sb.textContent='Stand sichern & schließen?';setTimeout(()=>{if(sb.dataset.frag==='1'){sb.dataset.frag='';sb.textContent='Schließen';}},6000);return;}sb.disabled=true;const r=await api(`/api/fenster/${f.name}/schliessen`,{method:'POST',body:'{}'});toast(r&&r.ok?'Das Fenster räumt auf und schließt in 60 s.':'⚠️ Ging nicht');};
-  const kl=$('#karteLink');kl.onclick=(e)=>{e.preventDefault();if(karte)karteOeffnen(karte.id);else karteWaehlen(f);};
-}
-async function karteWaehlen(f){
-  await ladeKarten();
-  const offen=KARTEN.filter(k=>k.spalte!=='erledigt');
-  const kl=$('#karteLink');const sel=document.createElement('select');sel.style.cssText='font:inherit;font-size:.78rem;border:0;background:transparent;color:inherit;max-width:40vw';
-  sel.innerHTML='<option value="">— Karte wählen —</option>'+offen.map(k=>`<option value="${k.id}">${esc(k.titel)}</option>`).join('')+'<option value="neu">＋ Neue Karte …</option>';
-  sel.onchange=async()=>{const v=sel.value;if(!v)return;if(v==="neu"){kl.textContent='Karte verknüpfen …';karteNeu(f);return;}await api(`/api/fenster/${f.name}/karte`,{method:'POST',body:JSON.stringify({karte_id:Number(v)})});toast('Karte verknüpft.');ladeKanaele();};
-  sel.onblur=()=>setTimeout(()=>{if(sel.isConnected){kl.textContent='Karte verknüpfen …';}},200);
-  kl.textContent='';kl.append(sel);sel.focus();
-}
-async function karteNeu(f){
-  const titel=(f&&f.label)||'Neues Thema';
-  const r=await api('/api/karten',{method:'POST',body:JSON.stringify({titel,spalte:'in_arbeit',fenster:f?f.name:''})});
-  if(r&&r.ok){if(f)await api(`/api/fenster/${f.name}/karte`,{method:'POST',body:JSON.stringify({karte_id:r.karte.id})});await ladeKarten();ladeKanaele();karteOeffnen(r.karte.id);}
+  const tb=$('#termBtn');if(tb)tb.onclick=()=>{if(TERM===f.name)termZu();else termAuf(f);};
+  const sb=$('#schliessenBtn');if(sb)sb.onclick=async()=>{if(sb.dataset.frag!=='1'){sb.dataset.frag='1';sb.textContent='Stand sichern & schließen?';setTimeout(()=>{if(sb.dataset.frag==='1'){sb.dataset.frag='';sb.textContent='Schließen';}},6000);return;}sb.disabled=true;const r=await api(`/api/fenster/${f.name}/schliessen`,{method:'POST',body:JSON.stringify({sofort:!f.laeuft})});toast(r&&r.ok?(f.laeuft?'Das Fenster räumt auf und schließt in 60 s.':'Fenster geschlossen.'):'⚠️ Ging nicht');setTimeout(ladeKanaele,f.laeuft?62000:1500);};
 }
 
 // ── Nachrichten ──
@@ -275,7 +291,7 @@ function medienHtml(m){
   }).join('')+'</div>';
 }
 // Kleines Markdown: Links, **fett**, `code`, Codeblöcke — mehr braucht ein Chat nicht.
-function linkify(t){let h=esc(t);h=h.replace(/```([\s\S]*?)```/g,(m,c)=>'<pre style="white-space:pre-wrap;background:var(--n50);border:1px solid var(--n100);border-radius:8px;padding:.5rem .6rem;font-size:.84rem;margin:.3rem 0">'+c.replace(/^\w*\n/,'')+'</pre>');h=h.replace(/`([^`\n]+)`/g,'<code style="background:var(--n50);border-radius:4px;padding:0 .25rem;font-size:.9em">$1</code>');h=h.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');h=h.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');return h;}
+function linkify(t){let h=esc(t);h=h.replace(/```([\s\S]*?)```/g,(m,c)=>'<pre style="white-space:pre-wrap;background:var(--n50);border:1px solid var(--n100);border-radius:8px;padding:.5rem .6rem;font-size:.84rem;margin:.3rem 0">'+c.replace(/^\w*\n/,'')+'</pre>');h=h.replace(/`([^`\n]+)`/g,'<code style="background:var(--n50);border-radius:4px;padding:0 .25rem;font-size:.9em">$1</code>');h=h.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');h=h.split(/(<pre[\s\S]*?<\/pre>)/).map((t,i)=>i%2?t:t.replace(/^#{1,4} +(.+)$/gm,'<b>$1</b>').replace(/^( *)[-*] +/gm,'$1• ')).join('');h=h.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');return h;}
 function zeige(m,scroll=true){
   let meta={};try{meta=m.meta?JSON.parse(m.meta):{};}catch{}
   const alt=document.querySelector(`.msg[data-id="${m.id}"]`);
@@ -284,7 +300,7 @@ function zeige(m,scroll=true){
   d.className='msg'+(m.typ==='system'?' system':'')+(m.typ==='error'?' error':'')+(m.typ==='question'?' question':'')+(ich?' ich':'');d.dataset.id=m.id;
   const dz=new Date(m.erstellt_am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   let opts='';
-  if(meta.dialog&&meta.dialog.optionen){opts=meta.dialog.zu?'<div class="muted" style="margin-top:6px">✔ beantwortet</div>':'<div class="opts">'+meta.dialog.optionen.map(o=>`<button data-nr="${o.nr}"><span>${o.nr}</span><span>${esc(o.label)}</span></button>`).join('')+`<button class="ab" data-nr="nein">${meta.dialog.art==='freigabe'?'Nein — abbrechen':'Frage abbrechen'}</button></div>`;}
+  if(meta.dialog&&meta.dialog.optionen){opts=meta.dialog.zu?'<div class="muted" style="margin-top:6px">✔ beantwortet</div>':'<div class="opts">'+meta.dialog.optionen.map(o=>`<button data-nr="${o.nr}"><span>${o.nr}</span><span>${esc(o.label)}${o.beschreibung?`<small class="ob">${esc(o.beschreibung)}</small>`:''}</span></button>`).join('')+`<button class="ab" data-nr="nein">${meta.dialog.art==='freigabe'?'Nein — abbrechen':'Frage abbrechen'}</button></div>`;}
   const text=meta.dialog?String(m.inhalt).split('\n').filter(z=>!/^\d+\)\s/.test(z)&&!/^Antworte mit/.test(z)).join('\n'):m.inhalt;
   d.innerHTML=`<div class="k"><b>${esc(m.von)}</b><span>${esc(dz)}</span></div><div class="t">${linkify(text)}</div>${medienHtml(m)}${opts}<button class="erin" title="Erinnerung dazu">⏰</button>`;
   d.querySelector('.erin').onclick=()=>remOeffnen(String(m.inhalt).slice(0,120));
@@ -295,8 +311,10 @@ function zeige(m,scroll=true){
 async function ladeMsgs(voll){
   if(ANSICHT!=='chat')return;
   if(KANAL==='erinnerungen'&&LAST===0)await remListeZeigen();
-  const r=await api(`/api/messages?kanal=${encodeURIComponent(KANAL)}&seit=${LAST}`);
-  if(r&&r.ok){for(const m of r.messages){zeige(m);LAST=m.id;}if(voll&&!r.messages.length&&LAST===0&&KANAL!=='erinnerungen')$('#msgs').innerHTML='<div class="leer">Noch nichts hier. Schreib die erste Nachricht — bei einem Fenster landet sie direkt im Terminal.</div>';}
+  const kanal=KANAL,seit=LAST;
+  const r=await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&seit=${seit}`);
+  if(kanal!==KANAL||seit!==LAST&&LAST===0)return; // Kanal gewechselt, während die Antwort unterwegs war → verwerfen
+  if(r&&r.ok){for(const m of r.messages){if(m.id<=LAST)continue;zeige(m);LAST=m.id;}if(voll&&!r.messages.length&&LAST===0&&KANAL!=='erinnerungen')$('#msgs').innerHTML='<div class="leer">Noch nichts hier. Schreib die erste Nachricht — bei einem Fenster landet sie direkt im Terminal.</div>';}
 }
 
 // ── Senden (Outbox: idempotent, übersteht schwaches Netz) ──
@@ -380,29 +398,20 @@ $('#fOk').onclick=async()=>{
 async function ladeKarten(){const r=await api('/api/karten');if(r&&r.ok)KARTEN=r.karten;return KARTEN;}
 const SP={ideen:'Ideen',in_arbeit:'In Arbeit',freigabe:'Wartet auf Freigabe',pruefen:'Bitte prüfen',erledigt:'Erledigt'};
 async function boardZeigen(){
-  ANSICHT='board';$('#msgs').hidden=true;$('#composer').hidden=true;$('#kopf').hidden=true;$('#board').hidden=false;
+  termZu();ANSICHT='board';$('#msgs').hidden=true;$('#composer').hidden=true;$('#kopf').hidden=true;$('#board').hidden=false;
   await ladeKarten();
-  $('#board').innerHTML=Object.keys(SP).map(s=>`<div class="spalte" data-s="${s}"><h5>${SP[s]} (${KARTEN.filter(k=>k.spalte===s).length})${s==='ideen'?' <button class="knopf klein" id="karteNeuBtn" style="margin-left:auto">＋ Karte</button>':''}</h5>${KARTEN.filter(k=>k.spalte===s).map(k=>`<div class="kk" data-id="${k.id}"><b>${esc(k.titel)}</b><small>${k.fenster?'🖥 '+esc(k.fenster)+' · ':''}${esc(new Date(k.stand_am).toLocaleDateString('de-DE'))}</small></div>`).join('')}</div>`).join('');
+  $('#board').innerHTML=Object.keys(SP).map(s=>`<div class="spalte" data-s="${s}"><h5>${SP[s]} (${KARTEN.filter(k=>k.spalte===s).length})${s==='ideen'?' <button class="knopf klein" id="karteNeuBtn" style="margin-left:auto">＋ Karte</button>':''}</h5>${KARTEN.filter(k=>k.spalte===s).map(k=>`<div class="kk" data-id="${k.id}"><b>${esc(k.titel)}</b><small>${esc(new Date(k.stand_am).toLocaleDateString('de-DE'))}</small></div>`).join('')}</div>`).join('');
   $('#board').querySelectorAll('.kk').forEach(el=>el.onclick=()=>karteOeffnen(Number(el.dataset.id)));
   const nb=$('#karteNeuBtn');if(nb)nb.onclick=()=>karteOeffnen(0);
 }
 $('#boardBtn').onclick=boardZeigen;
 function karteOeffnen(id){
   const k=id?KARTEN.find(x=>x.id===id):{id:0,titel:'',beschreibung:'',spalte:'ideen',fenster:'',verlauf:[]};if(!k)return;
-  $('#karteInhalt').innerHTML=`<h3>${id?'🗂 Karte':'Neue Karte'}</h3><label>Titel</label><input id="kTitel" value="${esc(k.titel)}"><label>Beschreibung (Stand · Was · Wartet auf · Ziel)</label><textarea id="kBesch" style="min-height:120px">${esc(k.beschreibung)}</textarea><label>Spalte</label><select id="kSpalte">${Object.keys(SP).map(s=>`<option value="${s}"${k.spalte===s?' selected':''}>${SP[s]}</option>`).join('')}</select>${id?`<div class="verl">${(k.verlauf||[]).slice().reverse().map(v=>`<div><span>${esc(new Date(v.am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} · ${esc(v.von)}</span>${linkify(v.text)}${v.media?`<div class="med">${medienHtml({media:[v.media]})}</div>`:''}</div>`).join('')||'<div class="muted">Noch kein Verlauf.</div>'}</div><label>Verlaufs-Eintrag</label><input id="kVerlauf" placeholder="Was ist passiert? (Enter)">`:''}<div class="reihe" style="justify-content:space-between"><span>${id?`<button class="knopf pri" id="kSession">▶ Fenster starten</button>`:''}</span><span><button class="knopf" id="kAbbr">Schließen</button><button class="knopf pri" id="kOk">Speichern</button></span></div>`;
+  $('#karteInhalt').innerHTML=`<h3>${id?'🗂 Karte':'Neue Karte'}</h3><label>Titel</label><input id="kTitel" value="${esc(k.titel)}"><label>Beschreibung (Stand · Was · Wartet auf · Ziel)</label><textarea id="kBesch" style="min-height:120px">${esc(k.beschreibung)}</textarea><label>Spalte</label><select id="kSpalte">${Object.keys(SP).map(s=>`<option value="${s}"${k.spalte===s?' selected':''}>${SP[s]}</option>`).join('')}</select>${id?`<div class="verl">${(k.verlauf||[]).slice().reverse().map(v=>`<div><span>${esc(new Date(v.am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} · ${esc(v.von)}</span>${linkify(v.text)}${v.media?`<div class="med">${medienHtml({media:[v.media]})}</div>`:''}</div>`).join('')||'<div class="muted">Noch kein Verlauf.</div>'}</div><label>Verlaufs-Eintrag</label><input id="kVerlauf" placeholder="Was ist passiert? (Enter)">`:''}<div class="reihe" style="justify-content:space-between"><span></span><span><button class="knopf" id="kAbbr">Schließen</button><button class="knopf pri" id="kOk">Speichern</button></span></div>`;
   const dlg=$('#dlgKarte');dlg.showModal();
   $('#kAbbr').onclick=()=>dlg.close();
-  $('#kOk').onclick=async()=>{const b={titel:$('#kTitel').value.trim(),beschreibung:$('#kBesch').value,spalte:$('#kSpalte').value};if(!b.titel)return;const r=await api(id?`/api/karten/${id}`:'/api/karten',{method:'POST',body:JSON.stringify(b)});if(r&&r.ok){dlg.close();if(ANSICHT==='board')boardZeigen();else{await ladeKarten();kopfZeichnen();}}};
+  $('#kOk').onclick=async()=>{const b={titel:$('#kTitel').value.trim(),beschreibung:$('#kBesch').value,spalte:$('#kSpalte').value};if(!b.titel)return;const r=await api(id?`/api/karten/${id}`:'/api/karten',{method:'POST',body:JSON.stringify(b)});if(r&&r.ok){dlg.close();if(ANSICHT==='board')boardZeigen();else await ladeKarten();}};
   const kv=$('#kVerlauf');if(kv)kv.addEventListener('keydown',async e=>{if(e.key==='Enter'&&kv.value.trim()){const r=await api(`/api/karten/${id}/verlauf`,{method:'POST',body:JSON.stringify({text:kv.value.trim()})});if(r&&r.ok){await ladeKarten();karteOeffnen(id);}}});
-  const ks=$('#kSession');if(ks)ks.onclick=()=>{dlg.close();sessionDialog(k);};
-}
-function sessionDialog(k){
-  $('#sThema').textContent=`„${k.titel}" — jedes Mal ein neues Fenster (Kanal) zu diesem Thema.`;
-  const d=$('#dlgSession');d.showModal();$('#sOrt').onchange=()=>{$('#sHost').hidden=$('#sOrt').value!=='ssh';};
-  $('#sAbbr').onclick=()=>d.close();
-  $('#sOk').onclick=async()=>{const ort=$('#sOrt').value==='ssh'?('ssh:'+$('#sHost').value.trim()):'lokal';const ordner=$('#sOrdner').value.trim();const b={ort,start_modus:$('#sModus').value};if($('#sWorktree').checked&&ordner)b.repo=ordner;else if(ordner)b.ordner=ordner;
-    $('#sOk').disabled=true;const r=await api(`/api/karten/${k.id}/session`,{method:'POST',body:JSON.stringify(b)});$('#sOk').disabled=false;
-    if(!r||!r.ok){fcStatus('⚠️ '+((r&&r.fehler)||'Ging nicht'));return;}d.close();toast('Fenster läuft an.');await ladeKarten();kanalWechseln(r.fenster.name);};
 }
 window.addEventListener('hashchange',()=>{const m=/^#karte-(\d+)$/.exec(location.hash);if(m){ladeKarten().then(()=>karteOeffnen(Number(m[1])));history.replaceState(null,'',' ');}});
 

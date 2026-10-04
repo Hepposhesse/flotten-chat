@@ -10,8 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { senden, nachrichten, fensterAlle, fensterAendern, metaSetzen, nowIso } from './db.mjs';
-import { paneZustand, tastenFuerWahl, chatBefehl, spiegelBeitraege, dialogText, dialogMeta, spiegelStart, ganzeZeilen, protokollNachrichten, zustellText, markerAufloesen, neueZustellungen, MODUS_NAME } from './protokoll.mjs';
-import { prozessVon, paneLesen, tastenSenden, textSenden, laufendesProtokoll, dateiAb, istSsh } from './orte.mjs';
+import { paneZustand, dialogAbgeschnitten, tastenFuerWahl, tastenZuOption, chatBefehl, spiegelBeitraege, dialogText, dialogMeta, fragePasst, textVorDialog, textSchluessel, medienZerlegen, spiegelStart, ganzeZeilen, protokollNachrichten, zustellText, markerAufloesen, neueZustellungen, MODUS_NAME } from './protokoll.mjs';
+import { prozessVon, paneLesen, paneVerlaufLesen, fensterVergroessern, fensterZurueck, tastenSenden, textSenden, laufendesProtokoll, dateiAb, istSsh } from './orte.mjs';
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', webm: 'video/webm', mp4: 'video/mp4', ogg: 'audio/ogg', oga: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', pdf: 'application/pdf' };
@@ -21,6 +21,19 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
   const werkzeuge = new Map();   // fenster → Map(werkzeugId → {werkzeug, text})
   const zustaende = {};          // fenster → {modus, dialog, busy, lebt}
   const gehalten = {};           // fenster → [Nachrichten, die auf einen Dialog warten]
+  const fragen = {};             // fenster → Map(frageId → {fragen}) — die offene AskUserQuestion aus dem Protokoll
+  const abgeschnitten = {};      // fenster → {zustand, ms} — Dialog, der im kleinen Fenster oben abgeschnitten ist
+  const fragenVon = (f) => fragen[f.name] || (fragen[f.name] = new Map());
+  const letzteFrage = (f) => { const m = fragenVon(f); return m.size ? [...m.values()].pop() : null; };
+  /** Antwort-Text merken (letzte 12 Schlüssel); false = schon gepostet (z. B. als Text vor einer Rückfrage). */
+  function merkeText(sp, text) {
+    const k = textSchluessel(text);
+    if (!k) return true;
+    const liste = Array.isArray(sp.gepostet) ? sp.gepostet : [];
+    if (liste.includes(k)) return false;
+    sp.gepostet = [...liste, k].slice(-12);
+    return true;
+  }
   let laeuft = false;
 
   /** Medien-Marker aus einer Fenster-Antwort ins Chat-Medienarchiv übernehmen (nur lokale Ordner). */
@@ -57,9 +70,10 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
       const { zeilen, verbraucht } = ganzeZeilen(roh);
       if (zeilen.length) {
         if (!werkzeuge.has(f.name)) werkzeuge.set(f.name, new Map());
-        const beitraege = spiegelBeitraege(protokollNachrichten(zeilen, { ohneZustellung: true }), { werkzeuge: werkzeuge.get(f.name) });
+        const beitraege = spiegelBeitraege(protokollNachrichten(zeilen, { ohneZustellung: true }), { werkzeuge: werkzeuge.get(f.name), offeneFragen: fragenVon(f) });
         for (const b of beitraege) {
           if (b.frageId && neu.wahlViaChat) { neu.wahlViaChat = false; continue; }
+          if (b.typ === 'answer' && !merkeText(neu, b.text)) continue; // stand schon als Text vor einer Rückfrage im Chat
           const media = b.medien && b.medien.length ? medienUebernehmen(f, b.medien) : null;
           chatSchreiben(f, { typ: b.typ, text: b.text, media: media && media.length ? media : null });
         }
@@ -76,11 +90,26 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
       if (sp.dialogMsg) { // Dialog ist zu → Knöpfe der Nachricht deaktivieren
         try { const alt = db.prepare('SELECT meta FROM messages WHERE id = ?').get(sp.dialogMsg); const meta = alt && alt.meta ? JSON.parse(alt.meta) : {}; if (meta.dialog && !meta.dialog.zu) { meta.dialog.zu = true; const m = metaSetzen(db, sp.dialogMsg, meta); broadcast('message_update', m); } } catch { /* egal */ }
       }
-      sp.dialogKennung = ''; sp.dialogMsg = 0; sp.halteHinweis = 0; return;
+      sp.dialogKennung = ''; sp.dialogMsg = 0; sp.halteHinweis = 0; sp.dialogWartet = ''; return;
     }
     if (d.kennung === sp.dialogKennung) return;
-    sp.dialogKennung = d.kennung; sp.halteHinweis = 0;
-    const m = chatSchreiben(f, { typ: 'question', text: dialogText(d), meta: { dialog: dialogMeta(d) } });
+    // Rückfrage: die ganze Frage steht im Protokoll. Ist sie noch nicht da, EINE Runde warten — danach notfalls
+    // das Terminalbild, damit nichts hängt.
+    const frage = letzteFrage(f);
+    const passt = fragePasst(d, frage);
+    if (d.art === 'frage' && !passt && sp.dialogWartet !== d.kennung) { sp.dialogWartet = d.kennung; return; }
+    sp.dialogKennung = d.kennung; sp.halteHinweis = 0; sp.dialogWartet = '';
+    // Der Text über der Rückfrage (Erklärung, Bilder) kommt erst nach der Antwort ins Protokoll — also aus dem
+    // Terminal mit Verlauf holen und VOR der Frage posten.
+    if (d.art === 'frage') {
+      const vorher = textVorDialog(paneVerlaufLesen(f));
+      if (vorher && merkeText(sp, vorher)) {
+        const z = medienZerlegen(vorher);
+        const media = z.medien.length ? medienUebernehmen(f, z.medien) : null;
+        chatSchreiben(f, { typ: 'answer', text: z.text || vorher, media: media && media.length ? media : null });
+      }
+    }
+    const m = chatSchreiben(f, { typ: 'question', text: dialogText(d, passt ? frage : null), meta: { dialog: dialogMeta(d, passt ? frage : null) } });
     sp.dialogMsg = m ? m.id : 0;
   }
 
@@ -93,7 +122,7 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
 
   /** Schritt 4: eine Chat-Nachricht des Menschen im Fenster ausführen. */
   async function ausfuehren(f, m, zustand, sp) {
-    const befehl = chatBefehl(m.inhalt, zustand);
+    const befehl = chatBefehl(m.inhalt, { ...zustand, frage: letzteFrage(f) });
     if (befehl.art === 'text') {
       // Anhänge der Nachricht als lesbare Pfade mitgeben (lokale Fenster lesen die Datei selbst).
       let text = String(m.inhalt || '');
@@ -108,6 +137,15 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
       const labels = befehl.nummern.map((n) => { const o = zustand.dialog.optionen.find((x) => x.nr === n); return o ? `${n} „${o.label}"` : String(n); });
       if (befehl.nachtext) halten(f, { ...m, inhalt: befehl.nachtext });
       chatSchreiben(f, { typ: 'fyi', text: `↳ Auswahl ${labels.join(', ')} ins Fenster gegeben.${befehl.nachtext ? ' Dein Zusatz folgt, sobald der Dialog zu ist.' : ''}`, bezug_id: m.id });
+      return true;
+    }
+    if (befehl.art === 'freitext') {
+      // Der Text ist die Antwort: Cursor aufs Antwortfeld („Type something."), Text tippen, Enter.
+      const tasten = tastenZuOption(befehl.nr, zustand.dialog.cursor, zustand.dialog.optionen.length);
+      if (tasten.length) { if (!tastenSenden(f, tasten).ok) return false; await warte(300); }
+      if (!textSenden(f, befehl.text).ok) return false;
+      sp.wahlViaChat = true;
+      chatSchreiben(f, { text: `↳ Deine Antwort ist im Antwortfeld abgeschickt: „${String(befehl.text).replace(/\s+/g, ' ').trim().slice(0, 160)}"`, bezug_id: m.id });
       return true;
     }
     if (befehl.art === 'abbruch') { const r = tastenSenden(f, ['Escape']); if (r.ok) chatSchreiben(f, { text: '↳ Dialog abgebrochen (Esc).', bezug_id: m.id }); return r.ok; }
@@ -154,7 +192,21 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
           chatSchreiben(f, { typ: 'system', text: '🔓 Ordner als vertrauenswürdig bestätigt (Claude Code fragt das einmal je Ordner).' });
           continue;
         }
-        const zustand = paneZustand(pane);
+        // Dialog oben abgeschnitten (80×24 ohne angehängten Bildschirm) → kurz vergrößern, lesen, zurück; den
+        // gelesenen Dialog merken, solange er im kleinen Fenster abgeschnitten bleibt (höchstens alle 30 s).
+        let gemerkt = null;
+        if (p.lebt && dialogAbgeschnitten(pane)) {
+          const a = abgeschnitten[f.name];
+          if (a && a.zustand) gemerkt = a.zustand;
+          else if (!a || jetztMs - a.ms > 30_000) {
+            abgeschnitten[f.name] = { ms: jetztMs };
+            fensterVergroessern(f); await warte(1200);
+            const z = paneZustand(paneLesen(f));
+            if (z.dialog) { abgeschnitten[f.name].zustand = z; gemerkt = z; }
+            fensterZurueck(f);
+          }
+        } else delete abgeschnitten[f.name];
+        const zustand = gemerkt || paneZustand(pane);
         zustaende[f.name] = { lebt: p.lebt, gestartetMs: p.gestartetMs, modus: zustand.modus, busy: zustand.busy, dialog: zustand.dialog ? { art: zustand.dialog.art, titel: zustand.dialog.titel, optionen: zustand.dialog.optionen } : null };
         const status = p.lebt ? 'laeuft' : (f.status === 'schliesst' ? 'schliesst' : 'aus');
         if (status !== f.status || (p.lebt && !f.gestartet_am)) { fensterAendern(db, f.name, { status, gestartet_am: p.lebt ? new Date(p.gestartetMs || jetztMs).toISOString() : null }); broadcast('presence', { fenster: f.name, status }); }

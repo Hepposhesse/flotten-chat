@@ -28,10 +28,11 @@ wer das baut, teilt es bitte (AGPL).
 4. **Sprache rein, Bild raus** — Sprachnachricht im Chat → Auftrag; Antworten mit Screenshot, PDF,
    Video inline (Anhang-Bühne).
 5. **Frische Fenster** — Kanal = Fenster = Thema. „Schließen“ lässt das Fenster seinen Stand
-   wegschreiben, sichert Ungesichertes als WIP und räumt seinen Worktree auf. Kein Kontext-Müll.
+   wegschreiben, sichert Ungesichertes als WIP, räumt seinen Worktree auf — dann ist der Kanal weg.
+   Kein Kontext-Müll.
 
-Dazu: **Themen-Board** (Karte = Thema, „▶ Fenster starten“ direkt von der Karte, Schließen schiebt sie
-nach „Bitte prüfen“), **Erinnerungen** (feuern serverseitig ohne KI, „▶ Fenster“ kümmert sich),
+Dazu: **Live-Terminal** im Kanal-Kopf (echtes Terminalbild + Tastenleiste), **Themen-Board** (Karte =
+Thema, lose zu den Fenstern — Fenster schreiben ihren Stand in den Verlauf), **Erinnerungen** (feuern serverseitig ohne KI, „▶ Fenster“ kümmert sich),
 **Alarm-Eingang** (`POST /api/alarm`), **Hilfe-Kanal** (Support-Brücke zum Hersteller).
 
 ## Quickstart
@@ -83,8 +84,8 @@ Fenster besitzt.
 
 ## API (Auszug, Bearer Admin-Token oder Login-Cookie)
 `GET /api/fenster` · `POST /api/fenster {name, ordner|repo, ort, start_modus, start_text}` ·
-`POST /api/fenster/<name>/(start|neustart|stop|schliessen|loeschen|tippen|karte)` ·
-`GET/POST /api/karten`, `POST /api/karten/<id>/(verlauf|session)` ·
+`POST /api/fenster/<name>/(start|neustart|stop|schliessen|loeschen|tippen)` · `GET /api/fenster/<name>/terminal`, `POST …/tasten` ·
+`GET/POST /api/karten`, `POST /api/karten/<id>/verlauf` ·
 `GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session)` ·
 `POST /api/send {kanal, inhalt, media?, client_id?}` · `GET /api/messages?kanal=&seit=` · `GET /api/events` (SSE) ·
 `POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`).
@@ -94,7 +95,7 @@ Fenster besitzt.
   festen Orten (Karte, Repo, Memory). Nachrichten, die älter als 2 h sind, wenn ein Fenster
   wiederkommt, werden nicht nachgeliefert.
 - **Themen statt Rollen.** Fenster sind wegwerfbar; Wissen liegt im Repo (CLAUDE.md), nicht im Fenster.
-- **Kein Bau ohne Karte — aber die KI legt Karten nur auf Zuruf an.**
+- **Die KI legt Karten nur auf Zuruf an** — vorhandene befüllt sie selbst.
 - **Rückfragen sind Knöpfe.** Freitext-Fragen aus dem Fenster kommen zwar an, aber `AskUserQuestion`
   ist der Weg, der sich nach Chat anfühlt.
 

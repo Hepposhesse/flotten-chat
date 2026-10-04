@@ -2,7 +2,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { paneZustand, tastenFuerWahl, chatBefehl, dialogText, dialogMeta, protokollNachrichten, spiegelBeitraege, spiegelStart, ganzeZeilen, protokollZuProzess, zustellText, markerAufloesen, medienZerlegen, neueZustellungen, slug, protokollOrdner, werkzeugZeile } from './server/protokoll.mjs';
+import { paneZustand, tastenFuerWahl, chatBefehl, dialogText, dialogMeta, dialogAbgeschnitten, textVorDialog, protokollNachrichten, spiegelBeitraege, spiegelStart, ganzeZeilen, protokollZuProzess, zustellText, markerAufloesen, medienZerlegen, neueZustellungen, slug, protokollOrdner, werkzeugZeile } from './server/protokoll.mjs';
 import { etimeSekunden, startBefehl } from './server/orte.mjs';
 import { openDb, fensterAnlegen, fensterHolen, fensterAlle, fensterAendern, fensterLoeschen, karteAnlegen, karteAendern, karteVerlauf, karten, nutzerAnlegen, nutzerAnzahl, nutzerPruefen, sitzungAnlegen, sitzungNutzer, sitzungLoeschen, senden, metaSetzen, kanaele } from './server/db.mjs';
 
@@ -36,7 +36,34 @@ ok(chatBefehl('1, 3', { dialog: zf.dialog }).nummern.join(',') === '1,3', 'Mehre
 ok(chatBefehl('ja', { dialog: zg.dialog }).nummern[0] === 1, '„ja" = 1');
 ok(chatBefehl('nein', { dialog: zg.dialog }).art === 'abbruch', '„nein" = Escape');
 ok(chatBefehl('Mach es lieber mit rsync', { dialog: zg.dialog }).art === 'abbruch_text', 'Freitext bei Freigabe = Esc + Text');
-ok(chatBefehl('Nimm bitte dunkelblau', { dialog: zf.dialog }).art === 'halten', 'Freitext bei Rückfrage wartet');
+ok(JSON.stringify(chatBefehl('Nimm bitte dunkelblau', { dialog: zf.dialog })) === JSON.stringify({ art: 'freitext', nr: 4, text: 'Nimm bitte dunkelblau' }), 'Freitext bei Rückfrage = Antwortfeld „Type something."');
+// v1.0: Nachzug aus dem Live-Betrieb (Rückfragen ohne Antwortfeld, Dialoge ohne Nummern, hohe Dialoge, Text vor der Frage)
+const mitVorschau = { art: 'frage', cursor: 1, optionen: [{ nr: 1, label: 'Kurz' }, { nr: 2, label: 'Lang' }, { nr: 3, label: 'Chat about this' }] };
+const protFrage = { fragen: [{ frage: 'Welche Länge?', kopf: 'Text', optionen: [{ label: 'Kurz', beschreibung: 'zwei Sätze' }, { label: 'Lang', beschreibung: '' }] }] };
+const rb = chatBefehl('lass uns erst reden', { dialog: mitVorschau, frage: protFrage });
+ok(rb.art === 'wahl' && rb.nummern[0] === 3 && rb.nachtext === 'lass uns erst reden', 'ohne Antwortfeld: „Chat about this" + Text danach');
+ok(chatBefehl('egal', { dialog: { ...mitVorschau, optionen: mitVorschau.optionen.slice(0, 2) } }).art === 'halten', 'weder Antwortfeld noch „Chat about this": Text wartet');
+const ohneNr = paneZustand('\n Security guide\n\n ❯ No, exit\n   Yes, I trust this folder\n\n Enter to confirm · Esc to cancel\n').dialog;
+ok(ohneNr && ohneNr.optionen.length === 2 && ohneNr.optionen[1].label === 'Yes, I trust this folder', 'Dialog ohne Nummern erkannt');
+ok(paneZustand('❯ hallo\n  zweite Zeile\n').dialog === null, 'Eingabezeile ohne Dialog-Fuß ist kein Dialog');
+ok(dialogAbgeschnitten('   3. Drei\n ❯ 4. Vier\n\n Enter to select · Esc to cancel\n'), 'oben abgeschnittener Dialog erkannt');
+const dm = dialogMeta(mitVorschau, protFrage);
+ok(dm.titel === 'Text: Welche Länge?' && dm.optionen.length === 2 && dm.optionen[0].beschreibung === 'zwei Sätze', 'dialogMeta nimmt Frage + Beschreibung aus dem Protokoll');
+ok(/Welche Länge\?/.test(dialogText(mitVorschau, protFrage)) && !/Chat about this/.test(dialogText(mitVorschau, protFrage)), 'dialogText mit ganzer Frage, ohne Hilfsoptionen');
+const vorText = '● Ich habe zwei Wege gefunden.\n  Der erste ist schneller.\n\n──────────────\n Welche Länge?\n ❯ 1. Kurz\n   2. Lang\n   3. Type something.\n\n Enter to select · Esc to cancel\n';
+ok(textVorDialog(vorText) === 'Ich habe zwei Wege gefunden. Der erste ist schneller.', 'Text über der Rückfrage wird gelesen');
+const lang = ' Bash command\n╌╌╌╌╌╌\n curl x\n╌╌╌╌╌╌\n Do you want to proceed?\n ❯ 1. Yes\n   2. No\n\n Esc to cancel\n';
+ok(!/╌/.test(paneZustand(lang).dialog.titel), 'Trennlinien nicht im Freigabe-Titel');
+const cd = (t) => paneZustand(` Stop\n ⚠ Claude Code will automatically deny this request in ${t}\n Do you want to proceed?\n ❯ 1. Yes\n   2. No\n`).dialog.kennung;
+ok(cd('1:46') === cd('1:45'), 'Countdown ändert die Dialog-Kennung nicht');
+const VORSCHAU = ' ☐ Layout\nWelches Layout?\n❯ 1. A                            ┌──────────────────────────────────────────┐\n  2. B                            │ +-------+-----------------+              │\n                                  ├─── ✂ ─── 4 lines hidden ─────────────────┤\n                                  └──────────────────────────────────────────┘\n                                  Notes: press n to add notes\n────────────────────────────────────────────────────────────────────────────────\n  Chat about this\nEnter to select · ↑/↓ to navigate · n to add notes · Esc to cancel\n';
+const dv = paneZustand(VORSCHAU).dialog;
+ok(dv && dv.optionen.map((o) => o.label).join('|') === 'A|B|Chat about this', 'Vorschau-Rückfrage: „Chat about this" ohne Nummer zählt als Option 3');
+ok(dv && !dv.optionen[1].beschreibung, '„Notes: press n …" ist keine Beschreibung');
+const cv = chatBefehl('erst reden', { dialog: dv });
+ok(cv.art === 'wahl' && cv.nummern[0] === 3 && cv.nachtext === 'erst reden', 'Freitext bei Vorschau-Rückfrage = „Chat about this" (auch ohne Protokoll)');
+ok(dialogAbgeschnitten(VORSCHAU), 'gekürzte Vorschau („✂ … lines hidden") = abgeschnitten → vergrößern');
+ok(dv && dv.vorschau && !/✂/.test(dv.vorschau.text), 'Kürzungs-Marke nicht im Vorschau-Text');
 ok(chatBefehl('1. und mach die Ecken rund', { dialog: zf.dialog }).nachtext === 'und mach die Ecken rund', 'Wahl + Nachtext');
 ok(chatBefehl('manual', {}).ziel === 'default' && chatBefehl('auto', {}).ziel === 'auto' && chatBefehl('plan', {}).ziel === 'plan', 'Modus-Worte');
 

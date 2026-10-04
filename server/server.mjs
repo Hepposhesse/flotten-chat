@@ -19,7 +19,8 @@ import {
 } from './db.mjs';
 import { createLimiter, groesseErlaubt, clientIdSauber } from './limits.mjs';
 import { starteKonsole } from './konsole.mjs';
-import { sessionStarten, sessionNeustart, sessionBeenden, prozessVon, paneLesen, textSenden, worktreeAnlegen, worktreeSichern, worktreeEntfernen, worktreeSauber, worktreesVerwaist, repoWurzel, istSsh } from './orte.mjs';
+import { sessionStarten, sessionNeustart, sessionBeenden, prozessVon, paneLesen, paneFarbigLesen, tastenSenden, textSenden, worktreeAnlegen, worktreeSichern, worktreeEntfernen, worktreeSauber, worktreesVerwaist, repoWurzel, istSsh } from './orte.mjs';
+import { ansiZuHtml, TERMINAL_TASTEN } from './terminal.mjs';
 import { slug } from './protokoll.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -100,9 +101,8 @@ function fensterBauen(b) {
     ordner = w.ordner; worktree = 1;
   }
   if (!ordner) ordner = process.env.FC_DEFAULT_ORDNER || process.cwd();
-  const f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || process.env.FC_CLAUDE_CONFIG_DIR || '', start_modus: b.start_modus || 'auto', start_text: b.start_text || '', karte_id: b.karte_id || null, worktree });
+  const f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || process.env.FC_CLAUDE_CONFIG_DIR || '', start_modus: b.start_modus || 'auto', start_text: b.start_text || '', worktree });
   if (!f) return { ok: false, fehler: 'Fenster konnte nicht angelegt werden.' };
-  if (f.karte_id) karteAendern(db, f.karte_id, { fenster: f.name, spalte: 'in_arbeit' });
   let start = { ok: false };
   if (b.starten !== false) { start = sessionStarten(f); if (start.ok) fensterAendern(db, f.name, { status: 'laeuft', gestartet_am: nowIso() }); }
   return { ok: true, fenster: fensterHolen(db, f.name), start };
@@ -261,7 +261,22 @@ const server = http.createServer(async (req, res) => {
       if (r.ok) broadcast('presence', { fenster: r.fenster.name, neu: true });
       return json(res, r.ok ? 200 : 400, r);
     }
-    const mF = /^\/api\/fenster\/([a-z0-9_-]+)\/(start|neustart|stop|schliessen|loeschen|pane|tippen|karte)$/.exec(url.pathname);
+    // Live-Terminal: das echte Terminalbild mit Farben (nur lesen) + Tastenleiste mit fester Tastenliste —
+    // nie Text oder Befehle vom Client. Nur für Admins (wer Fenster steuern darf).
+    const mT = /^\/api\/fenster\/([a-z0-9_-]+)\/(terminal|tasten)$/.exec(url.pathname);
+    if (mT) {
+      if (!admin) return json(res, 403, { ok: false });
+      const f = fensterHolen(db, mT[1]);
+      if (!f) return json(res, 404, { ok: false, fehler: 'Fenster unbekannt.' });
+      if (mT[2] === 'terminal' && req.method === 'GET') { const lebt = !!prozessVon(f).lebt; return json(res, 200, { ok: true, lebt, html: lebt ? ansiZuHtml(paneFarbigLesen(f)) : '' }); }
+      if (mT[2] === 'tasten' && req.method === 'POST') {
+        const b = await koerper(req);
+        const tasten = (Array.isArray(b.tasten) ? b.tasten : []).map(String).filter((t) => TERMINAL_TASTEN.includes(t)).slice(0, 10);
+        if (!tasten.length) return json(res, 400, { ok: false, fehler: 'Keine erlaubte Taste.' });
+        const r = tastenSenden(f, tasten); return json(res, r.ok ? 200 : 400, r);
+      }
+    }
+    const mF = /^\/api\/fenster\/([a-z0-9_-]+)\/(start|neustart|stop|schliessen|loeschen|pane|tippen)$/.exec(url.pathname);
     if (mF && req.method === 'POST') {
       if (!admin) return json(res, 403, { ok: false });
       const f = fensterHolen(db, mF[1]);
@@ -272,7 +287,6 @@ const server = http.createServer(async (req, res) => {
       if (mF[2] === 'stop') { const r = sessionBeenden(f); fensterAendern(db, f.name, { status: 'aus' }); broadcast('presence', { fenster: f.name, status: 'aus' }); return json(res, 200, r); }
       if (mF[2] === 'tippen') { const r = textSenden(f, String(b.text || '')); return json(res, r.ok ? 200 : 400, r); }
       if (mF[2] === 'pane') return json(res, 200, { ok: true, pane: paneLesen(f), prozess: prozessVon(f) });
-      if (mF[2] === 'karte') { fensterAendern(db, f.name, { karte_id: b.karte_id || null }); if (b.karte_id) karteAendern(db, b.karte_id, { fenster: f.name }); return json(res, 200, { ok: true }); }
       if (mF[2] === 'schliessen') {
         // Schließ-Ritual: Stand wegschreiben lassen → Ungesichertes als WIP sichern → Session beenden → Worktree weg, wenn sauber.
         const sofort = !!b.sofort;
@@ -280,7 +294,7 @@ const server = http.createServer(async (req, res) => {
         const m = senden(db, { kanal: f.name, von: 'flottenchat', typ: 'system', inhalt: `🧹 Fenster wird geschlossen${sofort ? ' (sofort)' : ' — es bekommt 60 s, um seinen Stand wegzuschreiben'}.` }); if (m) broadcast('message', m);
         (async () => {
           if (!sofort && prozessVon(f).lebt) {
-            textSenden(f, 'Das Fenster wird in 60 Sekunden geschlossen: schreib jetzt deinen Stand an die feste Stelle (Karte/Verlauf), committe alles auf deinen Branch und antworte mit einem Satz „aufgeräumt".');
+            textSenden(f, 'Das Fenster wird in 60 Sekunden geschlossen: schreib jetzt deinen Stand an die feste Stelle (Verlaufs-Eintrag an der Board-Karte, falls es eine gibt), committe alles auf deinen Branch und antworte mit einem Satz „aufgeräumt".');
             await new Promise((r) => setTimeout(r, 60_000));
           }
           const hinweis = [];
@@ -291,10 +305,10 @@ const server = http.createServer(async (req, res) => {
             const w = worktreeSauber(f.ordner) ? worktreeEntfernen(repo, f.ordner) : { ok: false, fehler: 'ungesichert' };
             hinweis.push(w.ok ? `Worktree entfernt, Branch fc/${f.name} bleibt.` : `Worktree bleibt liegen (${w.fehler}).`);
           }
-          fensterAendern(db, f.name, { status: 'aus' });
-          if (f.karte_id) { const k = karteHolen(db, f.karte_id); if (k && k.spalte !== 'erledigt') { karteAendern(db, f.karte_id, { spalte: 'pruefen' }); karteVerlauf(db, f.karte_id, { von: 'flottenchat', text: `Fenster „${f.label}" geschlossen — bitte prüfen, ob das Thema fertig ist.` }); } }
           const e = senden(db, { kanal: f.name, von: 'flottenchat', typ: 'system', inhalt: `✅ Fenster geschlossen. ${hinweis.join(' ')}`.trim() }); if (e) broadcast('message', e);
-          broadcast('presence', { fenster: f.name, status: 'aus' });
+          // Geschlossen = weg: Registry-Eintrag raus, Kanal archiviert (Verlauf bleibt in der DB), Name wieder frei.
+          fensterLoeschen(db, f.name);
+          broadcast('presence', { fenster: f.name, status: 'geschlossen' });
         })();
         return json(res, 200, { ok: true, laeuft: !sofort });
       }
@@ -321,22 +335,13 @@ const server = http.createServer(async (req, res) => {
       if (!k) return json(res, 400, { ok: false, fehler: 'titel fehlt' });
       broadcast('karte', k); return json(res, 200, { ok: true, karte: k });
     }
-    const mK = /^\/api\/karten\/(\d+)(?:\/(verlauf|session|loeschen))?$/.exec(url.pathname);
+    const mK = /^\/api\/karten\/(\d+)(?:\/(verlauf|loeschen))?$/.exec(url.pathname);
     if (mK && req.method === 'POST') {
       const b = await koerper(req);
       const k0 = karteHolen(db, mK[1]); if (!k0) return json(res, 404, { ok: false, fehler: 'Karte unbekannt.' });
       if (!mK[2]) { const k = karteAendern(db, mK[1], b); broadcast('karte', k); return json(res, 200, { ok: true, karte: k }); }
       if (mK[2] === 'verlauf') { const k = karteVerlauf(db, mK[1], { von: b.von || wer.name, text: b.text, media: b.media || null }); if (!k) return json(res, 400, { ok: false, fehler: 'text fehlt' }); broadcast('karte', k); return json(res, 200, { ok: true, karte: k }); }
       if (mK[2] === 'loeschen') { if (!admin) return json(res, 403, { ok: false }); karteLoeschen(db, mK[1]); broadcast('karte', { id: Number(mK[1]), geloescht: true }); return json(res, 200, { ok: true }); }
-      if (mK[2] === 'session') {
-        // Karte → Fenster: jedes Mal ein NEUES Fenster (Kanal) zum Thema; Name aus Titel + Zähler.
-        if (!admin) return json(res, 403, { ok: false });
-        const basis = slug(k0.titel).slice(0, 28);
-        let name = basis, n = 2; while (fensterHolen(db, name)) name = `${basis}-${n++}`;
-        const r = fensterBauen({ ...b, name, label: k0.titel, karte_id: k0.id, start_text: b.start_text || `Thema aus dem Board: „${k0.titel}". ${k0.beschreibung ? 'Beschreibung: ' + k0.beschreibung.slice(0, 1500) : ''} Lies zuerst die CLAUDE.md, dann leg los; Stand kommt als Verlaufs-Eintrag auf die Karte.` });
-        if (r.ok) { karteVerlauf(db, k0.id, { von: wer.name, text: `Fenster „${r.fenster.label}" (#${r.fenster.name}) gestartet.` }); broadcast('presence', { fenster: r.fenster.name, neu: true }); }
-        return json(res, r.ok ? 200 : 400, r);
-      }
     }
 
     // ── Erinnerungen ──

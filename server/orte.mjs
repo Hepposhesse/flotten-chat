@@ -86,7 +86,26 @@ export function sessionBeenden(f) {
 /** Terminalbild (tmux capture-pane). */
 export function paneLesen(f) { return tm(f, ['capture-pane', '-t', `${f.tmux}:0`, '-p'], { timeout: 3000 }); }
 
-const TASTEN = new Set(['Down', 'Up', 'Enter', 'Escape', 'Space', 'BTab', 'Tab']);
+/** Terminalbild mit Verlauf (die letzten 300 Zeilen) — für den Text, der über einer Rückfrage steht. */
+export function paneVerlaufLesen(f) { return tm(f, ['capture-pane', '-t', `${f.tmux}:0`, '-p', '-S', '-300'], { timeout: 3000 }); }
+/** Terminalbild MIT Farben (ANSI) fürs Live-Terminal im Kanal-Kopf. */
+export function paneFarbigLesen(f) { return tm(f, ['capture-pane', '-t', `${f.tmux}:0`, '-p', '-e'], { timeout: 3000 }); }
+
+// tmux-Fenster ohne angehängten Bildschirm sind 80×24 groß; eine hohe Rückfrage fällt dann oben raus.
+// Kurz vergrößern, lesen, zurück auf die Größe des angehängten Bildschirms (window-size wieder global).
+export const FENSTER_GROESSE = { x: 200, y: 60 };
+export function fensterVergroessern(f) {
+  tm(f, ['resize-window', '-t', `${f.tmux}:0`, '-x', String(FENSTER_GROESSE.x), '-y', String(FENSTER_GROESSE.y)], { timeout: 4000 });
+  return { ok: true };
+}
+export function fensterZurueck(f) {
+  tm(f, ['set-option', '-wu', '-t', `${f.tmux}:0`, 'window-size'], { timeout: 3000 });
+  const clients = String(tm(f, ['list-clients', '-t', f.tmux], { timeout: 3000 }) || '').trim();
+  if (clients) { tm(f, ['resize-window', '-A', '-t', `${f.tmux}:0`], { timeout: 3000 }); tm(f, ['set-option', '-wu', '-t', `${f.tmux}:0`, 'window-size'], { timeout: 3000 }); }
+  return { ok: true };
+}
+
+const TASTEN = new Set(['Down', 'Up', 'Enter', 'Escape', 'Space', 'BTab', 'Tab', '1', '2', '3', '4', '5', '6', '7', '8', '9']); // Ziffern: Tastenleiste im Live-Terminal
 export function tastenSenden(f, tasten = []) {
   const liste = (Array.isArray(tasten) ? tasten : []).filter((t) => TASTEN.has(t)).slice(0, 40);
   if (!liste.length) return { ok: false, fehler: 'Keine Taste' };

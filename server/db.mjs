@@ -272,7 +272,8 @@ export function faelligeFeuern(db, jetzt = new Date()) {
 }
 
 // ── v1.0: Fenster-Registry ─────────────────────────────────────────────────
-// EIN Ort für alles, was ein Fenster ausmacht (Name = Kanal, Ort, Ordner, tmux-Session, Karte, Stand).
+// EIN Ort für alles, was ein Fenster ausmacht (Name = Kanal, Ort, Ordner, tmux-Session, Stand). karte_id bleibt
+// als Spalte (Altbestand), Fenster und Board sind seit 1.0 aber lose: Stand geht per Verlaufs-Eintrag an die Karte.
 export function fensterAnlegen(db, { name, label = '', ort = 'lokal', ordner, config_dir = '', start_modus = 'auto', start_text = '', karte_id = null, worktree = 0 }) {
   const sauber = String(name || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   if (!sauber || !ordner) return null;
@@ -283,6 +284,7 @@ export function fensterAnlegen(db, { name, label = '', ort = 'lokal', ordner, co
         modus, String(start_text || '').slice(0, 4000), 'fc-' + sauber, karte_id ? Number(karte_id) : null, worktree ? 1 : 0, nowIso());
   } catch { return null; } // Name vergeben
   kanalAnlegen(db, { name: sauber, label: label || sauber });
+  db.prepare('UPDATE channels SET archiviert = 0 WHERE name = ?').run(sauber); // Name eines geschlossenen Fensters wieder frei
   return fensterHolen(db, sauber);
 }
 export function fensterHolen(db, name) { return db.prepare('SELECT * FROM fenster WHERE name = ?').get(String(name || '')) || null; }

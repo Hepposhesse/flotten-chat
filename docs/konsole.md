@@ -5,20 +5,32 @@ Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server mac
 ## Die Runde (alle 3 s, je Fenster) — `server/konsole.mjs`
 1. **Terminalbild** (`tmux capture-pane`) → `paneZustand()`:
    Modus (`auto` / `default` = Manual / `plan` / `accept`), offener Dialog (nummerierte Liste mit
-   Cursor ❯), beschäftigt (laufende Klammer-Zeit „(12s · …)“).
+   Cursor ❯ — oder, seit Claude Code 2.1.289, auch ohne Nummern über einem Fuß „Enter to confirm · Esc to
+   cancel“), beschäftigt (laufende Klammer-Zeit „(12s · …)“).
+   **Hohe Dialoge:** tmux-Fenster ohne angehängten Bildschirm sind 80×24. Ist eine Rückfrage höher, fällt
+   „❯ 1.“ oben raus (`dialogAbgeschnitten()`); der Server vergrößert das Fenster kurz auf 200×60, liest,
+   und stellt es zurück. Der gelesene Dialog wird gemerkt, solange er klein abgeschnitten bleibt.
 2. **Protokoll** — Claude Code schreibt jede Sitzung als JSONL nach
    `<config>/projects/<ordner, alles außer [A-Za-z0-9] → ->/<sitzung>.jsonl`. Wir merken uns den
    Byte-Offset und lesen nur Neues. `protokollNachrichten()` macht daraus Rollen:
    `sitzung` (Antwort-Text, mit Medien-Markern), `frage` (AskUserQuestion), `antwort` (im Fenster
    beantwortet), `gesperrt` (Auto-Mode-Sperre), `schritt` (Werkzeug-Aufruf, nur für Kontext).
    `spiegelBeitraege()` → Chat-Nachrichten `answer` / `fyi` / `error`.
-3. **Dialog** — erscheint ein Dialog neu (Kennung = Titel + Anzahl Optionen), kommt EINE Nachricht
-   vom Typ `question` mit `meta.dialog = {art, titel, optionen[]}` in den Kanal. Die UI macht Knöpfe
-   daraus. Verschwindet der Dialog, wird `meta.dialog.zu = true` gesetzt (Knöpfe aus).
+3. **Dialog** — erscheint ein Dialog neu (Kennung = Titel ohne Countdown + Anzahl Optionen), kommt EINE
+   Nachricht vom Typ `question` mit `meta.dialog = {art, titel, optionen[{nr, label, beschreibung}]}` in
+   den Kanal. Die UI macht Knöpfe daraus. Verschwindet der Dialog, wird `meta.dialog.zu = true` gesetzt.
+   Rückfragen nehmen Frage, Kopf und Beschreibungen aus dem Protokoll (der AskUserQuestion-Aufruf steht
+   dort, bevor geantwortet wird); fehlt er noch, wartet der Spiegel eine Runde. Der **Text über der
+   Rückfrage** (Erklärung, Bilder) kommt erst nach der Antwort ins Protokoll — der Server liest ihn aus
+   dem Terminal-Verlauf (`textVorDialog()`) und postet ihn VOR der Frage (später nicht doppelt).
+   Ein **Vorschau-Kasten** (AskUserQuestion mit `preview`) wird aus dem Bild gelöst und als Text gezeigt.
 4. **Zustellung** — neue Nachrichten des Menschen (Cursor je Fenster) → `chatBefehl()`:
    - `text` → `tmux send-keys "📨 Name · #id: Text"` + Enter (Anhänge als `[Bild: /pfad]`)
    - Zahl(en) bei offenem Dialog → Cursor-Tasten + Enter (`tastenFuerWahl`), Mehrfachwahl mit Space
-   - „ja“ = 1 · „nein“ = Escape · Freitext bei Freigabe = Escape + Text · Freitext bei Rückfrage wartet
+   - „ja“ = 1 · „nein“ = Escape · Freitext bei Freigabe = Escape + Text
+   - Freitext bei Rückfrage = die Antwort: ins Antwortfeld („Type something.“) und abschicken. Hat die
+     Frage kein Antwortfeld (z. B. mit Vorschau), wählt der Server „Chat about this“ und schickt den Text
+     hinterher, sobald der Dialog zu ist. Gibt es beides nicht, wartet der Text.
    - „manual“/„auto“/„plan“ → Shift+Tab bis der Modus steht (mit Warten auf die TUI)
    Zu alte Nachrichten (> 2 h, Fenster war weg) werden nicht nachgeliefert — sie stehen ja im Chat.
 
@@ -26,6 +38,11 @@ Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server mac
 Weil das die stabile Variante ist. Alles, was wir vorher hatten (Bus-Polling im Fenster, Watcher,
 Hooks, „bin ich noch wach?“), ist gestorben, sobald ein Fenster neu startete oder ein Socket weg war.
 Jetzt gibt es genau einen Zustand: das Terminal. Der Chat ist nur die Fernbedienung und der Spiegel.
+
+## Live-Terminal
+Knopf „Terminal“ im Kanal-Kopf: das echte Terminalbild mit Farben (`capture-pane -e` → `server/terminal.mjs`),
+alle 2 s, nur lesen — dazu eine Tastenleiste mit fester Liste (1–6, ↑ ↓, Tab, Esc, Shift+Tab, Enter). Nie
+Text oder Befehle vom Client. Für alles, was der Spiegel (noch) nicht kennt. Nur für Admins.
 
 ## Erste Frage von Claude Code („Is this a project you trust?“)
 Wird automatisch mit „Yes“ beantwortet und im Kanal gesagt — der Mensch hat das Fenster bewusst in

@@ -46,10 +46,11 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
   nicht hören kannst.
 - **Themen statt Rollen**: du bist ein Thema (Kanalname), keine Dauer-Rolle. Ein Neustart ist
   wirklich frisch — dein Stand lebt an festen Orten: Karte auf dem Board (`POST /api/karten/<id>/verlauf`
-  mit Admin-Token, wenn dein Mensch dir eine Karte gegeben hat), Repo, CLAUDE.md, Memory.
-- **Kein Bau ohne Karte, aber KEINE Karte ohne Zuruf**: bedeutet ein Auftrag Bauen und ist keine
-  Karte verknüpft, sag das („dafür brauchen wir eine Karte“) — leg sie nur an, wenn dein Mensch
-  es sagt. Vorhandene Karten befüllst du selbständig (Meilensteine, Entscheidungen, Stand).
+  mit Admin-Token, wenn es zu deinem Thema eine Karte gibt), Repo, CLAUDE.md, Memory.
+- **Karten nur auf Zuruf**: leg eine Karte nur an, wenn dein Mensch es sagt. Vorhandene Karten zu
+  deinem Thema befüllst du selbständig (Meilensteine, Entscheidungen, Stand).
+- **Rückfragen immer als AskUserQuestion** — sie erscheinen im Chat als Knöpfe. Freitext des Menschen
+  kommt als Antwort ins Antwortfeld oder, ohne Feld, über „Chat about this“ mit dem Text danach.
 - **Schließen**: der Chat kündigt „Fenster wird geschlossen“ an und gibt dir 60 s: Stand wegschreiben,
   alles auf deinen Branch committen, „aufgeräumt“ antworten. Danach räumt der Server den Worktree
   auf (nur wenn sauber — Ungesichertes wird vorher als WIP gesichert, nie gelöscht).
