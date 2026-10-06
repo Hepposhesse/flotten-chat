@@ -145,6 +145,26 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   .composer #screen{display:none}
   .board{grid-template-columns:1fr}
 }
+/* === Kanäle & Suche (1.1) === */
+.kanal .kn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kanal.stumm .kn{color:var(--n400)}
+.kanal .stumm-ic{font-size:.72rem;opacity:.6;flex:none}
+.kanal .kmenu{border:0;background:none;color:var(--n400);cursor:pointer;padding:0 2px;font-size:1rem;line-height:1;opacity:0;flex:none;border-radius:6px}
+.kanal:hover .kmenu,.kanal.an .kmenu,.kanal .kmenu:focus{opacity:1}
+.kanal .kmenu:hover{color:var(--blau)}
+.kanal.zieht{opacity:.4}
+.kanal.ziel-oben{box-shadow:0 -2px 0 0 var(--blau)}.kanal.ziel-unten{box-shadow:0 2px 0 0 var(--blau)}
+#archivH .knopf{margin-left:0;text-transform:none;letter-spacing:0}
+#archivListe .kanal{opacity:.7}
+.suche-feld{flex:1 1 220px;max-width:420px;border:1px solid var(--n200);border-radius:9px;padding:.4rem .7rem;font:inherit;font-size:16px;background:var(--n50);color:var(--n900);min-width:0}
+.suche-panel{position:absolute;top:52px;left:50%;transform:translateX(-50%);width:min(680px,96vw);max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--n200);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);z-index:60;padding:6px}
+.s-kopf{display:flex;align-items:center;gap:8px;padding:.5rem .7rem;border-bottom:1px solid var(--n100);font-size:.86rem;color:var(--n500)}.s-kopf .knopf{margin-left:auto}
+.s-treffer{padding:.5rem .7rem;border-bottom:1px solid var(--n100);cursor:pointer;border-radius:8px}.s-treffer:hover,.s-treffer:focus{background:var(--blau-soft);outline:none}
+.s-meta{display:flex;gap:.6rem;font-size:.74rem;color:var(--n500);align-items:baseline;flex-wrap:wrap}.s-meta b{color:var(--n900)}.s-kanal{color:var(--blau);font-weight:600}
+.s-text{font-size:.9rem;margin-top:2px;word-break:break-word}.s-text mark{background:var(--warn-soft);color:inherit;border-radius:3px;padding:0 1px}
+.msg.treffer{box-shadow:0 0 0 2px var(--blau);transition:box-shadow .3s}
+#sucheBtn[aria-expanded="true"]{border-color:var(--blau);color:var(--blau)}
+@media(max-width:720px){.suche-feld{flex:1 1 100%;order:8;max-width:none}.suche-panel{position:fixed;top:100px;left:2vw;right:2vw;transform:none;width:auto;max-height:70vh}}
 </style>
 </head>
 <body>
@@ -152,16 +172,21 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <b>⚡ Flotten-Chat</b><span class="muted" id="stand"></span>
   <select id="kanalMobil" class="kanal-mobil" aria-label="Kanal wählen"></select>
   <span style="margin-left:auto"></span>
+  <input id="sucheFeld" class="suche-feld" type="search" placeholder="Suchen in allen Kanälen … (Esc schließt)" aria-label="Suche" hidden>
+  <button class="knopf" id="sucheBtn" title="Suche (Strg+K)" aria-expanded="false">🔍</button>
   <button class="knopf" id="boardBtn" title="Themen-Board">🗂 Board</button>
   <button class="knopf" id="theme" title="Hell/Dunkel">☀️</button>
   <button class="knopf" id="menu" title="Konto">⋯</button>
 </header>
+<div id="suchePanel" class="suche-panel" role="region" aria-label="Suchergebnisse" hidden></div>
 <div class="lay" id="lay" hidden>
   <aside>
     <h4>Fenster <button class="knopf klein" id="neuFenster" title="Neues Fenster (Kanal) anlegen">＋</button></h4>
     <div id="fensterListe"></div>
     <h4>Kanäle</h4>
     <div id="kanalListe"></div>
+    <h4 id="archivH" hidden><button class="knopf klein" id="archivAuf" aria-expanded="false">Archiv ▸</button></h4>
+    <div id="archivListe" hidden></div>
     <h4 style="margin-top:auto">Agenten (lokal)</h4>
     <div id="agentenListe" class="muted">–</div>
   </aside>
@@ -209,6 +234,13 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <label>Wann</label><input id="remWann" type="datetime-local">
   <div class="reihe"><button class="knopf" id="remAbbr">Abbrechen</button><button class="knopf pri" id="remOk">Anlegen</button></div>
 </dialog>
+<dialog id="dlgKanal">
+  <h3 id="kdTitel">Kanal</h3>
+  <label>Anzeigename <span class="hinweis">— der technische Name bleibt</span></label><input id="kdName" placeholder="z. B. Website-Relaunch" maxlength="40">
+  <label>Reihenfolge</label><div class="reihe" style="justify-content:flex-start;margin-top:0"><button class="knopf" id="kdHoch">▲ Nach oben</button><button class="knopf" id="kdRunter">▼ Nach unten</button></div>
+  <label style="display:flex;align-items:center;gap:8px;margin-top:.8rem"><input type="checkbox" id="kdStumm" style="width:auto">Stumm — kein Ungelesen-Zähler, keine Zahl im Tab</label>
+  <div class="reihe" style="justify-content:space-between"><button class="knopf" id="kdArchiv">Archivieren</button><span><button class="knopf" id="kdAbbr">Abbrechen</button><button class="knopf pri" id="kdOk">Speichern</button></span></div>
+</dialog>
 <dialog id="dlgMenu">
   <h3>Konto</h3>
   <p class="muted" id="menuWer"></p>
@@ -245,11 +277,9 @@ async function ladeKanaele(){
   KANAELE=r.channels.filter(k=>!k.archiviert);FENSTER=r.fenster||[];
   const fNamen=new Set(FENSTER.map(f=>f.name));
   if(!KANAL||(!fNamen.has(KANAL)&&!KANAELE.some(k=>k.name===KANAL)))KANAL=FENSTER[0]?FENSTER[0].name:(KANAELE[0]?KANAELE[0].name:'allgemein');
-  $('#fensterListe').innerHTML=FENSTER.map(f=>{const z=f.zustand||{};return `<button class="kanal${f.name===KANAL?' an':''}" data-k="${esc(f.name)}"><span class="dot ${f.laeuft?'an':'aus'}${f.laeuft&&z.busy?' busy':''}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.label||f.name)}</span>${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}</button>`;}).join('')||'<div class="muted" style="padding:.3rem .6rem">Noch kein Fenster — oben ＋</div>';
-  $('#kanalListe').innerHTML=KANAELE.filter(k=>!fNamen.has(k.name)).map(k=>`<button class="kanal${k.name===KANAL?' an':''}" data-k="${esc(k.name)}"><span style="flex:1">${esc(k.label||k.name)}</span></button>`).join('');
-  document.querySelectorAll('.kanal').forEach(b=>b.onclick=()=>kanalWechseln(b.dataset.k));
+  seitenleisteZeichnen(fNamen);
   const sel=$('#kanalMobil');
-  sel.innerHTML=[...FENSTER.map(f=>({name:f.name,label:(f.laeuft?'🟢 ':'🔴 ')+(f.label||f.name)})),...KANAELE.filter(k=>!fNamen.has(k.name)).map(k=>({name:k.name,label:k.label||k.name}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}</option>`).join('');
+  sel.innerHTML=mobilOptionen(fNamen);
   sel.onchange=()=>kanalWechseln(sel.value);
   kopfZeichnen();
   return true;
@@ -352,7 +382,7 @@ async function ladeMsgs(voll){
   const kanal=KANAL,seit=LAST;
   const r=await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&seit=${seit}`);
   if(kanal!==KANAL||seit!==LAST&&LAST===0)return; // Kanal gewechselt, während die Antwort unterwegs war → verwerfen
-  if(r&&r.ok){for(const m of r.messages){if(m.id<=LAST)continue;zeige(m);LAST=m.id;}if(voll&&!r.messages.length&&LAST===0&&KANAL!=='erinnerungen')$('#msgs').innerHTML='<div class="leer">Noch nichts hier. Schreib die erste Nachricht — bei einem Fenster landet sie direkt im Terminal.</div>';}
+  if(r&&r.ok){for(const m of r.messages){if(m.id<=LAST)continue;zeige(m);LAST=m.id;}gelesenMelden();if(voll&&!r.messages.length&&LAST===0&&KANAL!=='erinnerungen')$('#msgs').innerHTML='<div class="leer">Noch nichts hier. Schreib die erste Nachricht — bei einem Fenster landet sie direkt im Terminal.</div>';}
 }
 
 // ── Senden (Outbox: idempotent, übersteht schwaches Netz) ──
@@ -520,6 +550,77 @@ async function ladeAgenten(){
 // ── Live ──
 function sse(){const es=new EventSource('/api/events');es.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.kanal===KANAL&&ANSICHT==='chat'&&m.id>LAST){zeige(m);LAST=m.id;}else if(m.kanal!==KANAL)ladeKanaele();});es.addEventListener('message_update',e=>{const m=JSON.parse(e.data);if(m.kanal===KANAL)zeige(m,false);});es.addEventListener('presence',()=>ladeKanaele());es.addEventListener('karte',()=>{ladeKarten().then(()=>{if(ANSICHT==='board')boardZeigen();else kopfZeichnen();});});es.onerror=()=>{es.close();setTimeout(sse,4000);};}
 async function start(){await ladeKarten();if(await ladeKanaele()){ladeMsgs(true);ladeAgenten();sse();setInterval(ladeMsgs,5000);setInterval(ladeKanaele,6000);setInterval(ladeAgenten,15000);$('#stand').textContent='';outboxFlush();const m=/^#karte-(\d+)$/.exec(location.hash);if(m)karteOeffnen(Number(m[1]));}}
+/* === Kanäle & Suche (1.1) === */
+// Kanal-Einstellungen (Reihenfolge, Anzeigename, Archiv, Stumm) liegen global am Server; Ungelesen-Zahlen und
+// Gelesen-Marker ebenso (ein Betreiber, mehrere Geräte). Die Seitenleiste wird hier gezeichnet (Aufruf aus ladeKanaele).
+let EINST={reihenfolge:[],archiviert:[],stumm:[],namen:{}},EINST_JSON='',UNREAD={},GELESEN={},ARCHIV_AUF=false,KD='',DRAG=null;
+const anzeigeName=(x)=>EINST.namen[x.name]||x.label||x.name;
+const fNamenSet=()=>new Set(FENSTER.map(f=>f.name));
+function sortiert(liste){const pos=new Map(EINST.reihenfolge.map((k,i)=>[k,i]));return liste.map((x,i)=>({...x,anzeige:anzeigeName(x),archiviert:EINST.archiviert.includes(x.name),stumm:EINST.stumm.includes(x.name),_i:i})).sort((a,b)=>(pos.has(a.name)?pos.get(a.name):1e6+a._i)-(pos.has(b.name)?pos.get(b.name):1e6+b._i));}
+function titelZeichnen(){const n=Object.values(UNREAD).reduce((a,b)=>a+b,0);document.title=(n?`(${n}) `:'')+'Flotten-Chat';}
+function zeile(x,fenster,archiv){const z=x.zustand||{};const n=UNREAD[x.name]||0;
+  return `<div class="kanal${x.name===KANAL?' an':''}${x.stumm?' stumm':''}" role="button" tabindex="0" data-k="${esc(x.name)}" data-sek="${archiv?'a':(fenster?'f':'k')}"${archiv?'':' draggable="true"'} title="${esc(x.name)}">${fenster?`<span class="dot ${x.laeuft?'an':'aus'}${x.laeuft&&z.busy?' busy':''}"></span>`:''}<span class="kn">${esc(x.anzeige)}</span>${x.stumm?'<span class="stumm-ic" title="stumm">🔕</span>':''}${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}${n?`<span class="badge n" title="${n} ungelesen">${n>99?'99+':n}</span>`:''}<button type="button" class="kmenu" title="Kanal verwalten" aria-label="Kanal verwalten">⋯</button></div>`;}
+function seitenleisteZeichnen(fNamen){
+  const fs=sortiert(FENSTER),ks=sortiert(KANAELE.filter(k=>!fNamen.has(k.name)));
+  $('#fensterListe').innerHTML=fs.filter(x=>!x.archiviert).map(x=>zeile(x,true)).join('')||'<div class="muted" style="padding:.3rem .6rem">Noch kein Fenster — oben ＋</div>';
+  $('#kanalListe').innerHTML=ks.filter(x=>!x.archiviert).map(x=>zeile(x,false)).join('');
+  const arch=[...fs.filter(x=>x.archiviert).map(x=>zeile(x,true,true)),...ks.filter(x=>x.archiviert).map(x=>zeile(x,false,true))];
+  $('#archivH').hidden=!arch.length;$('#archivAuf').textContent=`Archiv (${arch.length}) ${ARCHIV_AUF?'▾':'▸'}`;$('#archivAuf').setAttribute('aria-expanded',ARCHIV_AUF?'true':'false');
+  $('#archivListe').hidden=!ARCHIV_AUF||!arch.length;$('#archivListe').innerHTML=arch.join('');
+  titelZeichnen();
+}
+function mobilOptionen(fNamen){return [...sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,label:(f.laeuft?'🟢 ':'🔴 ')+f.anzeige})),...sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`).join('');}
+// Seitenleiste: Klick = Kanal öffnen, ⋯ = verwalten, Archiv auf/zu; Tastatur Enter/Leertaste.
+const ASIDE=document.querySelector('aside');
+ASIDE.addEventListener('click',e=>{const m=e.target.closest('.kmenu');if(m){e.stopPropagation();kanalDialog(m.closest('.kanal').dataset.k);return;}
+  if(e.target.closest('#archivAuf')){ARCHIV_AUF=!ARCHIV_AUF;seitenleisteZeichnen(fNamenSet());return;}
+  const r=e.target.closest('.kanal[data-k]');if(r)kanalWechseln(r.dataset.k);});
+ASIDE.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(r&&e.target===r){e.preventDefault();kanalWechseln(r.dataset.k);}});
+// Drag & Drop innerhalb einer Sektion (Fenster bzw. Kanäle); Archiv ist nicht ziehbar.
+ASIDE.addEventListener('dragstart',e=>{const r=e.target.closest&&e.target.closest('.kanal[draggable]');if(!r)return;DRAG={k:r.dataset.k,sek:r.dataset.sek};r.classList.add('zieht');try{e.dataTransfer.setData('text/plain',r.dataset.k);e.dataTransfer.effectAllowed='move';}catch{}});
+ASIDE.addEventListener('dragend',()=>{DRAG=null;ASIDE.querySelectorAll('.zieht,.ziel-oben,.ziel-unten').forEach(x=>x.classList.remove('zieht','ziel-oben','ziel-unten'));});
+ASIDE.addEventListener('dragover',e=>{if(!DRAG)return;const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(!r||r.dataset.sek!==DRAG.sek||r.dataset.k===DRAG.k)return;e.preventDefault();const b=r.getBoundingClientRect(),oben=e.clientY<b.top+b.height/2;r.classList.toggle('ziel-oben',oben);r.classList.toggle('ziel-unten',!oben);});
+ASIDE.addEventListener('dragleave',e=>{const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(r)r.classList.remove('ziel-oben','ziel-unten');});
+ASIDE.addEventListener('drop',e=>{if(!DRAG)return;const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(!r||r.dataset.sek!==DRAG.sek||r.dataset.k===DRAG.k)return;e.preventDefault();
+  const oben=r.classList.contains('ziel-oben');const {l,rest}=sektionNamen(DRAG.k);const o=l.filter(k=>k!==DRAG.k);const i=o.indexOf(r.dataset.k);o.splice(oben?i:i+1,0,DRAG.k);einstSpeichern({reihenfolge:[...o,...rest]});});
+// Reihenfolge: sichtbare Namen der eigenen Sektion (l) + alles andere (rest), damit nichts verloren geht.
+function sektionNamen(name){const fN=fNamenSet();const inF=fN.has(name);const eig=sortiert(inF?FENSTER:KANAELE.filter(k=>!fN.has(k.name))),and=sortiert(inF?KANAELE.filter(k=>!fN.has(k.name)):FENSTER);
+  return {l:eig.filter(x=>!x.archiviert).map(x=>x.name),rest:[...eig.filter(x=>x.archiviert),...and].map(x=>x.name)};}
+function verschieben(name,richtung){const {l,rest}=sektionNamen(name);const i=l.indexOf(name),j=i+richtung;if(i<0||j<0||j>=l.length){toast(richtung<0?'Steht schon ganz oben.':'Steht schon ganz unten.');return;}[l[i],l[j]]=[l[j],l[i]];einstSpeichern({reihenfolge:[...l,...rest]});}
+async function einstSpeichern(patch){const r=await api('/api/kanal-einstellungen',{method:'POST',body:JSON.stringify(patch)});if(!r||!r.ok){fcStatus('⚠️ '+((r&&r.fehler)||'Konnte nicht speichern'));return false;}EINST=r.einstellungen;EINST_JSON=JSON.stringify(EINST);ladeKanaele();return true;}
+function kanalDialog(name){if(![...FENSTER,...KANAELE].some(y=>y.name===name))return;KD=name;$('#kdTitel').textContent='Kanal · '+name;$('#kdName').value=EINST.namen[name]||'';$('#kdStumm').checked=EINST.stumm.includes(name);$('#kdArchiv').textContent=EINST.archiviert.includes(name)?'Aus dem Archiv holen':'Archivieren';$('#dlgKanal').showModal();$('#kdName').focus();}
+$('#kdHoch').onclick=()=>verschieben(KD,-1);$('#kdRunter').onclick=()=>verschieben(KD,1);
+$('#kdAbbr').onclick=()=>$('#dlgKanal').close();
+$('#kdOk').onclick=async()=>{const st=new Set(EINST.stumm);if($('#kdStumm').checked)st.add(KD);else st.delete(KD);if(await einstSpeichern({namen:{[KD]:$('#kdName').value},stumm:[...st]})){$('#dlgKanal').close();toast('Gespeichert.');}};
+$('#kdName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#kdOk').click();}});
+$('#kdArchiv').onclick=async()=>{const a=new Set(EINST.archiviert);const war=a.has(KD);if(war)a.delete(KD);else a.add(KD);if(await einstSpeichern({archiviert:[...a]})){$('#dlgKanal').close();toast(war?'Kanal ist zurück in der Liste.':'Kanal liegt im Archiv (unten in der Seitenleiste).');}};
+// Ungelesen: ein Request für alle Kanäle (alle 6 s), offener Kanal zählt nie; Tab-Titel mit Gesamtzahl.
+async function ladeUnread(){const r=await api('/api/unread');if(!r||!r.ok)return;UNREAD=r.counts||{};GELESEN=r.gelesen||{};if(ANSICHT==='chat'&&document.visibilityState!=='hidden')UNREAD[KANAL]=0;
+  const j=JSON.stringify(r.einstellungen||{});if(j!==EINST_JSON){EINST_JSON=j;EINST=r.einstellungen;}
+  const fN=fNamenSet();seitenleisteZeichnen(fN);const sel=$('#kanalMobil'),h=mobilOptionen(fN);if(sel.innerHTML!==h)sel.innerHTML=h;}
+function gelesenMelden(){if(ANSICHT!=='chat'||!KANAL||!LAST||document.visibilityState==='hidden')return;if((GELESEN[KANAL]||0)>=LAST)return;GELESEN[KANAL]=LAST;if(UNREAD[KANAL]){UNREAD[KANAL]=0;seitenleisteZeichnen(fNamenSet());}api('/api/gelesen',{method:'POST',body:JSON.stringify({kanal:KANAL,bis:LAST})});}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')gelesenMelden();});
+(function initKanaele(){if(!ME){setTimeout(initKanaele,400);return;}ladeUnread();setInterval(ladeUnread,6000);})();
+// Suche: Lupe im Kopf, alle Wörter müssen vorkommen (Groß/klein egal), Klick springt zur Nachricht, Esc schließt.
+const sFeld=$('#sucheFeld'),sPanel=$('#suchePanel');let sTimer=null,sLetzte='';
+function sucheAuf(){sFeld.hidden=false;$('#sucheBtn').setAttribute('aria-expanded','true');sFeld.focus();sFeld.select();const q=sFeld.value.trim();if(q.length>=2)suchen(q);}
+function sucheZu(){sFeld.hidden=true;sPanel.hidden=true;sPanel.innerHTML='';sLetzte='';$('#sucheBtn').setAttribute('aria-expanded','false');}
+$('#sucheBtn').onclick=()=>sFeld.hidden?sucheAuf():sucheZu();
+const escRe=(w)=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function markiere(t,ws){if(!ws.length)return esc(t);const re=new RegExp('('+ws.map(escRe).join('|')+')','gi');return String(t||'').split(re).map((p,i)=>i%2?'<mark>'+esc(p)+'</mark>':esc(p)).join('');}
+function sucheZeichnen(r,q){const t=r.treffer||[],ws=r.woerter||[];const label=(k)=>{const x=[...FENSTER,...KANAELE].find(y=>y.name===k);return x?anzeigeName(x):k;};
+  sPanel.innerHTML=`<div class="s-kopf"><b>${t.length?t.length+(t.length>=50?'+':'')+' Treffer':'Keine Treffer'}</b> für „${esc(q)}“<button type="button" class="knopf klein" id="sucheSchliessen" title="Schließen (Esc)">✕</button></div>`
+    +(t.length?t.map(m=>`<div class="s-treffer" data-k="${esc(m.kanal)}" data-id="${m.id}" role="button" tabindex="0" title="Zur Nachricht springen"><div class="s-meta"><span class="s-kanal">${esc(label(m.kanal))}</span><b>${esc(m.von)}</b><span>${esc(new Date(m.erstellt_am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}))}</span></div><div class="s-text">${markiere(m.ausschnitt,ws)}</div></div>`).join('')
+    :'<div class="muted" style="padding:.6rem .7rem">Nichts gefunden. Alle Wörter müssen vorkommen — ein kürzeres Wort probieren.</div>');
+  sPanel.hidden=false;$('#sucheSchliessen').onclick=sucheZu;
+  sPanel.querySelectorAll('.s-treffer').forEach(el=>{const go=()=>springeZu(el.dataset.k,Number(el.dataset.id),el.querySelector('.s-text').textContent);el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};});}
+async function suchen(q){sLetzte=q;const r=await api('/api/search?q='+encodeURIComponent(q));if(q!==sLetzte||!r||!r.ok)return;sucheZeichnen(r,q);}
+sFeld.addEventListener('input',()=>{const q=sFeld.value.trim();clearTimeout(sTimer);if(q.length<2){sLetzte='';sPanel.hidden=true;return;}sTimer=setTimeout(()=>suchen(q),300);});
+sFeld.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();sucheZu();}else if(e.key==='Enter'){const q=sFeld.value.trim();if(q.length>=2)suchen(q);}});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();sucheAuf();}else if(e.key==='Escape'&&!sFeld.hidden)sucheZu();});
+async function springeZu(kanal,id,text){sucheZu();kanalWechseln(kanal);
+  for(let i=0;i<24;i++){const el=document.querySelector(`.msg[data-id="${id}"]`);if(el){el.scrollIntoView({block:'center'});el.classList.add('treffer');setTimeout(()=>el.classList.remove('treffer'),2500);return;}await new Promise(r=>setTimeout(r,250));}
+  fcStatus('Die Nachricht liegt weiter oben im Verlauf und wird noch nachgeladen: „'+String(text||'').slice(0,120)+'“');setTimeout(()=>fcStatus(''),8000);}
 gate();
 </script>
 </body>

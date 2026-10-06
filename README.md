@@ -37,6 +37,11 @@ wie hier, siehe [docs/geraete.md](docs/geraete.md)), **Live-Terminal** im Kanal-
 Thema, lose zu den Fenstern — Fenster schreiben ihren Stand in den Verlauf), **Erinnerungen** (feuern serverseitig ohne KI, „▶ Fenster“ kümmert sich),
 **Alarm-Eingang** (`POST /api/alarm`), **Hilfe-Kanal** (Support-Brücke zum Hersteller).
 
+Seit 1.1 außerdem: **Kanal-Verwaltung** („⋯" an der Zeile: Anzeigename, Reihenfolge per Drag & Drop oder ▲/▼,
+Archiv, Stumm — gilt auf allen Geräten gleich), **Ungelesen-Zähler** je Kanal (Badge, Tab-Titel „(N)", Kanal öffnen =
+gelesen, geräteübergreifend) und **Suche** über alle Kanäle (Lupe im Kopf oder Strg+K; alle Wörter müssen vorkommen,
+Klick springt zur Nachricht, Esc schließt).
+
 ## Quickstart
 ```bash
 git clone https://github.com/Hepposhesse/flotten-chat && cd flotten-chat
@@ -90,7 +95,9 @@ Fenster besitzt.
 `GET/POST /api/karten`, `POST /api/karten/<id>/verlauf` ·
 `GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session)` ·
 `POST /api/send {kanal, inhalt, media?, client_id?}` · `GET /api/messages?kanal=&seit=` · `GET /api/events` (SSE) ·
-`POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`).
+`POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`) ·
+`GET/POST /api/kanal-einstellungen {reihenfolge, archiviert, stumm, namen}` · `GET /api/unread` · `GET/POST /api/gelesen {kanal, bis, force?}` ·
+`GET /api/search?q=` (max. 50 Treffer, nur sichtbare Kanäle).
 
 ## Regeln, die wir gelernt haben (und die das Produkt prägen)
 - **Chat ist Absicht, Code ist Zustand.** Ein Fenster liest nie den Verlauf nach; sein Stand lebt an

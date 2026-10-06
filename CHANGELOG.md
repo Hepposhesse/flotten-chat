@@ -21,6 +21,21 @@ Mehrfachauswahl, mehrere Fragen hintereinander, die Absenden-Übersicht. Nachzug
 - **Absenden-Karte** (Dialog-Art `absenden`): der Review-Reiter „Review your answers" kommt als Übersicht aller
   Antworten mit den Knöpfen „Absenden" / „Abbrechen" in den Chat; die Bestätigung ist auf Deutsch.
 - `meta.dialog` trägt dafür `mehrfach`, `an` je Option, `freitext`, `freitextBisher` bzw. `antworten`.
+- **Kanal-Verwaltung** (`server/kanaele.mjs`): „⋯" an jeder Zeile der Seitenleiste → Anzeigename (der technische
+  Kanal-Name bleibt), Reihenfolge per Drag & Drop oder ▲/▼, Archivieren (Bereich „Archiv" unten, eingeklappt,
+  „Aus dem Archiv holen"), Stumm (kein Ungelesen-Zähler, keine Zahl im Tab). Gilt global für die Instanz, also auf
+  allen Geräten gleich. `GET/POST /api/kanal-einstellungen {reihenfolge, archiviert, stumm, namen}` (POST nur Admin).
+- **Gelesen/Ungelesen**: Zähler je Kanal als Badge in der Seitenleiste und in Klammern in der Handy-Auswahl, Tab-Titel
+  „(N) Flotten-Chat". Kanal öffnen = gelesen bis zur letzten Nachricht (Marker serverseitig, geräteübergreifend,
+  monoton — `force` setzt zurück). Eigene Nachrichten zählen nie, stumme Kanäle nie. `GET /api/unread` (eine
+  Abfrage für alle sichtbaren Kanäle, liefert auch Marker + Einstellungen) · `GET/POST /api/gelesen {kanal, bis}`.
+  Ein Agent-Token darf nur den eigenen Kanal markieren.
+- **Suche** (`server/suche.mjs`): Lupe im Kopf (Strg/⌘+K), Wörter-Suche über alle sichtbaren Kanäle — alle Wörter
+  müssen vorkommen, Groß/klein egal (auch bei Umlauten), „zwei wörter" in Anführungszeichen = ein Begriff. Treffer
+  mit Kanal, Absender, Zeit und Ausschnitt (Wörter markiert), Klick springt in den Kanal zur Nachricht und hebt sie
+  hervor, Esc schließt. `GET /api/search?q=` (SQLite LIKE als Vorfilter, max. 50 Treffer, neueste zuerst; Agenten
+  sehen nur ihren Kanal).
+- Tests: neue `test_kanaele.mjs` (72 Checks: Einstellungen säubern/sortieren/verschieben, Marker, Ungelesen, Suche).
 
 ### Geändert
 - **Rückfrage-Titel = die ganze Frage** bis zur Trennlinie (max. 60 Zeilen) — vorher nur die letzten 8 Zeilen,

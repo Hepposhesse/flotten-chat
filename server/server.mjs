@@ -24,6 +24,8 @@ import { ansiZuHtml, TERMINAL_TASTEN } from './terminal.mjs';
 import { geraetAnlegen, geraetZumCode, geraetAnmelden, geraetOeffentlich, einfuegeBlock, einrichtungsSkript, sshArgs, tunnelUebergaenge } from './geraete.mjs';
 import { createGeraeteDienst } from './geraeteDienst.mjs';
 import { slug } from './protokoll.mjs';
+import { einstellungenLaden, einstellungenSpeichern, gelesenLaden, gelesenSetzen, ungelesen } from './kanaele.mjs';
+import { sucheNachrichten } from './suche.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -315,6 +317,31 @@ const server = http.createServer(async (req, res) => {
       if (wer.agent) return json(res, 200, { ok: true, stop: stopHolenUndQuittieren(db, wer.agent.id) });
       if (admin && name) return json(res, 200, { ok: true, stop: stopHolenUndQuittierenNachName(db, name) });
       return json(res, 403, { ok: false });
+    }
+
+    // ── Kanäle & Suche (1.1): Einstellungen (Reihenfolge/Namen/Archiv/Stumm, global), Gelesen-Marker, Ungelesen, Suche ──
+    // Sichtbare Kanäle für diesen Zugang: Admin = alle nicht archivierten Kanäle + Fenster, Agent = nur der eigene Kanal.
+    const sichtbareKanaele = () => (wer.agent ? [wer.agent.kanal] : [...new Set([...kanaele(db).filter((k) => !k.archiviert).map((k) => k.name), ...fensterAlle(db).map((f) => f.name)])]);
+    if (url.pathname === '/api/kanal-einstellungen' && req.method === 'GET') return json(res, 200, { ok: true, einstellungen: einstellungenLaden(db) });
+    if (url.pathname === '/api/kanal-einstellungen' && req.method === 'POST') {
+      if (!admin) return json(res, 403, { ok: false, fehler: 'Nur Admin ändert Kanal-Einstellungen.' });
+      const e = einstellungenSpeichern(db, await koerper(req));
+      broadcast('presence', { einstellungen: true }); return json(res, 200, { ok: true, einstellungen: e });
+    }
+    if (url.pathname === '/api/gelesen' && req.method === 'GET') return json(res, 200, { ok: true, gelesen: gelesenLaden(db) });
+    if (url.pathname === '/api/gelesen' && req.method === 'POST') {
+      const b = await koerper(req);
+      if (wer.agent && b.kanal && b.kanal !== wer.agent.kanal) return json(res, 403, { ok: false, fehler: 'Dieser Token darf nur den eigenen Kanal markieren.' });
+      const bis = gelesenSetzen(db, b.kanal || (wer.agent ? wer.agent.kanal : ''), b.bis ?? b.bis_id, { force: !!b.force });
+      return bis == null ? json(res, 400, { ok: false, fehler: 'kanal und bis (Nachrichten-ID) sind Pflicht.' }) : json(res, 200, { ok: true, kanal: b.kanal, bis });
+    }
+    if (url.pathname === '/api/unread' && req.method === 'GET') {
+      const u = ungelesen(db, { kanaele: sichtbareKanaele(), ich: wer.name });
+      return json(res, 200, { ok: true, counts: u.counts, gesamt: u.gesamt, gelesen: u.gelesen, einstellungen: einstellungenLaden(db) });
+    }
+    if (url.pathname === '/api/search' && req.method === 'GET') {
+      const r = sucheNachrichten(db, { q: url.searchParams.get('q') || '', kanaele: sichtbareKanaele(), limit: url.searchParams.get('limit') || 50 });
+      return json(res, 200, { ok: true, woerter: r.woerter, treffer: r.treffer });
     }
 
     // ── Geräte ──
