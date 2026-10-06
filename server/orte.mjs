@@ -125,7 +125,7 @@ export function fensterZurueck(f) {
   return { ok: true };
 }
 
-const TASTEN = new Set(['Down', 'Up', 'Enter', 'Escape', 'Space', 'BTab', 'Tab', '1', '2', '3', '4', '5', '6', '7', '8', '9']); // Ziffern: Tastenleiste im Live-Terminal
+const TASTEN = new Set(['Down', 'Up', 'Enter', 'Escape', 'Space', 'BTab', 'Tab', 'C-u', '1', '2', '3', '4', '5', '6', '7', '8', '9']); // Ziffern: Tastenleiste im Live-Terminal; C-u leert das Freitextfeld einer Mehrfachauswahl
 export function tastenSenden(f, tasten = []) {
   const liste = (Array.isArray(tasten) ? tasten : []).filter((t) => TASTEN.has(t)).slice(0, 40);
   if (!liste.length) return { ok: false, fehler: 'Keine Taste' };
@@ -140,6 +140,16 @@ export function textSenden(f, text) {
   tm(f, ['send-keys', '-t', `${f.tmux}:0`, t]);
   tm(f, ['send-keys', '-t', `${f.tmux}:0`, '', 'Enter']);
   return { ok: true };
+}
+/**
+ * Text wörtlich tippen, OHNE Enter (send-keys -l) — fürs Freitextfeld einer Mehrfachauswahl, wo Enter den
+ * Haken wieder wegnähme. Eine Zeile, max. 2000 Zeichen.
+ */
+export function textTippen(f, text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+  if (!t) return { ok: false, fehler: 'Kein Text' };
+  tm(f, ['send-keys', '-t', `${f.tmux}:0`, '-l', t]);
+  return { ok: true, getippt: t.length };
 }
 
 // ── Protokoll-Dateien ───────────────────────────────────────────────────────

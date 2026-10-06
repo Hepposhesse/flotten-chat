@@ -24,6 +24,16 @@ Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server mac
    Rückfrage** (Erklärung, Bilder) kommt erst nach der Antwort ins Protokoll — der Server liest ihn aus
    dem Terminal-Verlauf (`textVorDialog()`) und postet ihn VOR der Frage (später nicht doppelt).
    Ein **Vorschau-Kasten** (AskUserQuestion mit `preview`) wird aus dem Bild gelöst und als Text gezeigt.
+   **Titel** einer Rückfrage = die ganze Frage über den Optionen bis zur Trennlinie (max. 60 Zeilen); bei
+   Freigaben die letzten 8 Zeilen (Befehl + „Do you want to proceed?“). Die **Kennung** nimmt nur die letzten
+   8 Zeilen (ohne Umbrüche, Countdown, Reiter-Kästchen) — so ist es derselbe Dialog im kleinen 80×24-Fenster
+   und nach dem Vergrößern, und beim Anhaken entsteht keine zweite Karte.
+   **Mehrfachauswahl** (`multiSelect`): Optionen „[ ]/[✔]“ → `dialog.mehrfach`, je Option `an`, der getippte
+   Freitext steht in der Freitext-Option, darunter „Next“ (`cursorWeiter`). Die Reiter-Leiste
+   („← ☒ Obst ☐ Farbe ✔ Submit →“) wird als `reiter` gelesen; der letzte Reiter „Review your answers“ ist die
+   **Absenden-Karte** (`art: 'absenden'`, Übersicht in `pruefung`). `meta.dialog` bekommt `mehrfach`, `an`,
+   `freitext`, `freitextBisher` bzw. `antworten` — die UI macht daraus Häkchen-Knöpfe, ein Feld „Eigene
+   Antwort“ und „Weiter ›“ bzw. die Knöpfe „Absenden“/„Abbrechen“.
 4. **Zustellung** — neue Nachrichten des Menschen (Cursor je Fenster) → `chatBefehl()`:
    - `text` → `tmux send-keys "📨 Name · #id: Text"` + Enter (Anhänge als `[Bild: /pfad]`)
    - Zahl(en) bei offenem Dialog → Cursor-Tasten + Enter (`tastenFuerWahl`), Mehrfachwahl mit Space
@@ -31,6 +41,11 @@ Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server mac
    - Freitext bei Rückfrage = die Antwort: ins Antwortfeld („Type something.“) und abschicken. Hat die
      Frage kein Antwortfeld (z. B. mit Vorschau), wählt der Server „Chat about this“ und schickt den Text
      hinterher, sobald der Dialog zu ist. Gibt es beides nicht, wartet der Text.
+   - Mehrfachauswahl: die Nachricht ist der ganze Schritt — „1, 3“ = genau diese anhaken, „1, 3: Text“ = dazu
+     eigene Antwort, reiner Text = nur eigene Antwort, „keine“ = nichts, „weiter“ = so lassen wie im Terminal.
+     `mehrfachSchritte()` setzt Häkchen per Space, tippt den Freitext ohne Enter (`textTippen`, tmux
+     `send-keys -l`; Ctrl+U leert das Feld, Enter dort nähme den Haken wieder weg) und geht auf „Next“.
+   - Absenden-Karte: „1“ = Absenden, „2“/„nein“ = Abbrechen; Freitext wartet.
    - „manual“/„auto“/„plan“ → Shift+Tab bis der Modus steht (mit Warten auf die TUI)
    Zu alte Nachrichten (> 2 h, Fenster war weg) werden nicht nachgeliefert — sie stehen ja im Chat.
 

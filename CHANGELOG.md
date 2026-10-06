@@ -3,6 +3,35 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [1.1.0] — 2026-10-06
+
+Schwerpunkt: **Mehrstufige Rückfragen.** Alles, was eine `AskUserQuestion` kann, geht jetzt auch im Chat —
+Mehrfachauswahl, mehrere Fragen hintereinander, die Absenden-Übersicht. Nachzug aus dem Live-Betrieb
+(05./06.10.2026, Claude Code 2.1.289).
+
+### Neu
+- **Mehrfachauswahl mit Häkchen** (`multiSelect`): Optionen „[ ]/[✔]" werden erkannt, Knöpfe in der Karte haken
+  an statt zu antworten, dazu ein Feld „Eigene Antwort" und der Knopf „Weiter ›". Eine Chat-Nachricht ist der
+  ganze Schritt: „1, 3" = genau diese, „1, 3: Text" = dazu eigene Antwort, reiner Text = nur eigene Antwort,
+  „keine" = nichts, „weiter" = so lassen. Der Server setzt die Häkchen per Space, tippt den Freitext ohne Enter
+  (`send-keys -l`, Ctrl+U leert das Feld) und geht auf „Next" (`mehrfachSchritte()`, `textTippen()`).
+  Vorbelegt mit dem, was im Terminal schon angehakt oder getippt ist.
+- **Mehrere Fragen hintereinander**: die Reiter-Leiste („← ☒ Obst ☐ Farbe ✔ Submit →") wird gelesen, jede Frage
+  ist eine eigene Karte; mit Protokoll steht „Frage 1 von 2" dabei.
+- **Absenden-Karte** (Dialog-Art `absenden`): der Review-Reiter „Review your answers" kommt als Übersicht aller
+  Antworten mit den Knöpfen „Absenden" / „Abbrechen" in den Chat; die Bestätigung ist auf Deutsch.
+- `meta.dialog` trägt dafür `mehrfach`, `an` je Option, `freitext`, `freitextBisher` bzw. `antworten`.
+
+### Geändert
+- **Rückfrage-Titel = die ganze Frage** bis zur Trennlinie (max. 60 Zeilen) — vorher nur die letzten 8 Zeilen,
+  eine lange Frage begann im Chat mitten im Satz. Freigaben bleiben bei 8 Zeilen (Befehl + „Do you want to
+  proceed?"). Textgrenzen für Frage/Titel 2500 Zeichen.
+- **Keine Doppelkarten**: die Dialog-Kennung kommt weiter aus den letzten 8 Zeilen (gleiche Kennung im kleinen
+  80×24-Fenster und nach dem Vergrößern), ohne Zeilenumbrüche (Ink bricht bei anderer Fenstergröße anders um)
+  und ohne die Kästchen der Reiter-Leiste (der erste Haken ändert ☐ zu ☒). Mehrfachauswahl gilt auch, wenn die
+  „Next"-Zeile beim Neuzeichnen kurz fehlt.
+- Tests: `test_konsole.mjs` jetzt 118 Checks (Mehrfachauswahl, Absenden, lange Frage, kleines Fenster).
+
 ## [1.0.0] — 2026-10-04
 
 Schwerpunkt: **Konsole im Chat.** Jedes Claude-Code-Fenster ist ein Kanal — der Server tippt hinein

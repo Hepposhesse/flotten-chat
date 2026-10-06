@@ -23,8 +23,9 @@ wer das baut, teilt es bitte (AGPL).
 1. **Null-Settings-Start** — `node bin/flottenchat.mjs up`, ein Satz an Claude, fertig.
 2. **Konsole im Chat** — Terminalbild und Protokoll des Fensters gespiegelt, vom Handy aus.
    Antworten, Rückfragen, Freigaben, Auto-Mode-Sperren: alles im Kanal.
-3. **Knöpfe statt Rückfragen-Chaos** — eine `AskUserQuestion` wird zu Buttons; Freigaben („darf ich …?“)
-   tippst du weg wie eine WhatsApp-Antwort. „manual“/„auto“ schaltet den Modus des Fensters.
+3. **Knöpfe statt Rückfragen-Chaos** — eine `AskUserQuestion` wird zu Buttons, auch mehrstufig: Mehrfachauswahl
+   mit Häkchen + eigener Antwort + „Weiter“, mehrere Fragen hintereinander, Absenden-Übersicht. Freigaben
+   („darf ich …?“) tippst du weg wie eine WhatsApp-Antwort. „manual“/„auto“ schaltet den Modus des Fensters.
 4. **Sprache rein, Bild raus** — Sprachnachricht im Chat → Auftrag; Antworten mit Screenshot, PDF,
    Video inline (Anhang-Bühne).
 5. **Frische Fenster** — Kanal = Fenster = Thema. „Schließen“ lässt das Fenster seinen Stand

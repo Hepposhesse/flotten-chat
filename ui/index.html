@@ -77,6 +77,14 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .opts button:disabled{opacity:.5;cursor:default}
 .opts button span:first-child{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:999px;background:var(--blau);color:#fff;font-weight:700;font-size:.8rem}
 .opts .ab{grid-template-columns:1fr;text-align:center;color:var(--n500);border-style:dashed}
+.opts button.an{border-color:var(--blau);box-shadow:inset 0 0 0 1px var(--blau)}
+.opts button.an>span:last-child::before{content:"✓ ";color:var(--blau);font-weight:700}
+.mf{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.mf input{flex:1 1 200px;min-width:0;font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--n200);background:var(--card);color:var(--n900)}
+.mf button{font:inherit;padding:9px 14px;border-radius:10px;border:1px solid var(--n200);background:var(--card);color:var(--n900);cursor:pointer}
+.mf .mf-weiter{background:var(--blau);color:#fff;border-color:var(--blau);font-weight:600}
+.mf .mf-ab{color:var(--n500);border-style:dashed}
+.mf :disabled{opacity:.5;cursor:default}
 .msg .erin{position:absolute;top:6px;right:8px;border:0;background:none;cursor:pointer;opacity:.3;font-size:.9rem}
 .msg .erin:hover{opacity:1}
 /* Anhang-Bühne: Bilder groß, Video/Audio nativ, PDF mit Vorschau — alles inline. */
@@ -312,12 +320,29 @@ function zeige(m,scroll=true){
   const ich=ME&&(m.von===ME.wer.name||m.von==='du');
   d.className='msg'+(m.typ==='system'?' system':'')+(m.typ==='error'?' error':'')+(m.typ==='question'?' question':'')+(ich?' ich':'');d.dataset.id=m.id;
   const dz=new Date(m.erstellt_am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  let opts='';
-  if(meta.dialog&&meta.dialog.optionen){opts=meta.dialog.zu?'<div class="muted" style="margin-top:6px">✔ beantwortet</div>':'<div class="opts">'+meta.dialog.optionen.map(o=>`<button data-nr="${o.nr}"><span>${o.nr}</span><span>${esc(o.label)}${o.beschreibung?`<small class="ob">${esc(o.beschreibung)}</small>`:''}</span></button>`).join('')+`<button class="ab" data-nr="nein">${meta.dialog.art==='freigabe'?'Nein — abbrechen':'Frage abbrechen'}</button></div>`;}
-  const text=meta.dialog?String(m.inhalt).split('\n').filter(z=>!/^\d+\)\s/.test(z)&&!/^Antworte mit/.test(z)).join('\n'):m.inhalt;
+  let opts='';const dl=meta.dialog&&meta.dialog.optionen?meta.dialog:null;
+  const knopf=o=>`<button type="button" data-nr="${o.nr}"${o.an?' class="an" aria-pressed="true"':(dl&&dl.mehrfach?' aria-pressed="false"':'')}><span>${o.nr}</span><span>${esc(o.label)}${o.beschreibung?`<small class="ob">${esc(o.beschreibung)}</small>`:''}</span></button>`;
+  if(dl&&dl.zu)opts='<div class="muted" style="margin-top:6px">✔ beantwortet</div>';
+  else if(dl&&dl.mehrfach){
+    // Mehrfachauswahl: Knöpfe haken nur an, „Weiter" schickt den ganzen Schritt („1, 3: eigene Antwort") —
+    // vorbelegt mit dem, was im Terminal schon angehakt/getippt ist.
+    opts='<div class="opts mehrfach">'+dl.optionen.map(knopf).join('')+'</div><div class="mf">'+(dl.freitext?`<input type="text" class="mf-feld" placeholder="Eigene Antwort (optional)" aria-label="Eigene Antwort" value="${esc(dl.freitextBisher||'')}">`:'')+'<button type="button" class="mf-weiter">Weiter ›</button><button type="button" class="mf-ab">Frage abbrechen</button></div>';
+  } else if(dl){
+    // Absenden-Karte hat „Abbrechen" schon als Option 2 — kein zweiter Abbrechen-Knopf.
+    opts='<div class="opts">'+dl.optionen.map(knopf).join('')+(dl.art==='absenden'?'':`<button class="ab" data-nr="nein">${dl.art==='freigabe'?'Nein — abbrechen':'Frage abbrechen'}</button>`)+'</div>';
+  }
+  // Optionszeilen, Hinweise und die Vorbelegung der Mehrfachauswahl stehen als Knöpfe/Felder da — nicht doppelt als Text.
+  const text=dl?String(m.inhalt).split('\n').filter(z=>!/^\d+\)\s/.test(z)&&!/^Antworte mit/.test(z)&&!/^☑ Mehrfachauswahl/.test(z)&&!/^Schon angehakt: /.test(z)&&!/^Eigene Antwort bisher: /.test(z)).join('\n'):m.inhalt;
   d.innerHTML=`<div class="k"><b>${esc(m.von)}</b><span>${esc(dz)}</span></div><div class="t">${linkify(text)}</div>${medienHtml(m)}${opts}<button class="erin" title="Erinnerung dazu">⏰</button>`;
   d.querySelector('.erin').onclick=()=>remOeffnen(String(m.inhalt).slice(0,120));
-  d.querySelectorAll('.opts button').forEach(b=>b.onclick=()=>{sende(b.dataset.nr);d.querySelectorAll('.opts button').forEach(x=>x.disabled=true);});
+  const sperren=()=>d.querySelectorAll('.opts button,.mf button,.mf input').forEach(x=>x.disabled=true);
+  if(dl&&dl.mehrfach&&!dl.zu){
+    const box=d.querySelector('.opts.mehrfach'),feld=d.querySelector('.mf-feld');
+    box.querySelectorAll('button').forEach(b=>b.onclick=()=>{const an=!b.classList.contains('an');b.classList.toggle('an',an);b.setAttribute('aria-pressed',an?'true':'false');});
+    const weiter=()=>{const nrs=[...box.querySelectorAll('button.an')].map(b=>b.dataset.nr);const t=feld?feld.value.replace(/\s+/g,' ').trim():'';sende(nrs.length?nrs.join(', ')+(t?': '+t:''):(t||'keine'));sperren();};
+    d.querySelector('.mf-weiter').onclick=weiter;if(feld)feld.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();weiter();}};
+    d.querySelector('.mf-ab').onclick=()=>{sende('nein');sperren();};
+  } else d.querySelectorAll('.opts button').forEach(b=>b.onclick=()=>{sende(b.dataset.nr);sperren();});
   d.querySelectorAll('img[data-lb]').forEach(i=>i.onclick=()=>{const lb=document.createElement('div');lb.className='lightbox';lb.innerHTML=`<img src="${i.dataset.lb}">`;lb.onclick=()=>lb.remove();document.body.append(lb);});
   if(!alt){$('#msgs').append(d);if(scroll)$('#msgs').scrollTop=1e9;}
 }

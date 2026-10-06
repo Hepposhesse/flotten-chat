@@ -1,6 +1,6 @@
 {
   "name": "flotten-chat",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sales Engine Flotten Chat — Konsole im Chat: deine Claude-Code-Fenster als Chat-Kanäle. Du siehst sie arbeiten, sie fragen dich mit Knöpfen, du gibst per Text, Bild oder Sprachnachricht Aufträge — ohne eine einzige Einstellung.",
   "license": "AGPL-3.0-only",
   "type": "module",

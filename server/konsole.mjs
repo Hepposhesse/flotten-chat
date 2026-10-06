@@ -1,17 +1,17 @@
-// server/konsole.mjs — „Konsole im Chat“, die Runde (v1.0).
+// server/konsole.mjs — „Konsole im Chat“, die Runde (v1.1).
 //
 // Alle drei Sekunden je registriertem Fenster:
 //   1. Terminalbild lesen → Modus, Dialog (Freigabe/Rückfrage), beschäftigt?
 //   2. Neue Zeilen des Sitzungs-Protokolls → Chat-Beiträge (Antworten, Sperren, „im Fenster beantwortet“)
 //   3. Ein neu erschienener Dialog → Chat-Nachricht mit Knöpfen (typ 'question', meta.dialog)
-//   4. Neue Chat-Nachrichten des Menschen → ins Fenster tippen (Text), oder als Wahl/Esc/Modus ausführen
+//   4. Neue Chat-Nachrichten des Menschen → ins Fenster tippen (Text), oder als Wahl/Esc/Modus/Mehrfach-Schritt ausführen
 // Das Fenster selbst kennt den Chat nicht. Es antwortet im Terminal — wir spiegeln.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { senden, nachrichten, fensterAlle, fensterAendern, metaSetzen, nowIso } from './db.mjs';
-import { paneZustand, dialogAbgeschnitten, tastenFuerWahl, tastenZuOption, chatBefehl, spiegelBeitraege, dialogText, dialogMeta, fragePasst, textVorDialog, textSchluessel, medienZerlegen, spiegelStart, ganzeZeilen, protokollNachrichten, zustellText, markerAufloesen, neueZustellungen, MODUS_NAME } from './protokoll.mjs';
-import { prozessVon, paneLesen, paneVerlaufLesen, fensterVergroessern, fensterZurueck, tastenSenden, textSenden, laufendesProtokoll, dateiAb, istSsh } from './orte.mjs';
+import { paneZustand, dialogAbgeschnitten, tastenFuerWahl, mehrfachSchritte, tastenZuOption, chatBefehl, spiegelBeitraege, dialogText, dialogMeta, fragePasst, textVorDialog, textSchluessel, medienZerlegen, spiegelStart, ganzeZeilen, protokollNachrichten, zustellText, markerAufloesen, neueZustellungen, MODUS_NAME } from './protokoll.mjs';
+import { prozessVon, paneLesen, paneVerlaufLesen, fensterVergroessern, fensterZurueck, tastenSenden, textSenden, textTippen, laufendesProtokoll, dateiAb, istSsh } from './orte.mjs';
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', webm: 'video/webm', mp4: 'video/mp4', ogg: 'audio/ogg', oga: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', pdf: 'application/pdf' };
@@ -134,9 +134,25 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
       const tasten = tastenFuerWahl(befehl.nummern, zustand.dialog.cursor, zustand.dialog.optionen.length);
       if (!tastenSenden(f, tasten).ok) return false;
       if (zustand.dialog.art !== 'freigabe') sp.wahlViaChat = true;
-      const labels = befehl.nummern.map((n) => { const o = zustand.dialog.optionen.find((x) => x.nr === n); return o ? `${n} „${o.label}"` : String(n); });
+      // Absenden-Karte: die Bestätigung auf Deutsch („Absenden" statt „Submit answers").
+      const deutsch = zustand.dialog.art === 'absenden' ? { 1: 'Absenden', 2: 'Abbrechen' } : {};
+      const labels = befehl.nummern.map((n) => { const o = zustand.dialog.optionen.find((x) => x.nr === n); return o ? `${n} „${deutsch[n] || o.label}"` : String(n); });
       if (befehl.nachtext) halten(f, { ...m, inhalt: befehl.nachtext });
       chatSchreiben(f, { typ: 'fyi', text: `↳ Auswahl ${labels.join(', ')} ins Fenster gegeben.${befehl.nachtext ? ' Dein Zusatz folgt, sobald der Dialog zu ist.' : ''}`, bezug_id: m.id });
+      return true;
+    }
+    if (befehl.art === 'mehrfach') {
+      // Ein Mehrfachauswahl-Schritt komplett: Haken setzen/wegnehmen, eigene Antwort tippen (ohne Enter), „Next".
+      for (const s of mehrfachSchritte(zustand.dialog, befehl)) {
+        const r = s.text ? textTippen(f, s.text) : tastenSenden(f, s.tasten);
+        if (!r.ok) return false;
+        await warte(250);
+      }
+      sp.wahlViaChat = true;
+      const labels = befehl.nummern.map((n) => { const o = zustand.dialog.optionen.find((x) => x.nr === n); return o ? `${n} „${o.label}"` : String(n); });
+      const frei = befehl.text ? `eigene Antwort „${String(befehl.text).replace(/\s+/g, ' ').trim().slice(0, 160)}"` : '';
+      const was = [labels.join(', '), frei].filter(Boolean).join(' + ');
+      chatSchreiben(f, { typ: 'fyi', text: `↳ ${was ? `Angehakt: ${was}` : befehl.text === null ? 'Auswahl wie im Fenster' : 'Nichts angehakt'} — weiter zum nächsten Schritt.`, bezug_id: m.id });
       return true;
     }
     if (befehl.art === 'freitext') {

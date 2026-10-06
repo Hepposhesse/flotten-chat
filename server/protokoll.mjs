@@ -1,4 +1,4 @@
-// server/protokoll.mjs — „Konsole im Chat“, der reine Teil (v1.0).
+// server/protokoll.mjs — „Konsole im Chat“, der reine Teil (v1.1).
 //
 // Ein Claude-Code-Fenster schreibt sein Sitzungs-Protokoll als JSONL auf die Platte und zeigt im
 // Terminal Dialoge (Freigaben, Rückfragen) und seinen Modus. Dieser Modul liest beides NUR als Text
@@ -8,8 +8,9 @@
 //   spiegelBeitraege(nachrichten) → Chat-Beiträge {typ, text}
 //   paneZustand(terminalbild)     → {modus, dialog, busy}
 //   dialogText(dialog)            → Chat-Text mit Optionen
-//   chatBefehl(text, zustand)     → was eine Chat-Nachricht im Fenster auslöst (Text, Wahl, Esc, Modus)
+//   chatBefehl(text, zustand)     → was eine Chat-Nachricht im Fenster auslöst (Text, Wahl, Esc, Modus, Mehrfach-Schritt)
 //   tastenFuerWahl(ziele, cursor) → tmux-Tasten für eine Dialog-Wahl
+//   mehrfachSchritte(dialog, befehl) → Tasten/Text für einen Mehrfachauswahl-Schritt (Häkchen, eigene Antwort, „Next“)
 //
 // Entstanden im Live-Betrieb der Sales-Engine-Flotte (September 2026) und dort täglich im Einsatz.
 
@@ -27,7 +28,8 @@ const kurz = (s, n) => { const t = String(s == null ? '' : s).replace(/\s+/g, ' 
 /**
  * Was zeigt das Terminal gerade? PURE.
  *   modus   'auto' | 'accept' | 'plan' | 'bypass' | 'default' | 'unbekannt'
- *   dialog  null | { art:'freigabe'|'frage', titel, optionen:[{nr,label}], cursor, kennung }
+ *   dialog  null | { art:'freigabe'|'frage'|'absenden', titel, optionen:[{nr,label,beschreibung?,an?}], cursor, kennung,
+ *                   mehrfach?, cursorWeiter?, reiter?:[{name,fertig}], pruefung?, vorschau? }
  *   busy    laufende Klammer-Zeit („(47s · …)") wie in agents-live.tuiUrteil
  * Ein Dialog ist eine nummerierte Liste („1. Yes", „❯ 2. …") im unteren Teil des Bildes. Freigabe,
  * wenn die Frage „Do you want to proceed?"/„…allow…" dabeisteht, sonst Rückfrage (AskUserQuestion).
@@ -94,9 +96,12 @@ export function paneZustand(text) {
 
   // Nummerierte Optionen: nur ein zusammenhängender Block (Lücke von >2 Zeilen ohne Nummer = Ende).
   const optionen = [];
-  let cursor = 0, letzteIdx = -1, block = [];
+  let cursor = 0, letzteIdx = -1, block = [], weiterIdx = -1, weiterCursor = false;
   zeilen.forEach((z, idx) => {
     const n = nackt(z);
+    // „Next"/„Submit" unter einer Mehrfachauswahl: eigene Zeile ohne Nummer, schließt den Schritt ab.
+    const w = /^(❯\s*)?(?:Next|Submit)$/.exec(n);
+    if (w && block.length) { weiterIdx = idx; weiterCursor = !!w[1]; letzteIdx = idx; return; }
     const m = /^(❯\s*)?(\d{1,2})\.\s+(.+)$/.exec(n);
     if (!m) return;
     if (letzteIdx >= 0 && idx - letzteIdx > 3) { block = []; }
@@ -105,7 +110,7 @@ export function paneZustand(text) {
   });
   // Nur ein Block, der mit 1 beginnt, lückenlos zählt und einen Cursor (❯) trägt, ist ein Dialog —
   // eine nummerierte Aufzählung im Fließtext hat keinen Cursor.
-  let gueltig = block.length >= 2 && block[0].nr === 1 && block.every((o, k) => o.nr === k + 1) && block.some((o) => o.cursor);
+  let gueltig = block.length >= 2 && block[0].nr === 1 && block.every((o, k) => o.nr === k + 1) && (block.some((o) => o.cursor) || weiterCursor);
   // Claude Code zeichnet manche Dialoge ohne Nummern („❯ No, exit" / „  Yes, I trust this folder", 2.1.289) —
   // die kamen nie im Chat an. Erkennung nur mit Dialog-Fuß darunter, sonst wäre jede
   // Eingabezeile „❯ text" ein Dialog. Nummern vergeben wir selbst; gewählt wird ohnehin per Pfeiltasten.
@@ -128,13 +133,34 @@ export function paneZustand(text) {
   block.forEach((o, k) => {
     const opt = { nr: o.nr, label: o.label, ...(o.ohneNr ? { ohneNr: true } : {}) };
     const bis = k + 1 < block.length ? block[k + 1].idx : o.idx + 1;
-    const besch = zeilen.slice(o.idx + 1, bis).map(nackt).filter((x) => x && !/^[─━┈═\s]+$/.test(x) && !/^Notes: press n\b/i.test(x)).join(' ').trim();
+    const besch = zeilen.slice(o.idx + 1, bis).map(nackt).filter((x) => x && !/^[─━┈═\s]+$/.test(x) && !/^Notes: press n\b/i.test(x) && !/^(?:❯\s*)?(?:Next|Submit)$/.test(x)).join(' ').trim();
     if (besch) opt.beschreibung = besch;
     optionen.push(opt); if (o.cursor) cursor = o.nr;
   });
-  // Titel: die Zeilen über dem Block bis zum Rahmen-Anfang (max. 8), Leerzeilen weg.
+  // Mehrfachauswahl (multiSelect): Optionen tragen „[ ]"/„[✔]". Das Kästchen wandert in `an`, das Label bleibt
+  // nackt. Getippter Freitext steht im Label der Freitext-Option (Umbruch → Beschreibung → wieder ans Label).
+  // Keine „Next"-Bedingung: beim Neuzeichnen (Fenstergröße) fehlte die Zeile kurz, der Dialog galt als
+  // Einfachauswahl und kam ein zweites Mal als Karte mit Einzel-Knöpfen.
+  const kaestchen = optionen.filter((o) => /^\[[ ✔✓x]\]\s/.test(o.label)).length;
+  const mehrfach = kaestchen >= 2;
+  if (mehrfach) {
+    for (const o of optionen) {
+      const k = /^\[([ ✔✓x])\]\s+(.*)$/.exec(o.label);
+      if (k) { o.an = k[1] !== ' '; o.label = k[2].trim(); }
+    }
+    const fnr = freitextOption(optionen);
+    const fo = optionen.find((o) => o.nr === fnr);
+    if (fo && !/^type something\.?$/i.test(fo.label) && fo.beschreibung) { fo.label = `${fo.label} ${fo.beschreibung}`.trim(); delete fo.beschreibung; }
+  }
+  // Freigabe-Dialoge erkennt man an ihren Optionen („Yes" / „No, and tell Claude …"); Rückfragen
+  // (AskUserQuestion) tragen beliebige Labels plus „Type something." / „Chat about this".
+  const labels = optionen.map((o) => o.label);
+  const freigabe = labels.some((l) => /^yes\b/i.test(l)) && labels.some((l) => /^no\b/i.test(l));
+  // Titel: die Zeilen über dem Block bis zum Rahmen-Anfang bzw. zur Trennlinie, Leerzeilen weg.
+  // Freigabe: die letzten 8 Zeilen (Befehl + „Do you want to proceed?"). Rückfrage: die GANZE Frage (max. 60
+  // Zeilen) — mit 8 Zeilen fing eine lange Frage im Chat mitten im Satz an.
   const oben = [];
-  for (let k = block[0].idx - 1; k >= 0 && oben.length < 8; k--) {
+  for (let k = block[0].idx - 1; k >= 0 && oben.length < (freigabe ? 8 : 60); k--) {
     const roh = String(zeilen[k] || '');
     if (/[╭╰]/.test(roh) || /^[\s─┈═]+$/.test(roh)) break;
     if (/^[\s╌]+$/.test(roh)) continue; // Trennlinien um Befehl/Diff (2.1.289) nicht in den Titel
@@ -144,21 +170,38 @@ export function paneZustand(text) {
     oben.unshift(n);
   }
   const titelText = oben.join('\n');
-  // Freigabe-Dialoge erkennt man an ihren Optionen („Yes" / „No, and tell Claude …"); Rückfragen
-  // (AskUserQuestion) tragen beliebige Labels plus „Type something." / „Chat about this".
-  const labels = optionen.map((o) => o.label);
-  const freigabe = labels.some((l) => /^yes\b/i.test(l)) && labels.some((l) => /^no\b/i.test(l));
+  // Kennung nur aus den letzten 8 Titelzeilen: die stehen auch in einem kleinen Fenster (80×24) über den
+  // Optionen — sonst wäre derselbe Dialog nach dem Vergrößern eine neue Karte.
+  const kennungText = oben.slice(-8).join('\n');
+  // Reiter-Leiste einer Rückfrage mit mehreren Fragen („← ☒ Obst ☐ Farbe ✔ Submit →").
+  const leiste = zeilen.map(nackt).find((z) => /←/.test(z) && /✔\s*Submit/.test(z));
+  const reiter = leiste ? [...leiste.matchAll(/([☐☒☑])\s*([^☐☒☑✔←→]+)/g)].map((m) => ({ name: m[2].trim(), fertig: m[1] !== '☐' })) : [];
+  // Letzter Reiter „Submit": „Review your answers" + „1. Submit answers / 2. Cancel".
+  const absenden = /Review your answers|Ready to submit/i.test(titelText) && /^submit answers$/i.test(labels[0] || '');
+  // Die Übersicht steht zwischen „Review your answers" und den Optionen; ihre „●"-Zeilen sind keine Werkzeug-Ausgabe.
+  let pruefung = '';
+  if (absenden) {
+    let ab = -1;
+    for (let k = block[0].idx - 1; k >= 0 && k > block[0].idx - 80; k--) { if (/Review your answers/i.test(zeilen[k])) { ab = k; break; } }
+    if (ab >= 0) pruefung = zeilen.slice(ab + 1, block[0].idx).map(nackt).filter((z) => z && !/^Ready to submit/i.test(z)).join('\n');
+  }
   const dialog = {
     ...(kasten.vorschau ? { vorschau: { nr: cursor || 1, text: kasten.vorschau.slice(0, 2000) } } : {}),
-    art: freigabe ? 'freigabe' : 'frage',
-    titel: titelText.slice(0, 600),
+    art: freigabe ? 'freigabe' : absenden ? 'absenden' : 'frage',
+    ...(pruefung ? { pruefung: pruefung.slice(0, 3000) } : {}),
+    titel: titelText.slice(0, 3000),
     optionen,
     cursor: cursor || 1,
+    ...(mehrfach ? { mehrfach: true, cursorWeiter: weiterCursor } : {}),
+    ...(reiter.length ? { reiter } : {}),
     // Kennung ohne die Labels: tippt jemand im Terminal in „Type something", ändert sich das Label —
     // der Dialog bleibt derselbe (sonst wurde er alle 3 s neu in den Chat gestellt, 16.09. #131847ff).
     // Auch ohne den Countdown („…automatically deny this request in 1:46" zählt jede Sekunde runter —
     // derselbe Freigabe-Dialog stand am 27.09. sechsmal im Chat, #135429ff).
-    kennung: (titelText.replace(/\b\d{1,2}:\d{2}\b/g, '') + '|' + optionen.length).slice(0, 400),
+    // Und ohne die Kästchen der Reiter-Leiste: der erste Haken macht aus „☐ Obst" ein „☒ Obst".
+    // Und ohne Zeilenumbrüche: ändert sich die Fenstergröße, bricht Ink den Titel anders um (Doppelkarte).
+    // Die Optionszahl nur ohne Titel: ein halb gezeichnetes Bild (ohne „Chat about this") zählte sonst als neuer Dialog.
+    kennung: ((t) => (t ? t : `|${optionen.length}`))(kennungText.replace(/\b\d{1,2}:\d{2}\b/g, '').replace(/[☐☒☑]/g, '').replace(/\s+/g, ' ').trim()).slice(0, 400),
   };
   return { modus, dialog, busy };
 }
@@ -233,7 +276,8 @@ export function redenOption(optionen = []) {
  *   { art:'abbruch' }                  „nein"/„abbrechen"/„esc" im offenen Dialog → Escape
  *   { art:'abbruch_text', text }       Freitext im offenen Freigabe-Dialog → Escape, dann der Text als Eingabe
  *   { art:'freitext', nr, text }       Freitext bei offener Rückfrage → ins Antwortfeld („Type something.") und abschicken
- *   { art:'halten', text }             Freitext bei offener Rückfrage ohne Antwortfeld → wartet, bis sie beantwortet ist
+ *   { art:'halten', text }             Freitext bei offener Rückfrage ohne Antwortfeld (oder beim Absenden) → wartet
+ *   { art:'mehrfach', nummern, text }  ein ganzer Mehrfachauswahl-Schritt (siehe mehrfachBefehl)
  *   { art:'modus', ziel }              „manual"/„auto" (auch ohne Dialog) → Shift+Tab bis zum Ziel-Modus
  *   { art:'text', text }               normale Eingabe
  */
@@ -248,6 +292,7 @@ export function chatBefehl(text, zustand = {}) {
     return { art: 'modus', ziel };
   }
   if (!dialog) return { art: 'text', text: t };
+  if (dialog.mehrfach) return mehrfachBefehl(t, klein, dialog);
   const anzahl = (dialog.optionen || []).length || 99;
   if (/^\d{1,2}([\s,;und]+\d{1,2})*$/.test(klein)) {
     const nummern = klein.split(/[^\d]+/).filter(Boolean).map(Number).filter((n) => n >= 1 && n <= anzahl);
@@ -263,6 +308,8 @@ export function chatBefehl(text, zustand = {}) {
   // („Type something."), Text tippen, Enter. Ohne Antwortfeld wartet der Text, bis die Frage beantwortet
   // ist — sonst löscht ein nebenbei geschicktes Bild die Frage (passiert am 16.09., #131839).
   // Ohne Antwortfeld (z. B. Rückfragen mit Vorschau) macht der Chat, was man im Terminal tut: „Chat about this" wählen, der Text folgt, sobald der Dialog zu ist.
+  // Absenden-Karte (alle Antworten stehen): nur Nummer oder „nein" — Freitext wartet.
+  if (dialog.art === 'absenden') return { art: 'halten', text: t };
   if (dialog.art === 'frage') {
     const nr = freitextOption(dialog.optionen, zustand.frage);
     if (nr) return { art: 'freitext', nr, text: t };
@@ -270,6 +317,62 @@ export function chatBefehl(text, zustand = {}) {
     return reden ? { art: 'wahl', nummern: [reden], nachtext: t } : { art: 'halten', text: t };
   }
   return { art: 'abbruch_text', text: t };
+}
+
+/**
+ * Antwort auf einen Mehrfachauswahl-Schritt. PURE.
+ * Die Nachricht ist der GANZE Schritt: „1, 3" = genau diese anhaken, „1, 3: Text" = dazu eigene Antwort,
+ * reiner Text = nur eigene Antwort, „keine" = nichts, „weiter"/„ja" = so lassen, wie es im Terminal steht.
+ *   { art:'mehrfach', nummern:[…], text }  text: string = Freitextfeld so setzen ('' = leeren), null = lassen
+ */
+function mehrfachBefehl(t, klein, dialog) {
+  if (/^(nein|no|nope|stop|stopp|abbrechen|abbruch|esc|escape)$/.test(klein)) return { art: 'abbruch' };
+  const frei = freitextOption(dialog.optionen);
+  const normal = (dialog.optionen || []).filter((o) => o.nr !== frei && !/^chat about this$/i.test(o.label)).map((o) => o.nr);
+  if (/^(ja|yes|ok|okay|weiter|next|so|passt|go)$/.test(klein)) return { art: 'mehrfach', nummern: (dialog.optionen || []).filter((o) => o.an && normal.includes(o.nr)).map((o) => o.nr), text: null };
+  if (/^(keine|keins|nichts|leer|0)$/.test(klein)) return { art: 'mehrfach', nummern: [], text: '' };
+  const m = /^(\d{1,2}(?:\s*(?:[,;+&]|und)\s*\d{1,2}|\s+\d{1,2})*)(?:\s*[.):;,–-]?\s+(\S[\s\S]*)|\s*:\s*(\S[\s\S]*))?$/.exec(t);
+  if (m) {
+    const nummern = [...new Set(m[1].split(/[^\d]+/).filter(Boolean).map(Number))];
+    if (nummern.every((n) => normal.includes(n))) return { art: 'mehrfach', nummern: nummern.sort((a, b) => a - b), text: frei ? String(m[2] || m[3] || '').trim() : '' };
+  }
+  return frei ? { art: 'mehrfach', nummern: [], text: t } : { art: 'halten', text: t };
+}
+
+/**
+ * Tasten-Schritte für einen Mehrfachauswahl-Schritt. PURE.
+ * Geprüft gegen Claude Code 2.1.289: Space/Enter schaltet ein Kästchen um; Tippen in die Freitext-Option hakt
+ * sie an, Ctrl+U leert sie und nimmt den Haken weg, Enter dort nähme ihn wieder weg. Darunter liegt „Next"
+ * (ohne Nummer) — Enter dort schließt den Schritt ab. Reihenfolge der Cursor-Plätze: Optionen 1…frei,
+ * „Next", dann „Chat about this".
+ * Rückgabe: [{ tasten:[…] } | { text }] — Text wird wörtlich getippt (ohne Enter, tmux send-keys -l).
+ */
+export function mehrfachSchritte(dialog, { nummern = [], text = null } = {}) {
+  const optionen = (dialog && dialog.optionen) || [];
+  const frei = freitextOption(optionen);
+  const letzteNormal = optionen.filter((o) => o.nr !== frei && !/^chat about this$/i.test(o.label)).reduce((a, o) => Math.max(a, o.nr), 0);
+  const platzWeiter = (frei || letzteNormal) + 1;
+  const platz = (nr) => (nr < platzWeiter ? nr : nr + 1);
+  let pos = dialog && dialog.cursorWeiter ? platzWeiter : platz(Number(dialog && dialog.cursor) || 1);
+  const schritte = [];
+  let tasten = [];
+  const laufe = (ziel) => { while (pos < ziel) { tasten.push('Down'); pos++; } while (pos > ziel) { tasten.push('Up'); pos--; } };
+  const soll = new Set(nummern.map(Number));
+  for (const o of optionen) {
+    if (o.nr === frei || o.nr > letzteNormal) continue;
+    if (!!o.an !== soll.has(o.nr)) { laufe(platz(o.nr)); tasten.push('Space'); }
+  }
+  const fo = optionen.find((o) => o.nr === frei);
+  if (fo && text !== null) {
+    const hatText = !!fo.an || !/^type something\.?$/i.test(fo.label);
+    const neu = String(text).replace(/\s+/g, ' ').trim();
+    if (hatText || neu) laufe(platz(frei));
+    if (hatText) tasten.push('C-u');
+    if (neu) { schritte.push({ tasten }); tasten = []; schritte.push({ text: neu }); }
+  }
+  laufe(platzWeiter); tasten.push('Enter');
+  schritte.push({ tasten });
+  return schritte.filter((x) => (x.tasten ? x.tasten.length : x.text));
 }
 
 
@@ -315,12 +418,17 @@ export function dialogText(dialog, frage = null) {
     return ['🔐 Das Fenster wartet auf deine Freigabe:', titel, ...opts,
       'Antworte mit der Nummer; „nein" bricht ab, Freitext = abbrechen + dein Text als Anweisung.'].filter(Boolean).join('\n');
   }
+  if (dialog.art === 'absenden') {
+    return ['✅ Alle Antworten stehen — bitte prüfen und absenden:', ...absendenZeilen(dialog).map((z) => (z.startsWith('→') ? `   ${z}` : z)), '1) Absenden', '2) Abbrechen',
+      'Antworte mit der Nummer; „nein" bricht ab.'].join('\n');
+  }
+  if (dialog.mehrfach) return mehrfachText(dialog, frage);
   const idx = frageIndex(dialog, frage);
   if (idx >= 0) {
     const fragen = frage.fragen.filter((q) => q && q.frage);
     const q = fragen[idx];
     const stand = fragen.length > 1 ? ` (Frage ${idx + 1} von ${fragen.length})` : '';
-    const zeilen = [`❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 700)}${stand}`];
+    const zeilen = [`❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 2500)}${stand}`];
     for (const o of dialog.optionen || []) {
       const l = labelNackt(o.label);
       if (istHilfsOption(l)) continue;
@@ -332,9 +440,49 @@ export function dialogText(dialog, frage = null) {
     zeilen.push(HINWEIS_FRAGE);
     return zeilen.join('\n');
   }
-  const titel = kurz(titelOhneReiter(dialog.titel), 500);
+  const titel = kurz(titelOhneReiter(dialog.titel), 2500); // ganze Frage, nicht nur ihr Ende
   const optsB = (dialog.optionen || []).map((o) => `${o.nr}) ${o.label}${o.beschreibung ? ` — ${kurz(o.beschreibung, 220)}` : ''}`);
   return [`❓ ${titel || 'Das Fenster hat eine Rückfrage.'}`, ...optsB.filter((z, k) => !istHilfsOption(labelNackt((dialog.optionen[k] || {}).label))), ...vorschauZeilen(dialog), HINWEIS_FRAGE].join('\n');
+}
+
+export const HINWEIS_MEHRFACH = '☑ Mehrfachauswahl: alle passenden Nummern mit Komma („1, 3"), eigene Antwort dahinter („1, 3: Text") — deine Nachricht schließt diesen Schritt ab.';
+
+/**
+ * Chat-Text eines Mehrfachauswahl-Schritts. PURE.
+ * Die Freitext-Option ist kein Knopf (die Karte hat dafür ein Textfeld); was schon angehakt ist bzw. schon
+ * im Freitext steht, steht in eigenen Zeilen, damit die Karte es vorbelegen kann.
+ */
+function mehrfachText(dialog, frage) {
+  const frei = freitextOption(dialog.optionen);
+  const idx = frageIndex(dialog, frage);
+  const fragen = idx >= 0 ? frage.fragen.filter((q) => q && q.frage) : [];
+  const q = idx >= 0 ? fragen[idx] : null;
+  const reiter = dialog.reiter || [];
+  const stand = q && fragen.length > 1 ? ` (Frage ${idx + 1} von ${fragen.length})` : (!q && reiter.length > 1 ? ` (${reiter.length} Fragen)` : '');
+  const kopf = q ? `❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 2500)}${stand}` : `❓ ${kurz(titelOhneReiter(dialog.titel), 2500) || 'Das Fenster hat eine Rückfrage.'}${stand}`;
+  const zeilen = [kopf];
+  const an = [];
+  for (const o of dialog.optionen || []) {
+    if (o.nr === frei || /^chat about this$/i.test(o.label)) continue;
+    const p = q ? (q.optionen || []).find((x) => labelNackt(x.label) === labelNackt(o.label)) : null;
+    const besch = p ? p.beschreibung : o.beschreibung;
+    zeilen.push(`${o.nr}) ${p ? p.label : o.label}${besch ? ` — ${kurz(besch, 220)}` : ''}`);
+    if (o.an) an.push(o.nr);
+  }
+  const fo = (dialog.optionen || []).find((o) => o.nr === frei);
+  if (an.length) zeilen.push(`Schon angehakt: ${an.join(', ')}`);
+  if (fo && !/^type something\.?$/i.test(fo.label)) zeilen.push(`Eigene Antwort bisher: ${kurz(fo.label, 400)}`);
+  zeilen.push(...vorschauZeilen(dialog));
+  zeilen.push(fo ? HINWEIS_MEHRFACH : HINWEIS_MEHRFACH.replace(/, eigene Antwort dahinter \(„1, 3: Text"\)/, ''));
+  return zeilen.join('\n');
+}
+
+/** Übersicht der Absenden-Karte („● Frage" / „→ Antwort") als lesbare Zeilen; Umbrüche der Antworten zusammengezogen. PURE. */
+function absendenZeilen(dialog) {
+  const pruef = String(dialog.pruefung || dialog.titel || '').split('\n').filter((z) => !/[☐☒☑]/.test(z) && !/✔\s*Submit/.test(z) && !/^(Review your answers|Ready to submit your answers\??)$/i.test(z.trim()));
+  const zeilen = [];
+  for (const z of pruef) { const t = z.trim(); if (!t) continue; if (/^[●→]/.test(t) || !zeilen.length) zeilen.push(t.replace(/^●\s*/, '• ')); else zeilen[zeilen.length - 1] += ` ${t}`; }
+  return zeilen;
 }
 
 /** Vorschau-Text (z. B. Mustertext einer Antwort) als Chat-Zeilen — ohne „N)"-Anfang, damit kein Knopf entsteht. */
@@ -346,19 +494,31 @@ function vorschauZeilen(dialog) {
 }
 
 
-/** Strukturierte Fassung des Dialogs für Knöpfe in der Oberfläche (Labels/Beschreibungen aus dem Protokoll, wenn bekannt). */
+/**
+ * Strukturierte Fassung des Dialogs für Knöpfe in der Oberfläche (Labels/Beschreibungen aus dem Protokoll, wenn bekannt).
+ *   Mehrfachauswahl: `mehrfach: true`, je Option `an` (schon angehakt), `freitext` (es gibt ein Antwortfeld) und
+ *   `freitextBisher` (was dort schon steht) — die Karte hakt an, hat ein Textfeld und einen Knopf „Weiter".
+ *   Absenden-Karte: `art: 'absenden'`, `antworten` (Übersicht) und die Knöpfe Absenden/Abbrechen.
+ */
 export function dialogMeta(dialog, frage = null) {
   if (!dialog) return null;
+  if (dialog.art === 'absenden') {
+    return { art: 'absenden', titel: 'Alle Antworten stehen — bitte prüfen und absenden', antworten: absendenZeilen(dialog), optionen: [{ nr: 1, label: 'Absenden' }, { nr: 2, label: 'Abbrechen' }] };
+  }
   // Claudes Zusatz-Optionen („Type something.", „Chat about this") sind keine Knöpfe — Freitext im Chat IST die Antwort.
   const idx = frageIndex(dialog, frage);
   const q = idx >= 0 ? frage.fragen.filter((x) => x && x.frage)[idx] : null;
-  const opts = (dialog.optionen || []).filter((o) => !istHilfsOption(labelNackt(o.label))).map((o) => {
+  const frei = dialog.mehrfach ? freitextOption(dialog.optionen) : 0;
+  const opts = (dialog.optionen || []).filter((o) => o.nr !== frei && !istHilfsOption(labelNackt(o.label))).map((o) => {
     const p = q && (q.optionen || []).find((x) => labelNackt(x.label) === labelNackt(o.label));
     const beschreibung = (p && p.beschreibung) || o.beschreibung || '';
-    return { nr: o.nr, label: p ? p.label : o.label, ...(beschreibung ? { beschreibung: kurz(beschreibung, 220) } : {}) };
+    return { nr: o.nr, label: p ? p.label : o.label, ...(beschreibung ? { beschreibung: kurz(beschreibung, 220) } : {}), ...(dialog.mehrfach ? { an: !!o.an } : {}) };
   });
-  const titel = q ? `${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 700)}` : kurz(titelOhneReiter(dialog.titel), 500);
-  return { art: dialog.art, titel, optionen: opts, ...(q && q.mehrfach ? { mehrfach: true } : {}), ...(dialog.vorschau ? { vorschau: dialog.vorschau } : {}) };
+  const titel = q ? `${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 2500)}` : kurz(titelOhneReiter(dialog.titel), 2500);
+  // `mehrfach` nur, wenn das Terminal Kästchen zeigt — dann versteht chatBefehl() „1, 3: Text" als ganzen Schritt.
+  const fo = frei ? (dialog.optionen || []).find((o) => o.nr === frei) : null;
+  const mehrfach = dialog.mehrfach ? { mehrfach: true, freitext: !!fo, ...(fo && !/^type something\.?$/i.test(fo.label) ? { freitextBisher: kurz(fo.label, 400) } : {}) } : {};
+  return { art: dialog.art, titel, optionen: opts, ...mehrfach, ...(dialog.vorschau ? { vorschau: dialog.vorschau } : {}) };
 }
 
 // ── Sitzungs-Protokoll (JSONL) ──────────────────────────────────────────────

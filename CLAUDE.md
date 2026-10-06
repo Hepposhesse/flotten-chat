@@ -51,6 +51,8 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
   deinem Thema befüllst du selbständig (Meilensteine, Entscheidungen, Stand).
 - **Rückfragen immer als AskUserQuestion** — sie erscheinen im Chat als Knöpfe. Freitext des Menschen
   kommt als Antwort ins Antwortfeld oder, ohne Feld, über „Chat about this“ mit dem Text danach.
+  `multiSelect` und mehrere Fragen in einem Aufruf sind erlaubt: der Chat zeigt Häkchen, ein Feld
+  „Eigene Antwort“ und „Weiter“, am Ende die Absenden-Übersicht.
 - **Schließen**: der Chat kündigt „Fenster wird geschlossen“ an und gibt dir 60 s: Stand wegschreiben,
   alles auf deinen Branch committen, „aufgeräumt“ antworten. Danach räumt der Server den Worktree
   auf (nur wenn sauber — Ungesichertes wird vorher als WIP gesichert, nie gelöscht).
