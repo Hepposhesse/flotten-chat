@@ -24,6 +24,8 @@ import { ansiZuHtml, TERMINAL_TASTEN } from './terminal.mjs';
 import { geraetAnlegen, geraetZumCode, geraetAnmelden, geraetOeffentlich, einfuegeBlock, einrichtungsSkript, sshArgs, tunnelUebergaenge } from './geraete.mjs';
 import { createGeraeteDienst } from './geraeteDienst.mjs';
 import { slug } from './protokoll.mjs';
+import { ablegen as ablageAblegen, liste as ablageListe, loeschen as ablageLoeschen, streamen as ablageStreamen } from './ablage.mjs';
+import { erinnerungenSchema, ordnerAlle, ordnerAnlegen, ordnerUmbenennen, ordnerLoeschen, reminderInOrdner, reminderTitel, reminderNotiz, reminderUebergeben, uebergabeText } from './erinnerungen.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -60,6 +62,11 @@ setInterval(() => {
 
 // ── Konsole im Chat: die Runde über alle Fenster ────────────────────────────
 const konsole = starteKonsole({ db, dataDir: DATA, broadcast });
+
+// ── 1.1: Ablage-Tresor (data/ablage, nie aufgeräumt) + Erinnerungs-Ordner (Schema additiv) ──
+const ABLAGE_DIR = join(DATA, 'ablage');
+const ZONE = process.env.FC_TZ || 'Europe/Berlin';
+erinnerungenSchema(db);
 
 // ── Geräte koppeln: Rückkanal-Tunnel je Gerät, Ort „geraet:<id>" ──
 const geraete = createGeraeteDienst(DATA);
@@ -453,6 +460,50 @@ const server = http.createServer(async (req, res) => {
       const erg = fensterBauen({ ...b, name, label: r.titel, start_text: `Erinnerung aus dem Flotten-Chat: „${r.titel}"${r.notiz ? ' — ' + r.notiz : ''}. Lies zuerst die CLAUDE.md, dann kümmere dich darum.` });
       if (erg.ok) broadcast('presence', { fenster: erg.fenster.name, neu: true });
       return json(res, erg.ok ? 200 : 400, erg);
+    }
+
+    // ── 1.1: Ablage-Tresor 🔗 — ablegen (Chat-Medium → data/ablage mit sprechendem Namen), Liste, Löschen, Ausliefern (Range) ──
+    if (url.pathname === '/api/ablage' && req.method === 'GET') return json(res, 200, ablageListe({ ablageDir: ABLAGE_DIR, max: Math.min(Number(url.searchParams.get('limit')) || 200, 1000) }));
+    if (url.pathname === '/api/ablage' && req.method === 'POST') {
+      if (!admin) return json(res, 403, { ok: false });
+      const b = await koerper(req);
+      const ids = (Array.isArray(b.ids) ? b.ids : [b.id]).filter(Boolean).map(String).slice(0, 20);
+      const medien = ids.map((id) => db.prepare('SELECT id, name, mime FROM media WHERE id = ?').get(id)).filter(Boolean);
+      const r = ablageAblegen(medien, { jetzt: Date.now(), medienDir: join(DATA, 'media'), ablageDir: ABLAGE_DIR, zone: ZONE });
+      return json(res, r.ok ? 200 : 400, r);
+    }
+    if (url.pathname === '/api/ablage/loeschen' && req.method === 'POST') {
+      if (!admin) return json(res, 403, { ok: false });
+      const b = await koerper(req); const r = ablageLoeschen(String(b.name || ''), { ablageDir: ABLAGE_DIR });
+      return json(res, r.ok ? 200 : 400, r);
+    }
+    const mAb = /^\/api\/ablage\/([^/]+)$/.exec(url.pathname);
+    if (mAb && req.method === 'GET') return ablageStreamen(req, res, decodeURIComponent(mAb[1]), { ablageDir: ABLAGE_DIR, download: !!url.searchParams.get('dl') });
+
+    // ── 1.1: Erinnerungen — Ordner (anlegen/umbenennen/löschen), in Ordner legen, Titel/Notiz, an ein laufendes Fenster übergeben ──
+    if (url.pathname === '/api/reminders/ordner' && req.method === 'GET') return json(res, 200, { ok: true, ordner: ordnerAlle(db) });
+    if (url.pathname === '/api/reminders/ordner' && req.method === 'POST') { const o = ordnerAnlegen(db, await koerper(req)); return o ? json(res, 200, { ok: true, ordner: o }) : json(res, 400, { ok: false, fehler: 'Name fehlt.' }); }
+    const mOrd = /^\/api\/reminders\/ordner\/(\d+)\/(umbenennen|loeschen)$/.exec(url.pathname);
+    if (mOrd && req.method === 'POST') {
+      const b = await koerper(req);
+      if (mOrd[2] === 'umbenennen') { const o = ordnerUmbenennen(db, mOrd[1], b.name); return o ? json(res, 200, { ok: true, ordner: o }) : json(res, 400, { ok: false, fehler: 'Ordner unbekannt oder Name fehlt.' }); }
+      const r = ordnerLoeschen(db, mOrd[1]); return json(res, r.ok ? 200 : 404, r);
+    }
+    const mRem = /^\/api\/reminders\/(\d+)\/(ordner|titel|notiz|uebergeben)$/.exec(url.pathname);
+    if (mRem && req.method === 'POST') {
+      const b = await koerper(req);
+      if (mRem[2] === 'ordner') { const r = reminderInOrdner(db, mRem[1], b.ordner_id); return json(res, r.ok ? 200 : 400, r); }
+      if (mRem[2] === 'titel') { const r = reminderTitel(db, mRem[1], b.titel); return r ? json(res, 200, { ok: true, reminder: r }) : json(res, 400, { ok: false, fehler: 'titel fehlt oder Erinnerung unbekannt.' }); }
+      if (mRem[2] === 'notiz') { const r = reminderNotiz(db, mRem[1], b.notiz); return r ? json(res, 200, { ok: true, reminder: r }) : json(res, 404, { ok: false, fehler: 'Erinnerung unbekannt.' }); }
+      // Übergeben: der Auftrag geht als Chat-Nachricht in den Kanal des Fensters — die Konsole tippt ihn ins Terminal.
+      if (!admin) return json(res, 403, { ok: false });
+      const r0 = db.prepare('SELECT * FROM reminders WHERE id = ?').get(Number(mRem[1])); if (!r0) return json(res, 404, { ok: false, fehler: 'Erinnerung unbekannt.' });
+      const f = fensterHolen(db, b.fenster); if (!f) return json(res, 404, { ok: false, fehler: 'Fenster unbekannt.' });
+      if (!prozessVon(f).lebt) return json(res, 409, { ok: false, fehler: 'Das Fenster läuft gerade nicht — erst starten.' });
+      const m = senden(db, { kanal: f.name, von: wer.name, typ: 'task', inhalt: uebergabeText(r0, { zeitText: (iso) => new Date(iso).toLocaleString('de-DE', { timeZone: ZONE }) }) }); if (m) broadcast('message', m);
+      const r = reminderUebergeben(db, r0.id, f.name);
+      const h = senden(db, { kanal: 'erinnerungen', von: 'flottenchat', typ: 'system', inhalt: `📌 „${r0.titel}“ an Fenster „${f.label || f.name}“ übergeben.` }); if (h) broadcast('message', h);
+      return json(res, 200, { ok: true, reminder: r, message: m });
     }
 
     // ── Medien-Upload ──

@@ -37,6 +37,11 @@ wie hier, siehe [docs/geraete.md](docs/geraete.md)), **Live-Terminal** im Kanal-
 Thema, lose zu den Fenstern — Fenster schreiben ihren Stand in den Verlauf), **Erinnerungen** (feuern serverseitig ohne KI, „▶ Fenster“ kümmert sich),
 **Alarm-Eingang** (`POST /api/alarm`), **Hilfe-Kanal** (Support-Brücke zum Hersteller).
 
+Seit 1.1: **Fenster-Lampen** (grün pulsierend + Uhr = arbeitet, blau = bereit, grau = aus, rot = abgestürzt — beschäftigt
+heißt: eine laufende Klammer-Zeit im Terminalbild, nie „Falsch-Grün“), **Ablage-Tresor 🔗** (Aufnahmen und Dateien
+dauerhaft mit sprechenden Namen ablegen statt senden, Pfad + Link fürs Fenster, [docs/ablage.md](docs/ablage.md)),
+**Erinnerungs-Ordner** (Inbox schlank halten, Titel/Notiz bearbeiten, Erinnerung an ein laufendes Fenster übergeben).
+
 ## Quickstart
 ```bash
 git clone https://github.com/Hepposhesse/flotten-chat && cd flotten-chat
@@ -88,7 +93,8 @@ Fenster besitzt.
 `GET /api/fenster` · `POST /api/fenster {name, ordner|repo, ort, start_modus, start_text}` ·
 `POST /api/fenster/<name>/(start|neustart|stop|schliessen|loeschen|tippen)` · `GET /api/fenster/<name>/terminal`, `POST …/tasten` ·
 `GET/POST /api/karten`, `POST /api/karten/<id>/verlauf` ·
-`GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session)` ·
+`GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session|ordner|titel|notiz|uebergeben)`, `GET/POST /api/reminders/ordner`, `POST /api/reminders/ordner/<id>/(umbenennen|loeschen)` ·
+`GET/POST /api/ablage`, `POST /api/ablage/loeschen`, `GET /api/ablage/<name>` (Range) ·
 `POST /api/send {kanal, inhalt, media?, client_id?}` · `GET /api/messages?kanal=&seit=` · `GET /api/events` (SSE) ·
 `POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`).
 

@@ -12,6 +12,7 @@ import crypto from 'node:crypto';
 import { senden, nachrichten, fensterAlle, fensterAendern, metaSetzen, nowIso } from './db.mjs';
 import { paneZustand, dialogAbgeschnitten, tastenFuerWahl, mehrfachSchritte, tastenZuOption, chatBefehl, spiegelBeitraege, dialogText, dialogMeta, fragePasst, textVorDialog, textSchluessel, medienZerlegen, spiegelStart, ganzeZeilen, protokollNachrichten, zustellText, markerAufloesen, neueZustellungen, MODUS_NAME } from './protokoll.mjs';
 import { prozessVon, paneLesen, paneVerlaufLesen, fensterVergroessern, fensterZurueck, tastenSenden, textSenden, textTippen, laufendesProtokoll, dateiAb, istSsh } from './orte.mjs';
+import { lampenStand } from './lampen.mjs';
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', webm: 'video/webm', mp4: 'video/mp4', ogg: 'audio/ogg', oga: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', pdf: 'application/pdf' };
@@ -23,6 +24,7 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
   const gehalten = {};           // fenster → [Nachrichten, die auf einen Dialog warten]
   const fragen = {};             // fenster → Map(frageId → {fragen}) — die offene AskUserQuestion aus dem Protokoll
   const abgeschnitten = {};      // fenster → {zustand, ms} — Dialog, der im kleinen Fenster oben abgeschnitten ist
+  const lampen = {};             // fenster → Lampen-Stand (1.1): beschaeftigt/bereit/aus/tot + busy-Beginn
   const fragenVon = (f) => fragen[f.name] || (fragen[f.name] = new Map());
   const letzteFrage = (f) => { const m = fragenVon(f); return m.size ? [...m.values()].pop() : null; };
   /** Antwort-Text merken (letzte 12 Schlüssel); false = schon gepostet (z. B. als Text vor einer Rückfrage). */
@@ -197,7 +199,9 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
     if (laeuft) return; laeuft = true;
     try {
       const jetztMs = Date.now();
-      for (const f of fensterAlle(db)) {
+      const alle = fensterAlle(db);
+      for (const n of Object.keys(lampen)) if (!alle.some((f) => f.name === n)) delete lampen[n]; // geschlossenes Fenster: kein alter Lampen-Stand für einen neuen Namensvetter
+      for (const f of alle) {
         let sp = {}; try { sp = JSON.parse(f.spiegel || '{}') || {}; } catch { sp = {}; }
         const p = prozessVon(f);
         const pane = p.lebt ? paneLesen(f) : '';
@@ -223,7 +227,8 @@ export function starteKonsole({ db, dataDir, broadcast = () => {}, log = console
           }
         } else delete abgeschnitten[f.name];
         const zustand = gemerkt || paneZustand(pane);
-        zustaende[f.name] = { lebt: p.lebt, gestartetMs: p.gestartetMs, modus: zustand.modus, busy: zustand.busy, dialog: zustand.dialog ? { art: zustand.dialog.art, titel: zustand.dialog.titel, optionen: zustand.dialog.optionen } : null };
+        const lampe = (lampen[f.name] = lampenStand(lampen[f.name], { lebt: p.lebt, busy: zustand.busy, registryStatus: f.status, jetztMs }));
+        zustaende[f.name] = { lebt: p.lebt, gestartetMs: p.gestartetMs, modus: zustand.modus, busy: zustand.busy, lampe: lampe.lampe, busy_sekunden: lampe.busy_sekunden, dialog: zustand.dialog ? { art: zustand.dialog.art, titel: zustand.dialog.titel, optionen: zustand.dialog.optionen } : null };
         const status = p.lebt ? 'laeuft' : (f.status === 'schliesst' ? 'schliesst' : 'aus');
         if (status !== f.status || (p.lebt && !f.gestartet_am)) { fensterAendern(db, f.name, { status, gestartet_am: p.lebt ? new Date(p.gestartetMs || jetztMs).toISOString() : null }); broadcast('presence', { fenster: f.name, status }); }
         if (p.lebt) {

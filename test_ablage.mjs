@@ -1,0 +1,105 @@
+// test_ablage.mjs — Ablage-Tresor (v1.1): reine Namensregeln + I/O in einem Temp-Ordner.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { slug, endungVon, zeitRumpf, ablageName, freierName, nameGueltig, typVon, mimeVon, istSidecar, eintragFuer, ablegen, liste, loeschen, ABLAGE_ROUTE } from './server/ablage.mjs';
+
+let pass = 0, fail = 0;
+const ok = (b, m) => { if (b) pass++; else { fail++; console.log('FAIL:', m); } };
+const eq = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), `${m} — erwartet ${JSON.stringify(b)}, war ${JSON.stringify(a)}`);
+
+// ── rein ──
+eq(slug('Rechtes Fenster'), 'rechtes-fenster', 'Leerzeichen → Bindestrich, klein');
+eq(slug('Prüfung Größe Änderung'), 'pruefung-groesse-aenderung', 'Umlaute ausgeschrieben');
+eq(slug('a/b\\c;rm -rf'), 'a-b-c-rm-rf', 'Shell-Zeichen fallen weg');
+eq(slug('  ---  '), '', 'nur Trenner → leer');
+ok(slug('x'.repeat(200)).length === 60, 'auf 60 Zeichen gekürzt');
+eq(endungVon('a1b2.webm'), 'webm', 'Endung klein');
+eq(endungVon('A.PNG'), 'png', 'Endung kleingeschrieben');
+eq(endungVon('ohne'), '', 'ohne Endung → leer');
+const sommer = Date.parse('2026-09-09T16:34:00Z'), winter = Date.parse('2026-01-15T16:34:00Z');
+eq(zeitRumpf(sommer), '2026-09-09-1834', 'Sommerzeit: UTC+2');
+eq(zeitRumpf(winter), '2026-01-15-1734', 'Winterzeit: UTC+1 — kein fester Offset');
+eq(zeitRumpf(Date.parse('2026-09-09T23:30:00Z')), '2026-09-10-0130', 'Tageswechsel in Berliner Zeit');
+eq(zeitRumpf(sommer, 'UTC'), '2026-09-09-1634', 'andere Zone (FC_TZ) greift');
+eq(ablageName({ datei: 'a1b2.webm', anzeige: 'Rechtes Fenster', typ: 'video', jetzt: sommer }), '2026-09-09-1834-rechtes-fenster.webm', 'Zeit + Name + Endung');
+eq(ablageName({ datei: 'a1b2.webm', anzeige: 'Bildschirmaufnahme.webm', typ: 'video', jetzt: sommer }), '2026-09-09-1834-bildschirmaufnahme.webm', 'Endung im Anzeigenamen landet nicht doppelt');
+eq(ablageName({ datei: 'a1b2.webm', anzeige: '', typ: 'video', jetzt: sommer }), '2026-09-09-1834-video.webm', 'ohne Namen bleibt die Art');
+eq(ablageName({ datei: 'a1b2', anzeige: '', typ: '', jetzt: sommer }), '2026-09-09-1834-aufnahme.bin', 'nie ein nackter Zeitstempel');
+ok(!/[^A-Za-z0-9_.-]/.test(ablageName({ datei: 'x.webm', anzeige: 'a/b c;d', typ: 'video', jetzt: sommer })), 'Name nur aus unbedenklichen Zeichen');
+eq(freierName('a.webm', () => false), 'a.webm', 'freier Name bleibt');
+eq(freierName('a.webm', (n) => n === 'a.webm'), 'a-2.webm', 'belegt → -2');
+eq(freierName('a.webm', (n) => n === 'a.webm' || n === 'a-2.webm'), 'a-3.webm', 'zweimal belegt → -3');
+ok(nameGueltig('2026-09-09-1834-rechtes-fenster.webm'), 'erzeugter Name ist gültig');
+ok(!nameGueltig('../../etc/passwd') && !nameGueltig('a/b.webm') && !nameGueltig('a..b') && !nameGueltig('') && !nameGueltig('.versteckt'), 'Ausbrüche abgewiesen');
+eq(typVon('a.png'), 'bild', 'png → bild');
+eq(typVon('a.m4a'), 'audio', 'm4a → audio');
+eq(typVon('a.pdf'), 'datei', 'pdf → datei');
+eq(typVon('a.webm'), 'video', 'webm ohne Messung → video');
+eq(typVon('a.webm', { bildspur: false }), 'audio', 'webm ohne Bildspur → audio (Sprachnotiz) — ffprobe entscheidet, nie die Endung');
+eq(typVon('a.webm', { bildspur: true }), 'video', 'webm mit Bildspur → video');
+eq(mimeVon('a.webm', { typ: 'audio' }), 'audio/webm', 'Sprachnotiz in .webm wird als audio/webm ausgeliefert');
+eq(mimeVon('a.webm', {}), 'video/webm', 'webm ohne Typ → video/webm');
+eq(mimeVon('a.xyz', {}), 'application/octet-stream', 'unbekannt → octet-stream');
+ok(istSidecar('a.webm.meta') && !istSidecar('a.webm'), 'Beiwerk erkannt');
+const e = eintragFuer('a b.webm', '/data/ablage');
+eq(e.pfad, '/data/ablage/a b.webm', 'Pfad zeigt in die Ablage');
+eq(e.url, ABLAGE_ROUTE + 'a%20b.webm', 'URL kodiert');
+
+// ── I/O ──
+const wurzel = fs.mkdtempSync(path.join(os.tmpdir(), 'fc-ablage-'));
+const medienDir = path.join(wurzel, 'media'), ablageDir = path.join(wurzel, 'ablage');
+fs.mkdirSync(medienDir, { recursive: true });
+fs.writeFileSync(path.join(medienDir, 'a1b2c3.webm'), 'VIDEODATEN');
+fs.writeFileSync(path.join(medienDir, 'zzz.png'), 'BILD');
+fs.writeFileSync(path.join(medienDir, 'yyy.webm'), 'TON');
+const jetzt = sommer;
+const r = ablegen([{ id: 'a1b2c3.webm', name: 'Bildschirmaufnahme.webm', mime: 'video/webm' }], { jetzt, medienDir, ablageDir });
+ok(r.ok && r.eintraege.length === 1, 'Ablegen meldet Erfolg');
+eq(r.eintraege[0].name, '2026-09-09-1834-bildschirmaufnahme.webm', 'sprechender Name');
+eq(fs.readFileSync(path.join(ablageDir, r.eintraege[0].name), 'utf8'), 'VIDEODATEN', 'Inhalt unverändert in der Ablage');
+ok(fs.existsSync(path.join(medienDir, 'a1b2c3.webm')), 'Original im Chat bleibt (kopiert, nicht verschoben)');
+eq(r.eintraege[0].pfad, path.join(ablageDir, r.eintraege[0].name), 'Pfad absolut in die Ablage');
+eq(r.eintraege[0].url, ABLAGE_ROUTE + '2026-09-09-1834-bildschirmaufnahme.webm', 'URL über die Ablage-Route');
+eq(r.eintraege[0].typ, 'video', 'Typ (ohne lesbare Bildspur: aus dem Upload-MIME)');
+ok(typeof r.eintraege[0].groesse === 'number' && /^\d{4}-/.test(r.eintraege[0].zeit), 'Größe + ISO-Zeit dabei');
+ok(fs.existsSync(path.join(ablageDir, r.eintraege[0].name + '.meta')), 'Typ-Beiwerk .meta liegt daneben');
+const r2 = ablegen([{ id: 'a1b2c3.webm', name: 'Bildschirmaufnahme.webm', mime: 'video/webm' }], { jetzt, medienDir, ablageDir });
+eq(r2.eintraege[0].name, '2026-09-09-1834-bildschirmaufnahme-2.webm', 'gleiche Minute, gleicher Name → -2');
+const r3 = ablegen([{ id: 'yyy.webm', name: 'Sprachnachricht.webm', mime: 'audio/webm' }], { jetzt, medienDir, ablageDir });
+eq(r3.eintraege[0].typ, 'audio', 'Mikrofon-Upload (audio/webm) ohne messbare Bildspur → audio');
+const r4 = ablegen([{ id: 'zzz.png', name: '', mime: '' }], { jetzt, medienDir, ablageDir });
+eq(r4.eintraege[0].name, '2026-09-09-1834-bild.png', 'ohne Namen: Art aus der Endung');
+const r5 = ablegen([{ id: 'zzz.png', name: 'a' }, { id: 'yyy.webm', name: 'b' }], { jetzt, medienDir, ablageDir });
+ok(r5.eintraege.length === 2 && !r5.fehler.length, 'zwei auf einmal, kein Fehler');
+const f1 = ablegen([{ id: 'weg.webm', name: 'Alt' }], { jetzt, medienDir, ablageDir });
+ok(!f1.ok && f1.fehler[0] === 'Alt' && !f1.eintraege.length, 'fehlende Datei → Fehler mit Anzeigename');
+fs.writeFileSync(path.join(wurzel, 'geheim.txt'), 'NICHT KOPIEREN');
+for (const boese of ['../geheim.txt', '/etc/passwd', '..%2Fgeheim.txt']) ok(!ablegen([{ id: boese }], { jetzt, medienDir, ablageDir }).ok, `Ausbruch abgewiesen: ${boese}`);
+ok(!fs.readdirSync(ablageDir).some((n) => n.includes('geheim')), 'nichts von außerhalb in der Ablage');
+ok(!ablegen([], { jetzt, medienDir, ablageDir }).ok && !ablegen(null, { jetzt, medienDir, ablageDir }).ok, 'leer/null → kein Erfolg, kein Absturz');
+ok(ablegen(new Array(30).fill({ id: 'zzz.png', name: 'x' }), { jetzt, medienDir, ablageDir }).eintraege.length === 20, 'mehr als 20 werden gedeckelt');
+
+const l = liste({ ablageDir });
+ok(l.ok && l.eintraege.length > 0, 'Liste gefüllt');
+ok(!l.eintraege.some((x) => x.name.endsWith('.meta')), 'Beiwerk nicht als eigener Eintrag');
+ok(l.eintraege.every((x) => x.pfad.startsWith('/') && x.url.startsWith(ABLAGE_ROUTE) && typeof x.groesse === 'number' && x.typ), 'jeder Eintrag: Pfad, URL, Größe, Typ');
+ok(l.eintraege.every((x, i, a) => !i || a[i - 1].zeit_ms >= x.zeit_ms), 'neueste zuerst');
+eq(liste({ ablageDir: path.join(wurzel, 'gibtsnicht') }), { ok: true, eintraege: [] }, 'fehlender Ordner → leere Liste');
+ok(liste({ ablageDir, max: 1 }).eintraege.length === 1, 'max begrenzt');
+fs.writeFileSync(path.join(ablageDir, '2026-01-01-1200-vonhand.png'), 'X');
+const lNach = liste({ ablageDir });
+ok(fs.existsSync(path.join(ablageDir, '2026-01-01-1200-vonhand.png.meta')), 'von Hand hineingelegt: Typ wird beim Listen einmal gemessen und gemerkt');
+eq(lNach.eintraege.find((x) => x.name === '2026-01-01-1200-vonhand.png').typ, 'bild', 'nachgezogener Typ stimmt');
+
+const vorher = liste({ ablageDir }).eintraege.length;
+const einName = r.eintraege[0].name;
+ok(loeschen(einName, { ablageDir }).ok, 'Löschen meldet Erfolg');
+ok(!fs.existsSync(path.join(ablageDir, einName)) && !fs.existsSync(path.join(ablageDir, einName + '.meta')), 'Datei + Beiwerk weg');
+eq(liste({ ablageDir }).eintraege.length, vorher - 1, 'Liste um eins kürzer');
+ok(!loeschen('gibtsnicht.webm', { ablageDir }).ok && !loeschen('../geheim.txt', { ablageDir }).ok, 'unbekannt/Ausbruch schlagen sauber fehl');
+ok(fs.existsSync(path.join(wurzel, 'geheim.txt')), 'Datei außerhalb lebt noch');
+
+fs.rmSync(wurzel, { recursive: true, force: true });
+console.log(`${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
