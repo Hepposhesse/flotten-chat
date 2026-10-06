@@ -49,6 +49,20 @@ Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server mac
    - „manual“/„auto“/„plan“ → Shift+Tab bis der Modus steht (mit Warten auf die TUI)
    Zu alte Nachrichten (> 2 h, Fenster war weg) werden nicht nachgeliefert — sie stehen ja im Chat.
 
+## Fenster-Lampen (1.1) — `server/lampen.mjs`
+Je Runde schreibt die Konsole den Lampen-Stand fort (`lampenStand()`, rein, Zeit als Parameter) und gibt ihn in
+`zustand.lampe` / `zustand.busy_sekunden` an die UI (`GET /api/channels`, `/api/fenster`):
+- **beschaeftigt** (grün pulsierend + Uhr): `paneZustand().busy` — im Terminalbild steht eine laufende Klammer-Zeit
+  „(47s · …)“ / „(1m 30s · esc to interrupt)“. Nur das. „Cooked for 37s“, ein stehengebliebener Spinner-Glyph, die
+  Hint-Leiste mit „esc to interrupt“ → nicht beschäftigt. `tuiUrteil()` liefert `'busy'|'idle'`, nie null — ein
+  fehlendes Urteil ließe den alten Stand stehen (Dauer-Grün).
+- **bereit** (blau): Prozess lebt, keine laufende Zeit.
+- **aus** (grau): kein Prozess, und die Registry sagte vorher nicht „laeuft“ (Stop/Schließen durch den Menschen).
+- **tot** (rot): Prozess weg, aber die Registry sagte noch „laeuft“ — niemand hat gestoppt. Bleibt rot, bis jemand neu
+  startet (die Konsole zieht die Registry eine Runde später selbst auf „aus“, das ist kein Stopp).
+Die Uhr startet mit der ersten beschäftigten Runde; der Browser tickt sie sekündlich weiter (`busy_sekunden` + Zeit
+seit dem letzten Abruf).
+
 ## Warum das Fenster nichts vom Chat weiß
 Weil das die stabile Variante ist. Alles, was wir vorher hatten (Bus-Polling im Fenster, Watcher,
 Hooks, „bin ich noch wach?“), ist gestorben, sobald ein Fenster neu startete oder ein Socket weg war.

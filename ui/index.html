@@ -165,6 +165,41 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
 .msg.treffer{box-shadow:0 0 0 2px var(--blau);transition:box-shadow .3s}
 #sucheBtn[aria-expanded="true"]{border-color:var(--blau);color:var(--blau)}
 @media(max-width:720px){.suche-feld{flex:1 1 100%;order:8;max-width:none}.suche-panel{position:fixed;top:100px;left:2vw;right:2vw;transform:none;width:auto;max-height:70vh}}
+/* === Lampen, Ablage, Erinnerungen (1.1) === */
+/* Lampen: grün pulsierend + Uhr = beschäftigt · blau = bereit · grau = aus · rot = tot (abgestürzt) */
+.kanal .dot.lampe-beschaeftigt{background:var(--ok);animation:puls 1.1s infinite}
+.kanal .dot.lampe-bereit{background:var(--blau)}
+.kanal .dot.lampe-aus{background:var(--n200)}
+.kanal .dot.lampe-tot{background:var(--bad)}
+.kanal .uhr{font-size:.7rem;color:var(--ok);font-variant-numeric:tabular-nums;min-width:2.6em;text-align:right;flex:none}
+.kopf b.lampe-beschaeftigt{color:var(--ok)}.kopf b.lampe-beschaeftigt::before{background:var(--ok);animation:puls 1.1s infinite}
+.kopf b.lampe-bereit{color:var(--blau)}.kopf b.lampe-bereit::before{background:var(--blau)}
+.kopf b.lampe-aus{color:var(--n500)}.kopf b.lampe-aus::before{background:var(--n200)}
+.kopf b.lampe-tot{color:var(--bad)}.kopf b.lampe-tot::before{background:var(--bad)}
+.kopf .uhr{font-size:.78rem;color:var(--ok);font-variant-numeric:tabular-nums}
+/* Ablage-Tresor */
+.composer .clip.an{border-color:var(--blau);color:var(--blau);box-shadow:inset 0 0 0 1px var(--blau)}
+.ablage-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 18px;background:var(--blau-soft);border-top:1px solid var(--n100);font-size:.84rem}
+.ablage-bar code{background:var(--card);border-radius:4px;padding:.1rem .35rem;font-size:.78rem;max-width:min(44ch,60vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ablage-bar .zu{margin-left:auto}
+.abl-reihe{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--n100);font-size:.86rem}
+.abl-reihe .ico{font-size:1.1rem}
+.abl-reihe .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.abl-reihe small{color:var(--n500);display:block;font-size:.74rem}
+.abl-reihe .akt{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.abl-leiste{display:flex;gap:8px;flex-wrap:wrap;margin:.4rem 0}
+/* Erinnerungs-Ordner */
+.remord{border:1px solid var(--n100);border-radius:10px;background:var(--card);max-width:720px}
+.remord .kopfz{display:flex;align-items:center;gap:8px;padding:.45rem .6rem;cursor:pointer;font-size:.9rem;user-select:none}
+.remord .kopfz .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.remord .kopfz .anz{color:var(--n500);font-size:.78rem}
+.remord .innen{padding:0 .6rem .5rem;display:flex;flex-direction:column;gap:6px}
+.remord .innen .remrow{max-width:none}
+.rem-edit{display:flex;gap:6px;align-items:center;padding:.3rem .6rem;max-width:720px}
+.rem-edit input{flex:1;min-width:0;font:inherit;padding:.35rem .5rem;border:1px solid var(--n200);border-radius:8px;background:var(--n50);color:var(--n900)}
+.remrow .titel{cursor:pointer}.remrow .titel:hover{color:var(--blau)}
+.remrow .notiz{display:block;color:var(--n500);font-size:.78rem;white-space:pre-wrap}
+@media(max-width:720px){.ablage-bar{padding:6px 10px}.abl-reihe{grid-template-columns:auto 1fr}.abl-reihe .akt{grid-column:1/-1;justify-content:flex-start}}
 </style>
 </head>
 <body>
@@ -247,6 +282,23 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <p class="hinweis">Agenten ohne tmux (z. B. Claude Code auf einem Laptop ohne SSH) verbinden sich über eine Einladung: sie lesen und schreiben dann in einem eigenen Kanal.</p>
   <div class="reihe" style="justify-content:space-between"><button class="knopf" id="einladen">🤖 Agent einladen</button><button class="knopf rot" id="logout">Abmelden</button></div>
 </dialog>
+<!-- === Lampen, Ablage, Erinnerungen (1.1) === -->
+<dialog id="dlgAblage">
+  <h3>🔗 Ablage</h3>
+  <p class="hinweis">Dauerhaft, mit sprechenden Namen, wird nie aufgeräumt. Jede Datei hat einen Pfad fürs Fenster auf diesem Rechner und einen Link. Was du hier ablegst, geht nicht als Nachricht in den Chat.</p>
+  <div class="abl-leiste"><button class="knopf" id="ablDatei">📎 Datei ablegen</button><button class="knopf" id="ablMic">🎤 Sprachnotiz</button><button class="knopf" id="ablScreen">🖥️ Bildschirm</button></div>
+  <div id="ablListe" style="max-height:50vh;overflow:auto"></div>
+  <div class="reihe"><button class="knopf" id="ablDlgZu">Schließen</button></div>
+</dialog>
+<dialog id="dlgRemEdit">
+  <h3>✏️ Erinnerung</h3>
+  <label>Titel</label><input id="reTitel" maxlength="300">
+  <label>Notiz</label><textarea id="reNotiz" maxlength="2000"></textarea>
+  <label>Ordner</label><select id="reOrdner"></select>
+  <label>An ein laufendes Fenster übergeben <span class="hinweis">— der Auftrag landet in dessen Kanal und im Terminal, die Erinnerung gilt dann als übergeben</span></label>
+  <div style="display:flex;gap:8px"><select id="reFenster" style="flex:1"></select><button class="knopf" id="reUeber">📨 Übergeben</button></div>
+  <div class="reihe"><button class="knopf" id="reAbbr">Abbrechen</button><button class="knopf pri" id="reOk">Speichern</button></div>
+</dialog>
 
 <script>
 const $=(s)=>document.querySelector(s);
@@ -318,7 +370,7 @@ function kopfZeichnen(){
   const kopf=$('#kopf');const f=fensterVon(KANAL);
   if(ANSICHT!=='chat'||!f){kopf.hidden=true;return;}
   kopf.hidden=false;const z=f.zustand||{};
-  kopf.innerHTML=`<div class="l"><b class="${f.laeuft?'an':'aus'}" title="${f.laeuft?'läuft':'läuft nicht'}">${esc(f.label||f.name)}</b><span>${f.laeuft?esc(seitText(f.gestartet_ms)):'aus'}</span>${z.dialog?`<span class="dlg" id="dlgHin">${z.dialog.art==='freigabe'?'wartet auf deine Freigabe ↓':'wartet auf deine Antwort ↓'}</span>`:''}</div>
+  kopf.innerHTML=`<div class="l"><b class="${lampeKlasse(f)}" title="${lampeTitel(f)}">${esc(f.label||f.name)}</b>${uhrHtml(f)}<span>${f.laeuft?esc(seitText(f.gestartet_ms)):(lampeVon(f)==='tot'?'abgestürzt':'aus')}</span>${z.dialog?`<span class="dlg" id="dlgHin">${z.dialog.art==='freigabe'?'wartet auf deine Freigabe ↓':'wartet auf deine Antwort ↓'}</span>`:''}</div>
     <div class="m"></div>
     <div class="r">${f.laeuft&&z.modus&&MN[z.modus]?`<button class="modus ${z.modus==='auto'?'auto':(z.modus==='default'?'manual':'')}" id="modusBtn" title="Modus umschalten (Auto ⇄ Manual)">Modus: ${MN[z.modus]}</button>`:''}${f.laeuft?`<button class="knopf klein" id="termBtn" aria-expanded="${TERM===f.name}" title="Echtes Terminalbild ansehen und Tasten drücken">Terminal</button>`:''}<button class="knopf klein" id="schliessenBtn" title="${f.laeuft?'Stand wegschreiben lassen, dann schließen':'Fenster läuft nicht — sofort schließen'}">Schließen</button><button class="knopf klein ${f.laeuft?'rot':'pri'}" id="neuBtn">${f.laeuft?'Neu starten':'Starten'}</button></div>`;
   const dh=$('#dlgHin');if(dh)dh.onclick=()=>{const q=[...document.querySelectorAll('.msg.question')].pop();if(q)q.scrollIntoView({block:'center'});};
@@ -413,7 +465,7 @@ async function upload(blob,name,mime){
   if(!r||!r.ok){fcStatus('⚠️ Upload fehlgeschlagen'+(r&&r.fehler?': '+r.fehler:''));return null;}
   fcStatus('');return {id:r.id,url:r.url,name,mime:mime||'application/octet-stream'};
 }
-async function ladeHoch(dateien){for(const f of [...dateien]){const m=await upload(f,f.name,f.type);if(m)sende('📎 '+f.name,[m]);}}
+async function ladeHoch(dateien){const ab=ABLAGE_MODUS;if(ab)ablageModus(false);const abgelegt=[];for(const f of [...dateien]){const m=await upload(f,f.name,f.type);if(m){if(ab)abgelegt.push(m);else sende('📎 '+f.name,[m]);}}if(ab&&abgelegt.length)ablageAblegen(abgelegt);}
 $('#clip').onclick=()=>$('#datei').click();
 $('#datei').onchange=()=>{ladeHoch([...$('#datei').files]);$('#datei').value='';};
 document.addEventListener('dragover',e=>{e.preventDefault();});
@@ -425,7 +477,7 @@ $('#mic').onclick=async()=>{
   let s;try{s=await navigator.mediaDevices.getUserMedia({audio:true});}catch{fcStatus('⚠️ Kein Mikrofon-Zugriff.');return;}
   micChunks=[];const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg';
   micRec=new MediaRecorder(s,{mimeType:mime});micRec.ondataavailable=e=>{if(e.data.size)micChunks.push(e.data);};
-  micRec.onstop=async()=>{s.getTracks().forEach(t=>t.stop());$('#mic').classList.remove('rec');$('#mic').textContent='🎤';const blob=new Blob(micChunks,{type:mime});if(!blob.size)return;const m=await upload(blob,'Sprachnachricht.'+(mime.includes('webm')?'webm':'ogg'),mime);if(m)sende('🎤 Sprachnachricht',[m]);};
+  micRec.onstop=async()=>{s.getTracks().forEach(t=>t.stop());$('#mic').classList.remove('rec');$('#mic').textContent='🎤';const blob=new Blob(micChunks,{type:mime});if(!blob.size)return;const m=await upload(blob,'Sprachnachricht.'+(mime.includes('webm')?'webm':'ogg'),mime);if(m)anhangFertig('🎤 Sprachnachricht',m);};
   micRec.start(500);$('#mic').classList.add('rec');$('#mic').textContent='⏹';
 };
 // Bildschirmaufnahme (mit Ton)
@@ -439,7 +491,7 @@ $('#screen').onclick=async()=>{
   if(sys.length||mic){try{ctx=new AudioContext();const dest=ctx.createMediaStreamDestination();if(sys.length)ctx.createMediaStreamSource(new MediaStream([sys[0]])).connect(dest);if(mic)ctx.createMediaStreamSource(mic).connect(dest);tracks.push(dest.stream.getAudioTracks()[0]);}catch{if(sys.length)tracks.push(sys[0]);else if(mic)tracks.push(mic.getAudioTracks()[0]);}}
   scChunks=[];try{scRec=new MediaRecorder(new MediaStream(tracks),{mimeType:'video/webm'});}catch{scRec=new MediaRecorder(new MediaStream(tracks));}
   scRec.ondataavailable=e=>{if(e.data.size)scChunks.push(e.data);};
-  scRec.onstop=async()=>{[disp,mic].forEach(x=>x&&x.getTracks().forEach(t=>t.stop()));if(ctx)ctx.close();$('#screen').classList.remove('rec');$('#screen').textContent='🖥️';const blob=new Blob(scChunks,{type:'video/webm'});if(!blob.size)return;const m=await upload(blob,'Bildschirmaufnahme.webm','video/webm');if(m)sende('🖥️ Bildschirmaufnahme',[m]);};
+  scRec.onstop=async()=>{[disp,mic].forEach(x=>x&&x.getTracks().forEach(t=>t.stop()));if(ctx)ctx.close();$('#screen').classList.remove('rec');$('#screen').textContent='🖥️';const blob=new Blob(scChunks,{type:'video/webm'});if(!blob.size)return;const m=await upload(blob,'Bildschirmaufnahme.webm','video/webm');if(m)anhangFertig('🖥️ Bildschirmaufnahme',m);};
   tracks[0].addEventListener('ended',()=>{if(scRec&&scRec.state!=='inactive')scRec.stop();});
   scRec.start(1000);$('#screen').classList.add('rec');$('#screen').textContent='⏹';
 };
@@ -522,19 +574,6 @@ window.addEventListener('hashchange',()=>{const m=/^#karte-(\d+)$/.exec(location
 
 // ── Erinnerungen ──
 function remZeit(iso){try{return new Date(iso).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch{return iso;}}
-async function remListeZeigen(){
-  const r=await api('/api/reminders?status=offen');if(!r||!r.ok)return;
-  const jetzt=Date.now();const liste=(r.reminders||[]).filter(x=>x.faellig_am).sort((a,b)=>Date.parse(a.faellig_am)-Date.parse(b.faellig_am));
-  const box=document.createElement('div');box.style.cssText='display:flex;flex-direction:column;gap:8px;margin-bottom:14px';
-  box.innerHTML=`<div style="display:flex;align-items:center;gap:8px"><b>Offene Erinnerungen</b><span class="muted">feuern hier ohne KI — sekundengenau, kostenlos</span><button class="knopf klein" id="remNeu" style="margin-left:auto">＋ Erinnerung</button></div>`+(liste.map(x=>`<div class="remrow" data-id="${x.id}"><span class="zeit${Date.parse(x.faellig_am)<=jetzt?' rot':''}">${esc(remZeit(x.faellig_am))}</span><span class="titel">${esc(x.titel)}</span><button class="knopf klein" data-akt="session" title="Ein Fenster kümmert sich darum">▶ Fenster</button><button class="knopf klein" data-akt="ver" title="Verschieben">🕐</button><button class="knopf klein" data-akt="erl" title="Erledigt">✅</button></div>`).join('')||'<div class="muted">Keine offenen Erinnerungen.</div>');
-  $('#msgs').prepend(box);
-  $('#remNeu').onclick=()=>remOeffnen('');
-  box.querySelectorAll('.remrow').forEach(row=>{const id=row.dataset.id;
-    row.querySelector('[data-akt="erl"]').onclick=async()=>{await api('/api/reminders/'+id+'/erledigt',{method:'POST',body:'{}'});row.remove();};
-    row.querySelector('[data-akt="ver"]').onclick=()=>{const inp=document.createElement('input');inp.type='datetime-local';inp.onchange=async()=>{if(!inp.value)return;await api('/api/reminders/'+id+'/verschieben',{method:'POST',body:JSON.stringify({faellig_am:new Date(inp.value).toISOString()})});LAST=0;$('#msgs').innerHTML='';ladeMsgs(true);};row.append(inp);inp.showPicker?.();};
-    row.querySelector('[data-akt="session"]').onclick=async()=>{const r2=await api('/api/reminders/'+id+'/session',{method:'POST',body:'{}'});if(r2&&r2.ok){toast('Fenster läuft an.');kanalWechseln(r2.fenster.name);}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));};
-  });
-}
 function remOeffnen(prefill){$('#remTitel').value=prefill||'';$('#remWann').value='';$('#dlgRem').showModal();(prefill?$('#remWann'):$('#remTitel')).focus();}
 $('#remAbbr').onclick=()=>$('#dlgRem').close();
 $('#remOk').onclick=async()=>{const t=$('#remTitel').value.trim(),w=$('#remWann').value;if(!t||!w)return;const r=await api('/api/reminders',{method:'POST',body:JSON.stringify({kanal:'erinnerungen',titel:t.slice(0,300),faellig_am:new Date(w).toISOString()})});if(r&&r.ok){$('#dlgRem').close();toast('⏰ Erinnerung liegt im Kanal „Erinnerungen".');if(KANAL==='erinnerungen'){LAST=0;$('#msgs').innerHTML='';ladeMsgs(true);}}};
@@ -559,7 +598,7 @@ const fNamenSet=()=>new Set(FENSTER.map(f=>f.name));
 function sortiert(liste){const pos=new Map(EINST.reihenfolge.map((k,i)=>[k,i]));return liste.map((x,i)=>({...x,anzeige:anzeigeName(x),archiviert:EINST.archiviert.includes(x.name),stumm:EINST.stumm.includes(x.name),_i:i})).sort((a,b)=>(pos.has(a.name)?pos.get(a.name):1e6+a._i)-(pos.has(b.name)?pos.get(b.name):1e6+b._i));}
 function titelZeichnen(){const n=Object.values(UNREAD).reduce((a,b)=>a+b,0);document.title=(n?`(${n}) `:'')+'Flotten-Chat';}
 function zeile(x,fenster,archiv){const z=x.zustand||{};const n=UNREAD[x.name]||0;
-  return `<div class="kanal${x.name===KANAL?' an':''}${x.stumm?' stumm':''}" role="button" tabindex="0" data-k="${esc(x.name)}" data-sek="${archiv?'a':(fenster?'f':'k')}"${archiv?'':' draggable="true"'} title="${esc(x.name)}">${fenster?`<span class="dot ${x.laeuft?'an':'aus'}${x.laeuft&&z.busy?' busy':''}"></span>`:''}<span class="kn">${esc(x.anzeige)}</span>${x.stumm?'<span class="stumm-ic" title="stumm">🔕</span>':''}${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}${n?`<span class="badge n" title="${n} ungelesen">${n>99?'99+':n}</span>`:''}<button type="button" class="kmenu" title="Kanal verwalten" aria-label="Kanal verwalten">⋯</button></div>`;}
+  return `<div class="kanal${x.name===KANAL?' an':''}${x.stumm?' stumm':''}" role="button" tabindex="0" data-k="${esc(x.name)}" data-sek="${archiv?'a':(fenster?'f':'k')}"${archiv?'':' draggable="true"'} title="${esc(x.name)}">${fenster?`<span class="dot ${lampeKlasse(x)}" title="${lampeTitel(x)}"></span>`:''}<span class="kn">${esc(x.anzeige)}</span>${fenster?uhrHtml(x):''}${x.stumm?'<span class="stumm-ic" title="stumm">🔕</span>':''}${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}${n?`<span class="badge n" title="${n} ungelesen">${n>99?'99+':n}</span>`:''}<button type="button" class="kmenu" title="Kanal verwalten" aria-label="Kanal verwalten">⋯</button></div>`;}
 function seitenleisteZeichnen(fNamen){
   const fs=sortiert(FENSTER),ks=sortiert(KANAELE.filter(k=>!fNamen.has(k.name)));
   $('#fensterListe').innerHTML=fs.filter(x=>!x.archiviert).map(x=>zeile(x,true)).join('')||'<div class="muted" style="padding:.3rem .6rem">Noch kein Fenster — oben ＋</div>';
@@ -569,7 +608,7 @@ function seitenleisteZeichnen(fNamen){
   $('#archivListe').hidden=!ARCHIV_AUF||!arch.length;$('#archivListe').innerHTML=arch.join('');
   titelZeichnen();
 }
-function mobilOptionen(fNamen){return [...sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,label:(f.laeuft?'🟢 ':'🔴 ')+f.anzeige})),...sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`).join('');}
+function mobilOptionen(fNamen){return [...sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,label:lampeEmoji(f)+' '+f.anzeige})),...sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`).join('');}
 // Seitenleiste: Klick = Kanal öffnen, ⋯ = verwalten, Archiv auf/zu; Tastatur Enter/Leertaste.
 const ASIDE=document.querySelector('aside');
 ASIDE.addEventListener('click',e=>{const m=e.target.closest('.kmenu');if(m){e.stopPropagation();kanalDialog(m.closest('.kanal').dataset.k);return;}
@@ -621,6 +660,121 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLower
 async function springeZu(kanal,id,text){sucheZu();kanalWechseln(kanal);
   for(let i=0;i<24;i++){const el=document.querySelector(`.msg[data-id="${id}"]`);if(el){el.scrollIntoView({block:'center'});el.classList.add('treffer');setTimeout(()=>el.classList.remove('treffer'),2500);return;}await new Promise(r=>setTimeout(r,250));}
   fcStatus('Die Nachricht liegt weiter oben im Verlauf und wird noch nachgeladen: „'+String(text||'').slice(0,120)+'“');setTimeout(()=>fcStatus(''),8000);}
+/* === Lampen, Ablage, Erinnerungen (1.1) === */
+// ── Lampen: grün pulsierend + laufende Uhr = beschäftigt · blau = bereit · grau = aus · rot = tot (abgestürzt).
+// Der Server urteilt (konsole → lampen.mjs); hier nur Klasse, Text und eine lokal weitertickende Uhr.
+const LAMPEN_UHR={};
+const LAMPE_TEXT={beschaeftigt:'arbeitet gerade',bereit:'bereit — wartet auf dich',aus:'aus',tot:'abgestürzt — neu starten'};
+const LAMPE_EMOJI={beschaeftigt:'🟢',bereit:'🔵',aus:'⚪',tot:'🔴'};
+function lampeVon(f){const z=f.zustand||{};const l=z.lampe||(f.laeuft?(z.busy?'beschaeftigt':'bereit'):'aus');if(l==='beschaeftigt')LAMPEN_UHR[f.name]={sek:z.busy_sekunden||0,t:Date.now()};else delete LAMPEN_UHR[f.name];return l;}
+function lampeKlasse(f){return 'lampe-'+lampeVon(f);}
+function lampeTitel(f){return LAMPE_TEXT[lampeVon(f)]||'';}
+function lampeEmoji(f){return LAMPE_EMOJI[lampeVon(f)]||'⚪';}
+function uhrText(s){s=Math.max(0,Math.floor(Number(s)||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=String(s%60).padStart(2,'0');return h?`${h}:${String(m).padStart(2,'0')}:${r}`:`${m}:${r}`;}
+function uhrHtml(f){return lampeVon(f)==='beschaeftigt'?`<span class="uhr" data-f="${esc(f.name)}" title="arbeitet seit">${uhrText((f.zustand||{}).busy_sekunden)}</span>`:'';}
+setInterval(()=>{document.querySelectorAll('.uhr[data-f]').forEach(el=>{const u=LAMPEN_UHR[el.dataset.f];if(u)el.textContent=uhrText(u.sek+Math.round((Date.now()-u.t)/1000));});},1000);
+
+// ── Ablage-Tresor 🔗: Aufnahme/Datei dauerhaft ablegen statt senden; Pfad + Link zurück; Liste + Löschen.
+// Die Aufnahme läuft über die normalen Composer-Knöpfe (📎 🎤 🖥️) — im Ablage-Modus geht der fertige Upload in die Ablage.
+let ABLAGE_MODUS=false;
+$('#screen').insertAdjacentHTML('afterend','<button class="clip" id="ablageBtn" title="Ablage: Aufnahme oder Datei dauerhaft ablegen statt senden — du bekommst Pfad und Link">🔗</button>');
+$('#composer').insertAdjacentHTML('beforebegin','<div class="ablage-bar" id="ablageBar" hidden></div>');
+function ablageModus(an){ABLAGE_MODUS=!!an;$('#ablageBtn').classList.toggle('an',ABLAGE_MODUS);if(ABLAGE_MODUS)fcStatus('🔗 Ablage-Modus: der nächste Anhang wird abgelegt, nicht gesendet.');else fcStatus('');}
+function anhangFertig(text,m){if(ABLAGE_MODUS){ablageModus(false);ablageAblegen([m]);}else sende(text,[m]);}
+const ABL_ART={bild:'Bild',video:'Video',audio:'Sprachnachricht',datei:'Datei'},ABL_ICO={bild:'🖼️',video:'🎬',audio:'🎤',datei:'📄'};
+const ablMarker=(e)=>`[${ABL_ART[e.typ]||'Datei'}: ${e.pfad}]`;
+async function kopieren(text){try{await navigator.clipboard.writeText(text);return true;}catch{try{const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.cssText='position:fixed;left:-9999px';document.body.append(t);t.select();const ok=document.execCommand('copy');t.remove();return ok;}catch{return false;}}}
+async function ablageAblegen(medien){
+  fcStatus('🔗 wird abgelegt …');
+  const r=await api('/api/ablage',{method:'POST',body:JSON.stringify({ids:medien.map(m=>m.id)})});
+  if(!r||!r.ok||!r.eintraege||!r.eintraege.length){fcStatus('⚠️ Ablegen ging nicht'+(r&&r.fehler&&r.fehler.length?': '+r.fehler.join(', '):''));return null;}
+  fcStatus('');ablageBarZeigen(r.eintraege);if($('#dlgAblage').open)ablageListeZeigen();return r.eintraege;
+}
+function ablageBarZeigen(eintraege){
+  const bar=$('#ablageBar'),e=eintraege[0],mehrere=eintraege.length>1;
+  const pfade=eintraege.map(x=>x.pfad).join('\n'),links=eintraege.map(x=>location.origin+x.url).join('\n');
+  bar.innerHTML=`<span>✅ ${mehrere?eintraege.length+' Dateien abgelegt':esc(e.name)+' abgelegt'}</span><code title="${esc(pfade)}">${esc(mehrere?e.pfad+' …':e.pfad)}</code><button class="knopf klein" id="ablPfad">Pfad kopieren</button><button class="knopf klein" id="ablLink">Link kopieren</button><button class="knopf klein" id="ablIns" title="Als [Datei: /pfad] in die Nachricht — das Fenster liest die Datei dann selbst">In die Nachricht</button><button class="knopf klein zu" id="ablZu" aria-label="Leiste schließen">✕</button>`;
+  bar.hidden=false;
+  $('#ablPfad').onclick=async()=>{$('#ablPfad').textContent=(await kopieren(pfade))?'Pfad kopiert ✓':'Kopieren ging nicht';};
+  $('#ablLink').onclick=async()=>{$('#ablLink').textContent=(await kopieren(links))?'Link kopiert ✓':'Kopieren ging nicht';};
+  $('#ablIns').onclick=()=>{const i=$('#inp');i.value=(i.value?i.value+' ':'')+eintraege.map(ablMarker).join(' ');i.focus();i.dispatchEvent(new Event('input'));};
+  $('#ablZu').onclick=()=>{bar.hidden=true;};
+  kopieren(pfade).then(ok=>{if(ok)$('#ablPfad').textContent='Pfad kopiert ✓';});
+}
+function groesseText(b){b=Number(b)||0;return b<1024?b+' B':b<1048576?Math.round(b/1024)+' KB':(b/1048576).toFixed(1)+' MB';}
+async function ablageListeZeigen(){
+  const box=$('#ablListe');const r=await api('/api/ablage');
+  const liste=r&&r.ok?r.eintraege:[];
+  box.innerHTML=liste.map(e=>`<div class="abl-reihe" data-name="${esc(e.name)}"><span class="ico">${ABL_ICO[e.typ]||'📄'}</span><span class="nm" title="${esc(e.pfad)}">${esc(e.name)}<small>${esc(remZeit(e.zeit))} · ${groesseText(e.groesse)}${e.dauer?' · '+uhrText(e.dauer):''}</small></span><span class="akt"><a class="knopf klein" href="${esc(e.url)}" target="_blank" rel="noopener" title="Ansehen">▶</a><button class="knopf klein" data-a="pfad" title="${esc(e.pfad)}">Pfad</button><button class="knopf klein" data-a="link">Link</button><button class="knopf klein" data-a="ins">In die Nachricht</button><button class="knopf klein rot" data-a="del">🗑</button></span></div>`).join('')||'<p class="muted">Die Ablage ist leer. Lege eine Aufnahme oder Datei ab — oben die drei Knöpfe.</p>';
+  box.querySelectorAll('.abl-reihe').forEach(row=>{const e=liste.find(x=>x.name===row.dataset.name);if(!e)return;
+    row.querySelector('[data-a="pfad"]').onclick=async(ev)=>{ev.target.textContent=(await kopieren(e.pfad))?'kopiert ✓':'ging nicht';setTimeout(()=>ev.target.textContent='Pfad',1500);};
+    row.querySelector('[data-a="link"]').onclick=async(ev)=>{ev.target.textContent=(await kopieren(location.origin+e.url))?'kopiert ✓':'ging nicht';setTimeout(()=>ev.target.textContent='Link',1500);};
+    row.querySelector('[data-a="ins"]').onclick=()=>{const i=$('#inp');i.value=(i.value?i.value+' ':'')+ablMarker(e);$('#dlgAblage').close();i.focus();i.dispatchEvent(new Event('input'));};
+    const del=row.querySelector('[data-a="del"]');del.onclick=async()=>{if(del.dataset.frag!=='1'){del.dataset.frag='1';del.textContent='Wirklich löschen?';setTimeout(()=>{if(del.dataset.frag==='1'){del.dataset.frag='';del.textContent='🗑';}},6000);return;}
+      del.disabled=true;const r2=await api('/api/ablage/loeschen',{method:'POST',body:JSON.stringify({name:e.name})});if(r2&&r2.ok){toast('Aus der Ablage gelöscht.');ablageListeZeigen();}else{del.disabled=false;fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));}};
+  });
+}
+function ablageDialog(){$('#dlgAblage').showModal();ablageListeZeigen();}
+$('#ablageBtn').onclick=()=>{if(ABLAGE_MODUS){ablageModus(false);return;}ablageDialog();};
+$('#ablDlgZu').onclick=()=>$('#dlgAblage').close();
+$('#ablDatei').onclick=()=>{$('#dlgAblage').close();ablageModus(true);$('#datei').click();};
+$('#ablMic').onclick=()=>{$('#dlgAblage').close();ablageModus(true);$('#mic').click();};
+$('#ablScreen').onclick=()=>{$('#dlgAblage').close();ablageModus(true);$('#screen').click();};
+
+// ── Erinnerungen: Inbox + Ordner (anlegen/umbenennen/löschen), Titel/Notiz bearbeiten, in Ordner legen,
+//    an ein laufendes Fenster übergeben (Auftrag landet in dessen Kanal und wird ins Terminal getippt).
+let REM_ORDNER=[],REM_OFFEN={},REM_LISTE=[];
+function remNeuLaden(){if(KANAL!=='erinnerungen')return;LAST=0;$('#msgs').innerHTML='';ladeMsgs(true);}
+function remZeile(x){return `<div class="remrow" data-id="${x.id}"><span class="zeit${x.faellig_am&&Date.parse(x.faellig_am)<=Date.now()?' rot':''}">${x.faellig_am?esc(remZeit(x.faellig_am)):'ohne Termin'}</span><span class="titel" title="Titel, Notiz, Ordner oder Übergabe bearbeiten">${esc(x.titel)}${x.notiz?`<span class="notiz">${esc(x.notiz)}</span>`:''}</span><button class="knopf klein" data-akt="session" title="Ein neues Fenster kümmert sich darum">▶ Fenster</button><button class="knopf klein" data-akt="edit" title="Bearbeiten · Ordner · an ein laufendes Fenster übergeben">✏️</button><button class="knopf klein" data-akt="ver" title="Verschieben">🕐</button><button class="knopf klein" data-akt="erl" title="Erledigt">✅</button></div>`;}
+function remZeileBinden(row){const id=row.dataset.id;
+  row.querySelector('[data-akt="erl"]').onclick=async()=>{await api('/api/reminders/'+id+'/erledigt',{method:'POST',body:'{}'});row.remove();};
+  row.querySelector('[data-akt="ver"]').onclick=()=>{const inp=document.createElement('input');inp.type='datetime-local';inp.onchange=async()=>{if(!inp.value)return;await api('/api/reminders/'+id+'/verschieben',{method:'POST',body:JSON.stringify({faellig_am:new Date(inp.value).toISOString()})});remNeuLaden();};row.append(inp);inp.showPicker?.();};
+  row.querySelector('[data-akt="session"]').onclick=async()=>{const r2=await api('/api/reminders/'+id+'/session',{method:'POST',body:'{}'});if(r2&&r2.ok){toast('Fenster läuft an.');kanalWechseln(r2.fenster.name);}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));};
+  const edit=()=>remBearbeiten(Number(id));row.querySelector('[data-akt="edit"]').onclick=edit;row.querySelector('.titel').onclick=edit;
+}
+function remOrdnerInput(nachEl,wert,label,cb){const alt=$('#remOrdEdit');if(alt)alt.remove();const zeile=document.createElement('div');zeile.className='rem-edit';zeile.id='remOrdEdit';
+  zeile.innerHTML=`<input maxlength="40" placeholder="Ordner-Name"><button class="knopf klein pri">${esc(label)}</button><button class="knopf klein">Abbrechen</button>`;
+  const inp=zeile.querySelector('input'),[ok,ab]=zeile.querySelectorAll('button');inp.value=wert||'';
+  ok.onclick=()=>{const v=inp.value.trim();zeile.remove();if(v)cb(v);};ab.onclick=()=>zeile.remove();
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ok.click();}else if(e.key==='Escape')ab.click();});
+  nachEl.after(zeile);inp.focus();}
+async function remListeZeigen(){
+  const [r,o]=await Promise.all([api('/api/reminders?status=offen'),api('/api/reminders/ordner')]);if(!r||!r.ok)return;
+  REM_ORDNER=o&&o.ok?o.ordner:[];
+  REM_LISTE=(r.reminders||[]).slice().sort((a,b)=>Date.parse(a.faellig_am||'2999-01-01')-Date.parse(b.faellig_am||'2999-01-01'));
+  const inbox=REM_LISTE.filter(x=>!x.ordner_id);
+  const box=document.createElement('div');box.style.cssText='display:flex;flex-direction:column;gap:8px;margin-bottom:14px';
+  box.innerHTML=`<div class="rem-kopf" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>Offene Erinnerungen</b><span class="muted">feuern hier ohne KI — sekundengenau, kostenlos</span><button class="knopf klein" id="remNeu" style="margin-left:auto">＋ Erinnerung</button><button class="knopf klein" id="remOrdNeu" title="Ordner halten die Inbox schlank">＋ Ordner</button></div>`
+    +(inbox.map(remZeile).join('')||'<div class="muted">Inbox leer.</div>')
+    +REM_ORDNER.map(o=>{const drin=REM_LISTE.filter(x=>x.ordner_id===o.id),offen=!!REM_OFFEN[o.id];return `<div class="remord" data-oid="${o.id}"><div class="kopfz"><span class="caret">${offen?'▾':'▸'}</span><span class="n">📁 ${esc(o.name)}</span><span class="anz">${drin.length}</span><button class="knopf klein" data-oakt="umb" title="Umbenennen">✏️</button><button class="knopf klein" data-oakt="del" title="Ordner löschen — der Inhalt liegt dann wieder in der Inbox">🗑</button></div>${offen?`<div class="innen">${drin.map(remZeile).join('')||'<div class="muted">Ordner leer.</div>'}</div>`:''}</div>`;}).join('');
+  $('#msgs').prepend(box);
+  $('#remNeu').onclick=()=>remOeffnen('');
+  $('#remOrdNeu').onclick=()=>remOrdnerInput(box.querySelector('.rem-kopf'),'','Anlegen',async(v)=>{const r2=await api('/api/reminders/ordner',{method:'POST',body:JSON.stringify({name:v})});if(r2&&r2.ok){toast('Ordner angelegt.');remNeuLaden();}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));});
+  box.querySelectorAll('.remrow').forEach(remZeileBinden);
+  box.querySelectorAll('.remord').forEach(w=>{const oid=Number(w.dataset.oid),kopf=w.querySelector('.kopfz');
+    kopf.onclick=(e)=>{if(e.target.closest('button'))return;REM_OFFEN[oid]=!REM_OFFEN[oid];remNeuLaden();};
+    kopf.querySelector('[data-oakt="umb"]').onclick=()=>remOrdnerInput(kopf,REM_ORDNER.find(x=>x.id===oid)?.name||'','Umbenennen',async(v)=>{const r2=await api('/api/reminders/ordner/'+oid+'/umbenennen',{method:'POST',body:JSON.stringify({name:v})});if(r2&&r2.ok)remNeuLaden();else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));});
+    const del=kopf.querySelector('[data-oakt="del"]');del.onclick=async()=>{if(del.dataset.frag!=='1'){del.dataset.frag='1';del.textContent='Ordner löschen?';setTimeout(()=>{if(del.dataset.frag==='1'){del.dataset.frag='';del.textContent='🗑';}},6000);return;}
+      const r2=await api('/api/reminders/ordner/'+oid+'/loeschen',{method:'POST',body:'{}'});if(r2&&r2.ok){toast(r2.zurueck?`Ordner gelöscht — ${r2.zurueck} zurück in der Inbox.`:'Ordner gelöscht.');remNeuLaden();}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));};
+  });
+}
+function remBearbeiten(id){
+  const x=REM_LISTE.find(r=>r.id===id);if(!x)return;
+  $('#reTitel').value=x.titel||'';$('#reNotiz').value=x.notiz||'';
+  $('#reOrdner').innerHTML='<option value="">Inbox (kein Ordner)</option>'+REM_ORDNER.map(o=>`<option value="${o.id}"${x.ordner_id===o.id?' selected':''}>📁 ${esc(o.name)}</option>`).join('');
+  const laufend=FENSTER.filter(f=>f.laeuft);
+  $('#reFenster').innerHTML=laufend.map(f=>`<option value="${esc(f.name)}">${lampeEmoji(f)} ${esc(f.label||f.name)}</option>`).join('')||'<option value="">— kein Fenster läuft —</option>';
+  $('#reUeber').disabled=!laufend.length;
+  const dlg=$('#dlgRemEdit');dlg.showModal();$('#reTitel').focus();
+  $('#reAbbr').onclick=()=>dlg.close();
+  $('#reOk').onclick=async()=>{const t=$('#reTitel').value.trim(),n=$('#reNotiz').value.trim(),o=$('#reOrdner').value;if(!t){$('#reTitel').focus();return;}$('#reOk').disabled=true;
+    if(t!==x.titel)await api('/api/reminders/'+id+'/titel',{method:'POST',body:JSON.stringify({titel:t})});
+    if(n!==(x.notiz||''))await api('/api/reminders/'+id+'/notiz',{method:'POST',body:JSON.stringify({notiz:n})});
+    if(String(x.ordner_id||'')!==o){const r2=await api('/api/reminders/'+id+'/ordner',{method:'POST',body:JSON.stringify({ordner_id:o||null})});if(r2&&r2.ok&&o)REM_OFFEN[Number(o)]=true;}
+    $('#reOk').disabled=false;dlg.close();toast('Gespeichert.');remNeuLaden();};
+  $('#reUeber').onclick=async()=>{const f=$('#reFenster').value;if(!f)return;$('#reUeber').disabled=true;const r2=await api('/api/reminders/'+id+'/uebergeben',{method:'POST',body:JSON.stringify({fenster:f})});$('#reUeber').disabled=false;
+    if(r2&&r2.ok){dlg.close();toast(`📨 Übergeben — das Fenster „${(FENSTER.find(y=>y.name===f)||{}).label||f}“ hat den Auftrag.`);remNeuLaden();}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));};
+}
 gate();
 </script>
 </body>

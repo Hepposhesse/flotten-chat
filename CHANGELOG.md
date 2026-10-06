@@ -37,6 +37,23 @@ Mehrfachauswahl, mehrere Fragen hintereinander, die Absenden-Übersicht. Nachzug
   sehen nur ihren Kanal).
 - Tests: neue `test_kanaele.mjs` (72 Checks: Einstellungen säubern/sortieren/verschieben, Marker, Ungelesen, Suche).
 
+- **Fenster-Lampen** (`server/lampen.mjs`): grün pulsierend + laufende Uhr = beschäftigt, blau = bereit, grau = aus,
+  rot = tot (Prozess weg, ohne dass jemand Stop gedrückt hat — bleibt rot bis zum Neustart). Beschäftigt heißt genau:
+  im Terminalbild steht eine laufende Klammer-Zeit „(47s · …)“; das Urteil ist nie null (sonst bliebe Falsch-Grün).
+  Die Uhr (`zustand.busy_sekunden`) tickt im Browser sekündlich weiter; Sidebar, Kanal-Kopf und Handy-Liste zeigen sie.
+- **Ablage-Tresor 🔗** (`server/ablage.mjs`, `docs/ablage.md`): Aufnahmen (Bildschirm/Sprache) und Dateien dauerhaft in
+  `data/ablage/` ablegen statt senden — sprechende Namen (`2026-10-06-1952-bildschirmaufnahme.webm`), nie aufgeräumt,
+  Pfad + Link zurück (Pfad landet gleich im Zwischenspeicher, „In die Nachricht“ fügt `[Video: /pfad]` ein), Liste mit
+  Ansehen/Löschen. `.webm` ist Video ODER Sprachnotiz — ffprobe entscheidet an der Bildspur, nie die Endung.
+  Auslieferung mit Range/206. Routen `GET/POST /api/ablage`, `POST /api/ablage/loeschen`, `GET /api/ablage/<name>`.
+- **Erinnerungs-Ordner, Titel/Notiz, Übergabe** (`server/erinnerungen.mjs`): Ordner anlegen/umbenennen/löschen (Inhalt
+  zurück in die Inbox), Erinnerung in einen Ordner legen, Titel und Notiz nachträglich ändern (✏️ oder Klick auf den
+  Titel), **an ein laufendes Fenster übergeben** — der Auftrag landet als Nachricht in dessen Kanal und wird ins
+  Terminal getippt, die Erinnerung gilt als übergeben und feuert nicht mehr. Schema additiv (Tabelle `reminder_ordner`,
+  Spalte `reminders.ordner_id`). Routen `GET/POST /api/reminders/ordner`, `POST /api/reminders/ordner/<id>/(umbenennen|loeschen)`,
+  `POST /api/reminders/<id>/(ordner|titel|notiz|uebergeben)`.
+- Tests: `test_lampen.mjs` (36), `test_ablage.mjs` (67), `test_erinnerungen.mjs` (39); `npm test` führt sie mit aus.
+
 ### Geändert
 - **Rückfrage-Titel = die ganze Frage** bis zur Trennlinie (max. 60 Zeilen) — vorher nur die letzten 8 Zeilen,
   eine lange Frage begann im Chat mitten im Satz. Freigaben bleiben bei 8 Zeilen (Befehl + „Do you want to

@@ -42,6 +42,7 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
 - **Bilder für den Chat**: Datei irgendwo ablegen und im Antwort-Text als `[Bild: /voller/pfad.png]`
   nennen (auch `[Video: …]`, `[Sprachnachricht: …]`, `[Datei: …]`) — der Chat zeigt die Vorschau.
 - **Anhänge des Menschen** kommen als Pfad: `[Bild: /…/data/media/abc.png]` — lies die Datei selbst.
+  Aus der **Ablage** (dauerhaft, sprechende Namen) kommen sie als `[Video: /…/data/ablage/2026-10-06-1952-bildschirmaufnahme.webm]`.
   Sprachnachrichten: transkribiere sie (ffmpeg + whisper, falls vorhanden), sonst sag, dass du sie
   nicht hören kannst.
 - **Themen statt Rollen**: du bist ein Thema (Kanalname), keine Dauer-Rolle. Ein Neustart ist
