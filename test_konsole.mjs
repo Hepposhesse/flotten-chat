@@ -347,7 +347,7 @@ import { paneFingerabdruck as s12Fp, hintergrundAktiv as s12Hg, geheimMaske as s
   ok(!/Geheim123|S3cret/.test(JSON.stringify(dialogMeta(zn.dialog))), 'Freigabe-Knöpfe/Titel ohne Passwörter');
   eq(s12Maske('pwd=geheim'), 'pwd=***', 'Maske: pwd=');
   eq(s12Maske('Authorization: Bearer abcdefghijkl'), 'Authorization: ***', 'Maske: Authorization');
-  eq(s12Maske('export API_KEY="' + ['sk', '1234567890'].join('-') + '"'), // Attrappe zur Laufzeit gebaut (gitleaks) 'export API_KEY="***"', 'Maske: API_KEY in Anführungszeichen');
+  eq(s12Maske('export API_KEY="' + ['sk', '1234567890'].join('-') + '"'), 'export API_KEY="***"', 'Maske: API_KEY in Anführungszeichen'); // Attrappe zur Laufzeit gebaut (gitleaks)
   eq(s12Maske('DB_PASSWORD=abc123 und Passwort: hunter22'), 'DB_PASSWORD=*** und Passwort: ***', 'Maske: Passwort-Varianten');
   eq(s12Maske('Das passt: gut so. Master-Passwort steht im Tresor.'), 'Das passt: gut so. Master-Passwort steht im Tresor.', 'Maske: normaler Text bleibt');
 
