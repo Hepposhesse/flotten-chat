@@ -3,6 +3,41 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [1.2.0] — 2026-11-01
+
+### Chat
+- **Markdown wie im Terminal** (`ui/md-chat.js`, ersetzt das alte Markdown-lite): echte Tabellen in der Blase
+  (waagerecht scrollbar, erste Spalte bleibt stehen) mit „⤢ Groß ansehen“-Blatt (volle Breite, Kopieren als TSV,
+  Esc/✕/Klick daneben schließt), Links `[Text](url)`, Zitate `>`, Code-Blöcke (unformatiert), *kursiv*, ~~durch~~,
+  Trennlinien, nummerierte Listen mit Unterpunkten. URLs in Backticks bleiben ein Link in *einem* `<code>`.
+  Läuft auf escaptem Text, erzeugt nur eigene Tags.
+- **Suchfeld-✕**: sichtbar, sobald etwas drinsteht; ein Klick leert Begriff und Treffer, der Fokus bleibt im Feld.
+  Der native Cancel-Knopf ist aus (gleich auf Desktop und Handy).
+- **Kanal-Menü statt Knöpfen im Kanal-Kopf**: ⋯ an der Zeile, ⋯ im Kanal-Kopf, Rechtsklick oder lange drücken —
+  *ein* Menü mit Starten/Neu starten, Terminal ansehen, Modus (Auto/Manual/Planen mit ✓), Fenster schließen und den
+  Kanal-Einstellungen aus 1.1 (Umbenennen & Reihenfolge, Stumm, Archivieren). Neu starten und Schließen brauchen einen
+  zweiten Tipp. Der Kopf zeigt nur noch Lampe, Name, „seit …“, den Rückfrage-Hinweis und — wenn das Fenster aus ist —
+  „▶ Starten“. Am Handy kommt das Menü als Blatt von unten; das Terminal hat jetzt auch am Desktop ein ✕.
+- **Kanal geht auf wie eine App**: die Fläche wächst aus der angeklickten Zeile, aber erst mit den ersten Nachrichten
+  (nie leer). **Verlauf in Etappen**: erst die jüngsten 25, ältere still im Hintergrund (je 60, bis ~300) oder sofort
+  beim Hochscrollen, die Leseposition bleibt stehen. Ein Suchtreffer weiter oben wird Block für Block nachgeladen.
+  `GET /api/messages?juengste=1&limit=25` bzw. `?vor=<id>&limit=60` (der alte Weg `seit=` bleibt unverändert).
+- **Kein alter Stand beim Kanalwechsel**: während der ersten Ladung wird nicht gepollt und nichts per SSE angehängt.
+- **Fenster weg, während man drin ist** → kein Sprung in den Nachbarkanal (der hätte dessen Ungelesenes stumm gelesen),
+  sondern „Wähle einen Kanal“ mittig mit den ungelesenen Kanälen zum Antippen.
+- **Neues Fenster ohne alten Verlauf**: bekommt ein Fenster den Namen eines geschlossenen Vorgängers, startet sein
+  Kanal leer (Spalte `fenster.verlauf_ab`, additiv). Die alten Nachrichten bleiben in der DB, tauchen aber weder im
+  Kanal noch in der Suche noch im Ungelesen-Zähler auf.
+- **Schwarm-Leiste** über dem Eingabefeld (`server/schwarm.mjs`): laufende Claude-Code-Workflows des offenen Fensters
+  mit Name, Phase x/y, Agenten fertig/arbeiten, Dauer und Balken; Klick = Agentenliste je Phase; nach dem Ende
+  30 Min „fertig“. Quelle ist der Protokoll-Ordner des Fensters (`<config>/projects/<ordner>/<sitzung>/subagents/
+  workflows/wf_*/journal.jsonl` + Skript-Meta + task-notification). `GET /api/fenster/<name>/schwarm`. Nur lokale
+  Fenster (bei ssh/Gerät liegt das Protokoll auf dem anderen Rechner).
+- **Karten-Chips**: `#karte-<id>` im Chat wird zum Chip, der die Karte öffnet; oben in jeder Karte steht die Kennung
+  zum Kopieren.
+- Die Zahl im Tab-Titel zählt nur noch Fenster-Kanäle (keine Alarme, Erinnerungen, Agenten-Kanäle).
+- Tests: neue `test_komfort.mjs` (Markdown, Schwarm, Etappen/Verlauf).
+
 ## [1.1.0] — 2026-10-06
 
 Schwerpunkt: **Mehrstufige Rückfragen.** Alles, was eine `AskUserQuestion` kann, geht jetzt auch im Chat —

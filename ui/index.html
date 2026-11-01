@@ -200,6 +200,95 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
 .remrow .titel{cursor:pointer}.remrow .titel:hover{color:var(--blau)}
 .remrow .notiz{display:block;color:var(--n500);font-size:.78rem;white-space:pre-wrap}
 @media(max-width:720px){.ablage-bar{padding:6px 10px}.abl-reihe{grid-template-columns:auto 1fr}.abl-reihe .akt{grid-column:1/-1;justify-content:flex-start}}
+/* === Chat-Komfort (1.2) === */
+/* Suchfeld mit eigenem ✕ (der native Cancel-Knopf fehlt in manchen Browsern und ist am Handy winzig) */
+.suche-box{position:relative;display:flex;flex:1 1 220px;max-width:420px;min-width:0}
+.suche-box .suche-feld{flex:1 1 auto;max-width:none;padding-right:38px}
+.suche-feld::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
+.suche-x{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;border-radius:999px;background:var(--n100);color:var(--n900);font-size:17px;line-height:28px;padding:0;cursor:pointer}
+.suche-x:hover{background:var(--blau-soft);color:var(--blau)}
+.suche-x:focus-visible{outline:2px solid var(--blau);outline-offset:1px}
+/* Markdown wie im Terminal (ui/md-chat.js) */
+.msg .t code,.verl code{background:var(--n50);border:1px solid var(--n100);border-radius:5px;padding:0 .3rem;font-size:.88em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.msg .t .md-h{display:inline-block;margin-top:.15rem}
+.md-ul,.md-ol{margin:.3rem 0;padding-left:1.4rem}
+.md-sub{margin:.1rem 0;padding-left:1.1rem}
+.md-zitat{white-space:pre-wrap;margin:.35rem 0;padding:6px 12px;border-left:3px solid var(--n200);background:var(--n50);border-radius:0 8px 8px 0}
+.md-pre{white-space:pre;overflow-x:auto;margin:.35rem 0;padding:8px 12px;background:var(--n50);border:1px solid var(--n100);border-radius:8px;font-size:.82rem;line-height:1.45}
+.md-pre code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:none!important;border:0!important;padding:0!important;font-size:inherit!important}
+.md-hr{border:0;border-top:1px solid var(--n200);margin:.5rem 0}
+.msg.hat-tabelle{max-width:min(94%,920px)}
+.md-tab{white-space:normal;margin:.45rem 0 .35rem;border:1px solid var(--n100);border-radius:10px;overflow:hidden;background:var(--card)}
+.md-tab-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.md-tab table{border-collapse:separate;border-spacing:0;width:100%;font-size:.86rem;line-height:1.4}
+.md-tab th,.md-tab td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--n100);min-width:7.5rem;max-width:26rem}
+.md-tab th{font-size:.74rem;font-weight:700;letter-spacing:.02em;color:var(--n500);background:var(--n50);white-space:nowrap}
+.md-tab tbody tr:last-child td{border-bottom:0}
+.md-tab th:first-child,.md-tab td:first-child{position:sticky;left:0;z-index:1;font-weight:600;min-width:6rem;background:var(--card);box-shadow:1px 0 0 var(--n100)}
+.md-tab th:first-child{background:var(--n50)}
+.md-tab-fuss{display:flex;justify-content:flex-end;padding:4px 8px;background:var(--n50)}
+.md-tab-gross,.md-blatt-kopf button{font:inherit;font-size:.78rem;font-weight:600;color:var(--blau);background:transparent;border:0;border-radius:6px;padding:4px 8px;cursor:pointer}
+.md-tab-gross:hover,.md-blatt-kopf button:hover{background:var(--blau-soft)}
+.md-tab-gross:focus-visible,.md-blatt-kopf button:focus-visible{outline:2px solid var(--blau);outline-offset:1px}
+.md-blatt{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;transition:opacity .18s ease}
+.md-blatt.offen{opacity:1}
+.md-blatt-karte{width:min(1180px,100%);max-height:min(88vh,900px);display:flex;flex-direction:column;background:var(--card);color:var(--n900);overflow:hidden;border:1px solid var(--n200);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.35);transform:translateY(10px) scale(.985);transition:transform .2s cubic-bezier(.2,.8,.2,1)}
+.md-blatt.offen .md-blatt-karte{transform:none}
+.md-blatt-kopf{display:flex;align-items:center;gap:6px;padding:12px 12px 10px 18px;border-bottom:1px solid var(--n100)}
+.md-blatt-kopf strong{flex:1;font-size:.86rem;font-weight:600;color:var(--n500)}
+.md-blatt-kopf [data-a=zu]{color:var(--n500);background:var(--n50);border-radius:999px;width:36px;height:36px;padding:0}
+.md-blatt-inhalt{overflow:auto;padding:0 0 env(safe-area-inset-bottom)}
+.md-blatt-inhalt .md-tab{margin:0;border:0;border-radius:0}
+.md-blatt-inhalt .md-tab table{font-size:.95rem}
+.md-blatt-inhalt .md-tab th,.md-blatt-inhalt .md-tab td{padding:12px 16px;max-width:none}
+.md-blatt-inhalt .md-tab td:not(:first-child){min-width:13rem}
+.md-blatt-inhalt .md-tab th{position:sticky;top:0;z-index:2}
+.md-blatt-inhalt .md-tab th:first-child{z-index:3}
+.md-blatt-inhalt .md-tab-fuss{display:none}
+@media(max-width:640px){.md-blatt{padding:0;align-items:flex-end}.md-blatt-karte{max-height:94vh;border-radius:12px 12px 0 0}.md-blatt-karte::before{content:"";display:block;width:36px;height:4px;border-radius:999px;background:var(--n200);margin:8px auto 0;flex:none}}
+@media(prefers-reduced-motion:reduce){.md-blatt,.md-blatt-karte{transition:none}}
+/* ID-Chips: #karte-<n> im Text → Klick öffnet die Karte; in der Karte selbst kopiert der Chip die Kennung */
+.fc-id{display:inline;font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;color:var(--n900);background:var(--n50);border:1px dashed var(--n200);border-radius:6px;padding:0 5px;cursor:pointer;white-space:nowrap}
+.fc-id::before{content:"🗂 ";font-family:system-ui,sans-serif}
+.fc-id[data-copy]::before{content:"⧉ "}
+.fc-id:hover,.fc-id:focus-visible{border-style:solid;color:var(--blau);outline:none}
+.fc-id.ok{color:var(--ok);border-color:var(--ok);border-style:solid}
+/* Schwarm-Leiste über dem Eingabefeld */
+.schwarm-bar{display:flex;flex-direction:column;gap:6px;margin:0;padding:6px 18px;background:var(--card);border-top:1px solid var(--n100);font-size:.84rem;cursor:pointer;color:var(--n900)}
+.schwarm-bar .sw-zeile{display:flex;align-items:center;gap:8px;min-width:0}
+.schwarm-bar .sw-text{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schwarm-bar .sw-balken{flex:none;width:72px;height:6px;border-radius:3px;background:var(--n100);overflow:hidden}
+.schwarm-bar .sw-balken i{display:block;height:100%;background:var(--blau);border-radius:3px;transition:width .4s}
+.schwarm-bar .sw-zeile.fertig .sw-balken i{background:var(--ok)}
+.schwarm-bar .sw-pfeil{flex:none;color:var(--n400);font-size:.8rem}
+.schwarm-bar .sw-liste{display:none;margin:2px 0 2px 4px;max-height:28vh;overflow:auto;font-size:.8rem;color:var(--n500);line-height:1.6;cursor:auto}
+.schwarm-bar.offen .sw-liste{display:block}
+.schwarm-bar .sw-liste .sw-ph{font-weight:600;color:var(--n900);margin-top:4px}
+/* Kanal-Menü: Rechtsklick / lange drücken / ⋯ — Fenster-Aktionen + Verwalten in EINEM Menü */
+.kanal-menu{position:fixed;z-index:70;min-width:230px;max-width:min(320px,94vw);max-height:80vh;overflow:auto;background:var(--card);border:1px solid var(--n200);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35);padding:6px}
+.kanal-menu .km-kopf{font-size:.74rem;color:var(--n500);padding:4px 10px 6px;border-bottom:1px solid var(--n100);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kanal-menu button{display:block;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:9px 10px;font:inherit;font-size:.88rem;color:var(--n900);cursor:pointer}
+.kanal-menu button:hover,.kanal-menu button:focus-visible{background:var(--blau-soft);outline:none}
+.kanal-menu button[aria-checked="true"]{color:var(--blau);font-weight:600}
+.kanal-menu button.frag{background:var(--bad-soft);color:var(--bad);font-weight:600}
+.kanal-menu .km-titel{font-size:.7rem;color:var(--n400);text-transform:uppercase;letter-spacing:.06em;padding:8px 10px 2px}
+.kanal-menu .km-hint{font-size:.74rem;color:var(--n500);margin-left:4px;font-weight:400}
+.kanal-menu hr{border:0;border-top:1px solid var(--n100);margin:4px 0}
+.kopf #kopfMenu{min-width:36px;font-size:1rem;line-height:1}
+aside .kanal{-webkit-touch-callout:none}
+@media(max-width:720px){.kanal-menu{left:0!important;right:0;top:auto!important;bottom:0;max-width:none;width:100%;border-radius:14px 14px 0 0;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}.kanal-menu button{padding:12px}}
+/* Terminal hat auch am Desktop einen Kopf mit ✕ (die Knöpfe im Kanal-Kopf sind ins Menü umgezogen) */
+.term-kopf{display:flex;justify-content:space-between;align-items:center;padding:6px 10px 6px 14px;border-bottom:1px solid var(--n100);font-size:.8rem;color:var(--n500)}
+/* Kein Kanal offen (z. B. nach dem Schließen eines Fensters): Auswahl mittig, Kanäle mit Ungelesenem zum Antippen */
+.leer-box{margin:auto;text-align:center;max-width:420px;width:100%;padding:24px 16px}
+.leer-box h2{margin:0 0 6px;font-size:1.2rem}
+.leer-box p{margin:0 0 14px;color:var(--n500)}
+.leer-liste{display:flex;flex-direction:column;gap:8px}
+.leer-kanal{display:flex;align-items:center;justify-content:space-between;gap:12px;font:inherit;font-weight:600;padding:12px 16px;border-radius:12px;border:1px solid var(--n200);background:var(--card);color:var(--n900);cursor:pointer;text-align:left;min-height:44px}
+.leer-kanal:hover{border-color:var(--blau)}
+.leer-kanal .badge{background:var(--blau);color:#fff;border-radius:999px;font-size:.78rem;padding:2px 9px}
+@media(max-width:720px){.suche-box{flex:1 1 100%;order:8;max-width:none}.suche-x{width:32px;height:32px;line-height:32px}.kopf .m:empty{display:none}.kopf #kopfMenu{min-height:36px}}
+/* === Ende Chat-Komfort (1.2) === */
 </style>
 </head>
 <body>
@@ -207,7 +296,7 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <b>⚡ Flotten-Chat</b><span class="muted" id="stand"></span>
   <select id="kanalMobil" class="kanal-mobil" aria-label="Kanal wählen"></select>
   <span style="margin-left:auto"></span>
-  <input id="sucheFeld" class="suche-feld" type="search" placeholder="Suchen in allen Kanälen … (Esc schließt)" aria-label="Suche" hidden>
+  <span class="suche-box" id="sucheBox" hidden><input id="sucheFeld" class="suche-feld" type="search" placeholder="Suchen in allen Kanälen … (Esc schließt)" aria-label="Suche" autocomplete="off" hidden><button type="button" class="suche-x" id="sucheLeeren" title="Suche leeren" aria-label="Suche leeren" hidden>×</button></span>
   <button class="knopf" id="sucheBtn" title="Suche (Strg+K)" aria-expanded="false">🔍</button>
   <button class="knopf" id="boardBtn" title="Themen-Board">🗂 Board</button>
   <button class="knopf" id="theme" title="Hell/Dunkel">☀️</button>
@@ -230,10 +319,12 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
     <div class="term-panel" id="term" role="region" aria-label="Terminal" hidden><div class="term-kopf"><span id="termTitel">Terminal</span><button class="knopf klein" id="termZu" aria-label="Terminal schließen">✕</button></div><pre class="term-bild leer" id="termBild">Terminal wird geladen …</pre><button type="button" class="term-unten" id="termUnten" hidden>Nach unten ↓</button><div class="term-leiste" id="termLeiste"></div></div>
     <div id="msgs"></div>
     <div id="board" class="board" hidden></div>
+    <div id="schwarmBar" class="schwarm-bar" role="status" aria-live="polite" title="Klick: Agentenliste auf/zu" hidden></div>
     <div id="status" class="status" role="status" aria-live="polite"></div>
     <div class="composer" id="composer"><button class="clip" id="clip" title="Datei anhängen">📎</button><button class="clip" id="mic" title="Sprachnachricht aufnehmen">🎤</button><button class="clip" id="screen" title="Bildschirm/Fenster aufnehmen (mit Ton)">🖥️</button><input id="datei" type="file" multiple hidden><textarea id="inp" placeholder="Nachricht … (Enter sendet, Shift+Enter = Zeile, Dateien einfach reinziehen)"></textarea><button class="senden" id="senden">Senden</button></div>
   </main>
 </div>
+<div id="kanalMenu" class="kanal-menu" role="menu" aria-label="Kanal-Menü" hidden></div>
 <div class="gate" id="gate" hidden><div class="box" id="gateBox"></div></div>
 
 <dialog id="dlgFenster">
@@ -300,6 +391,7 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
   <div class="reihe"><button class="knopf" id="reAbbr">Abbrechen</button><button class="knopf pri" id="reOk">Speichern</button></div>
 </dialog>
 
+<script src="/md-chat.js"></script>
 <script>
 const $=(s)=>document.querySelector(s);
 const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -328,7 +420,11 @@ async function ladeKanaele(){
   const r=await api('/api/channels');if(!r||!r.ok){gate();return false;}
   KANAELE=r.channels.filter(k=>!k.archiviert);FENSTER=r.fenster||[];
   const fNamen=new Set(FENSTER.map(f=>f.name));
-  if(!KANAL||(!fNamen.has(KANAL)&&!KANAELE.some(k=>k.name===KANAL)))KANAL=FENSTER[0]?FENSTER[0].name:(KANAELE[0]?KANAELE[0].name:'allgemein');
+  // 1.2: Verschwindet der offene Kanal (Fenster geschlossen), springt der Chat nicht in den Nachbarkanal (das hätte dessen
+  // Ungelesenes stumm gelesen) — es kommt die Auswahl mit den ungelesenen Kanälen. Nur ganz ohne Kanal: den ersten nehmen.
+  const da=KANAL&&(fNamen.has(KANAL)||KANAELE.some(k=>k.name===KANAL));
+  if(!KANAL&&!LEER)KANAL=FENSTER[0]?FENSTER[0].name:(KANAELE[0]?KANAELE[0].name:'allgemein');
+  else if(KANAL&&!da)leerAnsicht();
   seitenleisteZeichnen(fNamen);
   const sel=$('#kanalMobil');
   sel.innerHTML=mobilOptionen(fNamen);
@@ -336,7 +432,11 @@ async function ladeKanaele(){
   kopfZeichnen();
   return true;
 }
-function kanalWechseln(k){if(!k)return;if(TERM&&TERM!==k)termZu();ANSICHT='chat';$('#board').hidden=true;$('#msgs').hidden=false;$('#composer').hidden=false;if(k!==KANAL){KANAL=k;localStorage.setItem('fc_kanal',KANAL);LAST=0;$('#msgs').innerHTML='';}ladeMsgs(true);ladeKanaele();}
+// Kanal öffnen (1.2): wächst aus der angeklickten Zeile auf (von = Rechteck), aber erst mit den ersten Nachrichten.
+function kanalWechseln(k,von){if(!k)return;if(TERM&&TERM!==k)termZu();kanalMenuZu();const warBoard=ANSICHT!=='chat';ANSICHT='chat';$('#board').hidden=true;$('#msgs').hidden=false;$('#composer').hidden=false;
+  const neu=k!==KANAL||LEER;LEER=false;
+  if(neu){KANAL=k;localStorage.setItem('fc_kanal',KANAL);LAST=0;GELADEN='';AELTER_FERTIG[k]=false;AELTER_GELADEN[k]=0;schwarmZeichnen([]);oeffnenVorbereiten(k,von);}
+  if(neu||warBoard||GELADEN!==k)ladeMsgs(true);else ladeMsgs();ladeKanaele();}
 const fensterVon=(k)=>FENSTER.find(f=>f.name===k)||null;
 const MN={auto:'Auto',default:'Manual',accept:'Bearbeiten frei',plan:'Planen',bypass:'Ohne Nachfragen'};
 function seitText(ms){if(!ms)return '';const m=Math.round((Date.now()-ms)/60000);return m<60?`seit ${m} Min`:(m<2880?`seit ${Math.round(m/60)} Std`:`seit ${Math.round(m/1440)} Tagen`);}
@@ -355,7 +455,7 @@ function termAuf(f){
   const name=f.name;
   const holen=async()=>{const r=await api(`/api/fenster/${encodeURIComponent(name)}/terminal`);if(TERM!==name)return;
     if(!r||!r.ok){bild.className='term-bild leer';bild.textContent='Terminal gerade nicht erreichbar — nächster Versuch in 2 s.';return;}
-    if(!r.lebt){bild.className='term-bild leer';bild.textContent='Das Fenster läuft gerade nicht. Starte es oben mit „Starten“.';return;}
+    if(!r.lebt){bild.className='term-bild leer';bild.textContent='Das Fenster läuft gerade nicht. Starten: oben „▶ Starten“ oder im Kanal-Menü ⋯.';return;}
     bild.className='term-bild';bild.innerHTML=r.html||'';if(termAnker)bild.scrollTop=bild.scrollHeight;};
   bild.onscroll=()=>{termAnker=bild.scrollHeight-bild.scrollTop-bild.clientHeight<40;unten.hidden=termAnker;};
   unten.onclick=()=>{termAnker=true;unten.hidden=true;bild.scrollTop=bild.scrollHeight;};
@@ -372,12 +472,11 @@ function kopfZeichnen(){
   kopf.hidden=false;const z=f.zustand||{};
   kopf.innerHTML=`<div class="l"><b class="${lampeKlasse(f)}" title="${lampeTitel(f)}">${esc(f.label||f.name)}</b>${uhrHtml(f)}<span>${f.laeuft?esc(seitText(f.gestartet_ms)):(lampeVon(f)==='tot'?'abgestürzt':'aus')}</span>${z.dialog?`<span class="dlg" id="dlgHin">${z.dialog.art==='freigabe'?'wartet auf deine Freigabe ↓':'wartet auf deine Antwort ↓'}</span>`:''}</div>
     <div class="m"></div>
-    <div class="r">${f.laeuft&&z.modus&&MN[z.modus]?`<button class="modus ${z.modus==='auto'?'auto':(z.modus==='default'?'manual':'')}" id="modusBtn" title="Modus umschalten (Auto ⇄ Manual)">Modus: ${MN[z.modus]}</button>`:''}${f.laeuft?`<button class="knopf klein" id="termBtn" aria-expanded="${TERM===f.name}" title="Echtes Terminalbild ansehen und Tasten drücken">Terminal</button>`:''}<button class="knopf klein" id="schliessenBtn" title="${f.laeuft?'Stand wegschreiben lassen, dann schließen':'Fenster läuft nicht — sofort schließen'}">Schließen</button><button class="knopf klein ${f.laeuft?'rot':'pri'}" id="neuBtn">${f.laeuft?'Neu starten':'Starten'}</button></div>`;
+    <div class="r">${f.laeuft?'':'<button class="knopf klein pri" id="neuBtn">▶ Starten</button>'}<button class="knopf klein" id="kopfMenu" aria-haspopup="menu" aria-expanded="false" title="Fenster-Menü: Neu starten, Terminal, Modus, Schließen — auch Rechtsklick oder lange drücken auf den Kanal">⋯</button></div>`;
+  // 1.2: Neu starten, Terminal, Modus und Schließen leben im Kanal-Menü — der Kopf bleibt ruhig.
+  $('#kopfMenu').onclick=(e)=>{const b=e.currentTarget.getBoundingClientRect();kanalMenuAuf(f.name,b.right,b.bottom+4,e.currentTarget,true);};
+  const nb0=$('#neuBtn');if(nb0)nb0.onclick=()=>fensterStarten(f.name,nb0);
   const dh=$('#dlgHin');if(dh)dh.onclick=()=>{const q=[...document.querySelectorAll('.msg.question')].pop();if(q)q.scrollIntoView({block:'center'});};
-  const mb=$('#modusBtn');if(mb)mb.onclick=()=>{sende(z.modus==='auto'?'manual':'auto');toast('Fenster schaltet um …');};
-  const nb=$('#neuBtn');nb.onclick=async()=>{if(f.laeuft&&nb.dataset.frag!=='1'){nb.dataset.frag='1';nb.textContent='Wirklich neu starten?';setTimeout(()=>{if(nb.dataset.frag==='1'){nb.dataset.frag='';nb.textContent='Neu starten';}},6000);return;}nb.disabled=true;nb.textContent='…';const r=await api(`/api/fenster/${f.name}/${f.laeuft?'neustart':'start'}`,{method:'POST',body:'{}'});toast(r&&r.ok?'Fenster startet — es meldet sich hier.':'⚠️ '+((r&&r.fehler)||'Ging nicht'));setTimeout(ladeKanaele,3000);};
-  const tb=$('#termBtn');if(tb)tb.onclick=()=>{if(TERM===f.name)termZu();else termAuf(f);};
-  const sb=$('#schliessenBtn');if(sb)sb.onclick=async()=>{if(sb.dataset.frag!=='1'){sb.dataset.frag='1';sb.textContent='Stand sichern & schließen?';setTimeout(()=>{if(sb.dataset.frag==='1'){sb.dataset.frag='';sb.textContent='Schließen';}},6000);return;}sb.disabled=true;const r=await api(`/api/fenster/${f.name}/schliessen`,{method:'POST',body:JSON.stringify({sofort:!f.laeuft})});toast(r&&r.ok?(f.laeuft?'Das Fenster räumt auf und schließt in 60 s.':'Fenster geschlossen.'):'⚠️ Ging nicht');setTimeout(ladeKanaele,f.laeuft?62000:1500);};
 }
 
 // ── Nachrichten ──
@@ -393,9 +492,10 @@ function medienHtml(m){
     return `<a class="datei" href="${url}?dl=1">📎 ${name}</a>`;
   }).join('')+'</div>';
 }
-// Kleines Markdown: Links, **fett**, `code`, Codeblöcke — mehr braucht ein Chat nicht.
-function linkify(t){let h=esc(t);h=h.replace(/```([\s\S]*?)```/g,(m,c)=>'<pre style="white-space:pre-wrap;background:var(--n50);border:1px solid var(--n100);border-radius:8px;padding:.5rem .6rem;font-size:.84rem;margin:.3rem 0">'+c.replace(/^\w*\n/,'')+'</pre>');h=h.replace(/`([^`\n]+)`/g,'<code style="background:var(--n50);border-radius:4px;padding:0 .25rem;font-size:.9em">$1</code>');h=h.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');h=h.split(/(<pre[\s\S]*?<\/pre>)/).map((t,i)=>i%2?t:t.replace(/^#{1,4} +(.+)$/gm,'<b>$1</b>').replace(/^( *)[-*] +/gm,'$1• ')).join('');h=h.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');return h;}
-function zeige(m,scroll=true){
+// Markdown wie im Terminal (1.2): ui/md-chat.js — Links, #karte-<n>-Chips, fett/kursiv/Code, Listen mit Unterpunkten,
+// Tabellen (mit „Groß ansehen“), Zitate, Code-Blöcke, Linien. Ohne das Skript: nur escapter Text.
+function linkify(t){const F=window.FcMd;return F?F.mdLite(F.linkify(esc(t))):esc(t);}
+function zeige(m,scroll=true,ziel=null){
   let meta={};try{meta=m.meta?JSON.parse(m.meta):{};}catch{}
   const alt=document.querySelector(`.msg[data-id="${m.id}"]`);
   const d=alt||document.createElement('div');
@@ -416,6 +516,7 @@ function zeige(m,scroll=true){
   // Optionszeilen, Hinweise und die Vorbelegung der Mehrfachauswahl stehen als Knöpfe/Felder da — nicht doppelt als Text.
   const text=dl?String(m.inhalt).split('\n').filter(z=>!/^\d+\)\s/.test(z)&&!/^Antworte mit/.test(z)&&!/^☑ Mehrfachauswahl/.test(z)&&!/^Schon angehakt: /.test(z)&&!/^Eigene Antwort bisher: /.test(z)).join('\n'):m.inhalt;
   d.innerHTML=`<div class="k"><b>${esc(m.von)}</b><span>${esc(dz)}</span></div><div class="t">${linkify(text)}</div>${medienHtml(m)}${opts}<button class="erin" title="Erinnerung dazu">⏰</button>`;
+  d.classList.toggle('hat-tabelle',!!d.querySelector('.md-tab'));
   d.querySelector('.erin').onclick=()=>remOeffnen(String(m.inhalt).slice(0,120));
   const sperren=()=>d.querySelectorAll('.opts button,.mf button,.mf input').forEach(x=>x.disabled=true);
   if(dl&&dl.mehrfach&&!dl.zu){
@@ -426,15 +527,17 @@ function zeige(m,scroll=true){
     d.querySelector('.mf-ab').onclick=()=>{sende('nein');sperren();};
   } else d.querySelectorAll('.opts button').forEach(b=>b.onclick=()=>{sende(b.dataset.nr);sperren();});
   d.querySelectorAll('img[data-lb]').forEach(i=>i.onclick=()=>{const lb=document.createElement('div');lb.className='lightbox';lb.innerHTML=`<img src="${i.dataset.lb}">`;lb.onclick=()=>lb.remove();document.body.append(lb);});
-  if(!alt){$('#msgs').append(d);if(scroll)$('#msgs').scrollTop=1e9;}
+  if(!alt){if(ziel){ziel.append(d);return;}const box=$('#msgs');const hinweis=box.querySelector(':scope>.leer');if(hinweis)hinweis.remove();box.append(d);if(scroll)box.scrollTop=1e9;}
 }
+// Verlauf (1.2): die erste Ladung holt die JÜNGSTEN 25 (ersteLadung im Block „Chat-Komfort“), danach pollt das hier
+// nur noch Neues (seit=LAST). Während die erste Ladung läuft, wird nicht gepollt — sonst stand unten ein alter Stand.
 async function ladeMsgs(voll){
-  if(ANSICHT!=='chat')return;
-  if(KANAL==='erinnerungen'&&LAST===0)await remListeZeigen();
+  if(ANSICHT!=='chat'||!KANAL)return;
+  if(voll||GELADEN!==KANAL)return ersteLadung();
   const kanal=KANAL,seit=LAST;
   const r=await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&seit=${seit}`);
-  if(kanal!==KANAL||seit!==LAST&&LAST===0)return; // Kanal gewechselt, während die Antwort unterwegs war → verwerfen
-  if(r&&r.ok){for(const m of r.messages){if(m.id<=LAST)continue;zeige(m);LAST=m.id;}gelesenMelden();if(voll&&!r.messages.length&&LAST===0&&KANAL!=='erinnerungen')$('#msgs').innerHTML='<div class="leer">Noch nichts hier. Schreib die erste Nachricht — bei einem Fenster landet sie direkt im Terminal.</div>';}
+  if(kanal!==KANAL||GELADEN!==kanal||seit!==LAST)return; // Kanal gewechselt oder neu geladen, während die Antwort unterwegs war
+  if(r&&r.ok){for(const m of r.messages){if(m.id<=LAST)continue;zeige(m);LAST=m.id;}gelesenMelden();}
 }
 
 // ── Senden (Outbox: idempotent, übersteht schwaches Netz) ──
@@ -452,9 +555,9 @@ async function outboxFlush(){
   else if(r&&r.fehler){if(i>=0)arr.splice(i,1);obSpeichern(arr);fcStatus('⚠️ Nicht gesendet: '+r.fehler);setTimeout(outboxFlush,50);}
   else{if(i>=0){arr[i].versuche=(arr[i].versuche||0)+1;arr[i].nextTry=Date.now()+(arr[i].versuche<=1?5000:arr[i].versuche<=3?10000:30000);obSpeichern(arr);}fcStatus('⏳ Wartet aufs Netz — geht automatisch raus.');setTimeout(outboxFlush,2000);}
 }
-function sende(text,media){
+function sende(text,media,kanal){
   const t=String(text||'').trim();if(!t&&!media)return;
-  const a=obLaden();a.push({client_id:cid(),kanal:KANAL,inhalt:t||'📎',von:ME.wer.name,media:media||undefined,seit:Date.now(),versuche:0,nextTry:0});obSpeichern(a);outboxFlush();
+  const a=obLaden();a.push({client_id:cid(),kanal:kanal||KANAL,inhalt:t||'📎',von:ME.wer.name,media:media||undefined,seit:Date.now(),versuche:0,nextTry:0});obSpeichern(a);outboxFlush();
 }
 $('#senden').onclick=()=>{const t=$('#inp').value.trim();if(!t)return;$('#inp').value='';$('#inp').style.height='';sende(t);};
 $('#inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#senden').click();}});
@@ -564,7 +667,7 @@ async function boardZeigen(){
 $('#boardBtn').onclick=boardZeigen;
 function karteOeffnen(id){
   const k=id?KARTEN.find(x=>x.id===id):{id:0,titel:'',beschreibung:'',spalte:'ideen',fenster:'',verlauf:[]};if(!k)return;
-  $('#karteInhalt').innerHTML=`<h3>${id?'🗂 Karte':'Neue Karte'}</h3><label>Titel</label><input id="kTitel" value="${esc(k.titel)}"><label>Beschreibung (Stand · Was · Wartet auf · Ziel)</label><textarea id="kBesch" style="min-height:120px">${esc(k.beschreibung)}</textarea><label>Spalte</label><select id="kSpalte">${Object.keys(SP).map(s=>`<option value="${s}"${k.spalte===s?' selected':''}>${SP[s]}</option>`).join('')}</select>${id?`<div class="verl">${(k.verlauf||[]).slice().reverse().map(v=>`<div><span>${esc(new Date(v.am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} · ${esc(v.von)}</span>${linkify(v.text)}${v.media?`<div class="med">${medienHtml({media:[v.media]})}</div>`:''}</div>`).join('')||'<div class="muted">Noch kein Verlauf.</div>'}</div><label>Verlaufs-Eintrag</label><input id="kVerlauf" placeholder="Was ist passiert? (Enter)">`:''}<div class="reihe" style="justify-content:space-between"><span></span><span><button class="knopf" id="kAbbr">Schließen</button><button class="knopf pri" id="kOk">Speichern</button></span></div>`;
+  $('#karteInhalt').innerHTML=`<h3>${id?`🗂 Karte <button type="button" class="fc-id" data-copy="#karte-${id}" title="Kennung kopieren — im Chat wird #karte-${id} zum Link auf diese Karte">#karte-${id}</button>`:'Neue Karte'}</h3><label>Titel</label><input id="kTitel" value="${esc(k.titel)}"><label>Beschreibung (Stand · Was · Wartet auf · Ziel)</label><textarea id="kBesch" style="min-height:120px">${esc(k.beschreibung)}</textarea><label>Spalte</label><select id="kSpalte">${Object.keys(SP).map(s=>`<option value="${s}"${k.spalte===s?' selected':''}>${SP[s]}</option>`).join('')}</select>${id?`<div class="verl">${(k.verlauf||[]).slice().reverse().map(v=>`<div><span>${esc(new Date(v.am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} · ${esc(v.von)}</span>${linkify(v.text)}${v.media?`<div class="med">${medienHtml({media:[v.media]})}</div>`:''}</div>`).join('')||'<div class="muted">Noch kein Verlauf.</div>'}</div><label>Verlaufs-Eintrag</label><input id="kVerlauf" placeholder="Was ist passiert? (Enter)">`:''}<div class="reihe" style="justify-content:space-between"><span></span><span><button class="knopf" id="kAbbr">Schließen</button><button class="knopf pri" id="kOk">Speichern</button></span></div>`;
   const dlg=$('#dlgKarte');dlg.showModal();
   $('#kAbbr').onclick=()=>dlg.close();
   $('#kOk').onclick=async()=>{const b={titel:$('#kTitel').value.trim(),beschreibung:$('#kBesch').value,spalte:$('#kSpalte').value};if(!b.titel)return;const r=await api(id?`/api/karten/${id}`:'/api/karten',{method:'POST',body:JSON.stringify(b)});if(r&&r.ok){dlg.close();if(ANSICHT==='board')boardZeigen();else await ladeKarten();}};
@@ -587,7 +690,7 @@ async function ladeAgenten(){
   $('#agentenListe').innerHTML=(r.agents||[]).map(a=>{const t=a.zuletzt_gesehen?new Date(a.zuletzt_gesehen).getTime():0;const on=jetzt-t<90000;return `<div class="kanal" style="cursor:default"><span class="dot${on?' an':''}${on&&a.status==='busy'?' busy':''}"></span>${esc(a.name)}</div>`;}).join('')||'<span class="muted" style="padding:0 .6rem">keine</span>';
 }
 // ── Live ──
-function sse(){const es=new EventSource('/api/events');es.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.kanal===KANAL&&ANSICHT==='chat'&&m.id>LAST){zeige(m);LAST=m.id;}else if(m.kanal!==KANAL)ladeKanaele();});es.addEventListener('message_update',e=>{const m=JSON.parse(e.data);if(m.kanal===KANAL)zeige(m,false);});es.addEventListener('presence',()=>ladeKanaele());es.addEventListener('karte',()=>{ladeKarten().then(()=>{if(ANSICHT==='board')boardZeigen();else kopfZeichnen();});});es.onerror=()=>{es.close();setTimeout(sse,4000);};}
+function sse(){const es=new EventSource('/api/events');es.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.kanal===KANAL&&ANSICHT==='chat'&&GELADEN===KANAL&&m.id>LAST){zeige(m);LAST=m.id;gelesenMelden();}else if(m.kanal!==KANAL)ladeKanaele();});es.addEventListener('message_update',e=>{const m=JSON.parse(e.data);if(m.kanal===KANAL)zeige(m,false);});es.addEventListener('presence',()=>ladeKanaele());es.addEventListener('karte',()=>{ladeKarten().then(()=>{if(ANSICHT==='board')boardZeigen();else kopfZeichnen();});});es.onerror=()=>{es.close();setTimeout(sse,4000);};}
 async function start(){await ladeKarten();if(await ladeKanaele()){ladeMsgs(true);ladeAgenten();sse();setInterval(ladeMsgs,5000);setInterval(ladeKanaele,6000);setInterval(ladeAgenten,15000);$('#stand').textContent='';outboxFlush();const m=/^#karte-(\d+)$/.exec(location.hash);if(m)karteOeffnen(Number(m[1]));}}
 /* === Kanäle & Suche (1.1) === */
 // Kanal-Einstellungen (Reihenfolge, Anzeigename, Archiv, Stumm) liegen global am Server; Ungelesen-Zahlen und
@@ -596,7 +699,8 @@ let EINST={reihenfolge:[],archiviert:[],stumm:[],namen:{}},EINST_JSON='',UNREAD=
 const anzeigeName=(x)=>EINST.namen[x.name]||x.label||x.name;
 const fNamenSet=()=>new Set(FENSTER.map(f=>f.name));
 function sortiert(liste){const pos=new Map(EINST.reihenfolge.map((k,i)=>[k,i]));return liste.map((x,i)=>({...x,anzeige:anzeigeName(x),archiviert:EINST.archiviert.includes(x.name),stumm:EINST.stumm.includes(x.name),_i:i})).sort((a,b)=>(pos.has(a.name)?pos.get(a.name):1e6+a._i)-(pos.has(b.name)?pos.get(b.name):1e6+b._i));}
-function titelZeichnen(){const n=Object.values(UNREAD).reduce((a,b)=>a+b,0);document.title=(n?`(${n}) `:'')+'Flotten-Chat';}
+// 1.2: die Zahl im Tab-Titel zählt nur Fenster-Kanäle (keine Alarme, Erinnerungen, Agenten-Kanäle).
+function titelZeichnen(){const fN=fNamenSet();const n=Object.entries(UNREAD).reduce((a,[k,v])=>a+(fN.has(k)?v:0),0);document.title=(n?`(${n>99?'99+':n}) `:'')+'Flotten-Chat';}
 function zeile(x,fenster,archiv){const z=x.zustand||{};const n=UNREAD[x.name]||0;
   return `<div class="kanal${x.name===KANAL?' an':''}${x.stumm?' stumm':''}" role="button" tabindex="0" data-k="${esc(x.name)}" data-sek="${archiv?'a':(fenster?'f':'k')}"${archiv?'':' draggable="true"'} title="${esc(x.name)}">${fenster?`<span class="dot ${lampeKlasse(x)}" title="${lampeTitel(x)}"></span>`:''}<span class="kn">${esc(x.anzeige)}</span>${fenster?uhrHtml(x):''}${x.stumm?'<span class="stumm-ic" title="stumm">🔕</span>':''}${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}${n?`<span class="badge n" title="${n} ungelesen">${n>99?'99+':n}</span>`:''}<button type="button" class="kmenu" title="Kanal verwalten" aria-label="Kanal verwalten">⋯</button></div>`;}
 function seitenleisteZeichnen(fNamen){
@@ -608,12 +712,13 @@ function seitenleisteZeichnen(fNamen){
   $('#archivListe').hidden=!ARCHIV_AUF||!arch.length;$('#archivListe').innerHTML=arch.join('');
   titelZeichnen();
 }
-function mobilOptionen(fNamen){return [...sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,label:lampeEmoji(f)+' '+f.anzeige})),...sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`).join('');}
+function mobilOptionen(fNamen){return (KANAL?'':'<option value="" selected disabled>Kanal wählen …</option>')+[...sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,label:lampeEmoji(f)+' '+f.anzeige})),...sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`).join('');}
 // Seitenleiste: Klick = Kanal öffnen, ⋯ = verwalten, Archiv auf/zu; Tastatur Enter/Leertaste.
 const ASIDE=document.querySelector('aside');
-ASIDE.addEventListener('click',e=>{const m=e.target.closest('.kmenu');if(m){e.stopPropagation();kanalDialog(m.closest('.kanal').dataset.k);return;}
+ASIDE.addEventListener('click',e=>{const m=e.target.closest('.kmenu');if(m){e.stopPropagation();const b=m.getBoundingClientRect();kanalMenuAuf(m.closest('.kanal').dataset.k,b.right,b.bottom+4,m);return;}
+  if(LANG_GEDRUECKT){LANG_GEDRUECKT=false;return;}
   if(e.target.closest('#archivAuf')){ARCHIV_AUF=!ARCHIV_AUF;seitenleisteZeichnen(fNamenSet());return;}
-  const r=e.target.closest('.kanal[data-k]');if(r)kanalWechseln(r.dataset.k);});
+  const r=e.target.closest('.kanal[data-k]');if(r)kanalWechseln(r.dataset.k,r.getBoundingClientRect());});
 ASIDE.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(r&&e.target===r){e.preventDefault();kanalWechseln(r.dataset.k);}});
 // Drag & Drop innerhalb einer Sektion (Fenster bzw. Kanäle); Archiv ist nicht ziehbar.
 ASIDE.addEventListener('dragstart',e=>{const r=e.target.closest&&e.target.closest('.kanal[draggable]');if(!r)return;DRAG={k:r.dataset.k,sek:r.dataset.sek};r.classList.add('zieht');try{e.dataTransfer.setData('text/plain',r.dataset.k);e.dataTransfer.effectAllowed='move';}catch{}});
@@ -642,8 +747,8 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 (function initKanaele(){if(!ME){setTimeout(initKanaele,400);return;}ladeUnread();setInterval(ladeUnread,6000);})();
 // Suche: Lupe im Kopf, alle Wörter müssen vorkommen (Groß/klein egal), Klick springt zur Nachricht, Esc schließt.
 const sFeld=$('#sucheFeld'),sPanel=$('#suchePanel');let sTimer=null,sLetzte='';
-function sucheAuf(){sFeld.hidden=false;$('#sucheBtn').setAttribute('aria-expanded','true');sFeld.focus();sFeld.select();const q=sFeld.value.trim();if(q.length>=2)suchen(q);}
-function sucheZu(){sFeld.hidden=true;sPanel.hidden=true;sPanel.innerHTML='';sLetzte='';$('#sucheBtn').setAttribute('aria-expanded','false');}
+function sucheAuf(){sFeld.hidden=false;$('#sucheBox').hidden=false;sucheX();$('#sucheBtn').setAttribute('aria-expanded','true');sFeld.focus();sFeld.select();const q=sFeld.value.trim();if(q.length>=2)suchen(q);}
+function sucheZu(){sFeld.hidden=true;$('#sucheBox').hidden=true;sPanel.hidden=true;sPanel.innerHTML='';sLetzte='';$('#sucheBtn').setAttribute('aria-expanded','false');}
 $('#sucheBtn').onclick=()=>sFeld.hidden?sucheAuf():sucheZu();
 const escRe=(w)=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 function markiere(t,ws){if(!ws.length)return esc(t);const re=new RegExp('('+ws.map(escRe).join('|')+')','gi');return String(t||'').split(re).map((p,i)=>i%2?'<mark>'+esc(p)+'</mark>':esc(p)).join('');}
@@ -654,11 +759,13 @@ function sucheZeichnen(r,q){const t=r.treffer||[],ws=r.woerter||[];const label=(
   sPanel.hidden=false;$('#sucheSchliessen').onclick=sucheZu;
   sPanel.querySelectorAll('.s-treffer').forEach(el=>{const go=()=>springeZu(el.dataset.k,Number(el.dataset.id),el.querySelector('.s-text').textContent);el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};});}
 async function suchen(q){sLetzte=q;const r=await api('/api/search?q='+encodeURIComponent(q));if(q!==sLetzte||!r||!r.ok)return;sucheZeichnen(r,q);}
-sFeld.addEventListener('input',()=>{const q=sFeld.value.trim();clearTimeout(sTimer);if(q.length<2){sLetzte='';sPanel.hidden=true;return;}sTimer=setTimeout(()=>suchen(q),300);});
+sFeld.addEventListener('input',()=>{sucheX();const q=sFeld.value.trim();clearTimeout(sTimer);if(q.length<2){sLetzte='';sPanel.hidden=true;return;}sTimer=setTimeout(()=>suchen(q),300);});
 sFeld.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();sucheZu();}else if(e.key==='Enter'){const q=sFeld.value.trim();if(q.length>=2)suchen(q);}});
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();sucheAuf();}else if(e.key==='Escape'&&!sFeld.hidden)sucheZu();});
 async function springeZu(kanal,id,text){sucheZu();kanalWechseln(kanal);
-  for(let i=0;i<24;i++){const el=document.querySelector(`.msg[data-id="${id}"]`);if(el){el.scrollIntoView({block:'center'});el.classList.add('treffer');setTimeout(()=>el.classList.remove('treffer'),2500);return;}await new Promise(r=>setTimeout(r,250));}
+  // 1.2: Verlauf kommt in Etappen — liegt die Nachricht weiter oben, wird Block für Block nachgeladen, bis sie da ist.
+  for(let i=0;i<60;i++){const el=document.querySelector(`.msg[data-id="${id}"]`);if(el){el.scrollIntoView({block:'center'});el.classList.add('treffer');setTimeout(()=>el.classList.remove('treffer'),2500);return;}
+    if(!(KANAL===kanal&&GELADEN===kanal&&!AELTER_FERTIG[kanal]&&await aeltereLaden(kanal)))await new Promise(r=>setTimeout(r,250));}
   fcStatus('Die Nachricht liegt weiter oben im Verlauf und wird noch nachgeladen: „'+String(text||'').slice(0,120)+'“');setTimeout(()=>fcStatus(''),8000);}
 /* === Lampen, Ablage, Erinnerungen (1.1) === */
 // ── Lampen: grün pulsierend + laufende Uhr = beschäftigt · blau = bereit · grau = aus · rot = tot (abgestürzt).
@@ -775,6 +882,183 @@ function remBearbeiten(id){
   $('#reUeber').onclick=async()=>{const f=$('#reFenster').value;if(!f)return;$('#reUeber').disabled=true;const r2=await api('/api/reminders/'+id+'/uebergeben',{method:'POST',body:JSON.stringify({fenster:f})});$('#reUeber').disabled=false;
     if(r2&&r2.ok){dlg.close();toast(`📨 Übergeben — das Fenster „${(FENSTER.find(y=>y.name===f)||{}).label||f}“ hat den Auftrag.`);remNeuLaden();}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));};
 }
+/* === Chat-Komfort (1.2) === */
+// ── Verlauf in Etappen: ein Kanal geht mit den jüngsten 25 Nachrichten auf; ältere kommen still im Hintergrund nach
+//    (je 60, bis ~300) oder sofort beim Hochscrollen — die Leseposition bleibt dabei stehen.
+const ERSTE_LADUNG=25,AELTER_BLOCK=60,AELTER_STILL_BIS=300;
+let GELADEN='',LEER=false,AELTER_FERTIG={},AELTER_GELADEN={},aelterLaeuft=false,aelterTimer=null,ersteLaeuft='';
+async function ersteLadung(){
+  const kanal=KANAL;if(!kanal||ersteLaeuft===kanal)return;ersteLaeuft=kanal;GELADEN='';
+  const r=await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&juengste=1&limit=${ERSTE_LADUNG}`);
+  if(ersteLaeuft===kanal)ersteLaeuft='';
+  if(kanal!==KANAL||ANSICHT!=='chat')return;
+  if(!r||!r.ok){oeffnenJetzt(kanal);return;} // nächster Poll versucht es wieder (GELADEN bleibt leer)
+  const box=$('#msgs');box.innerHTML='';LAST=0;
+  if(kanal==='erinnerungen')await remListeZeigen();
+  if(kanal!==KANAL)return;
+  for(const m of r.messages){zeige(m,false);LAST=Math.max(LAST,m.id);}
+  if(!r.messages.length&&kanal!=='erinnerungen')box.insertAdjacentHTML('beforeend','<div class="leer">Noch nichts hier. Schreib die erste Nachricht — bei einem Fenster landet sie direkt im Terminal.</div>');
+  GELADEN=kanal;AELTER_FERTIG[kanal]=r.messages.length<ERSTE_LADUNG;AELTER_GELADEN[kanal]=0;
+  box.scrollTop=box.scrollHeight;gelesenMelden();oeffnenJetzt(kanal);aelterTraeufeln(kanal);
+}
+async function aeltereLaden(kanal){
+  if(!kanal||kanal!==KANAL||GELADEN!==kanal||aelterLaeuft||AELTER_FERTIG[kanal])return false;
+  const box=$('#msgs'),erste=[...box.querySelectorAll('.msg[data-id]')].find(x=>/^\d+$/.test(x.dataset.id));
+  if(!erste){AELTER_FERTIG[kanal]=true;return false;}
+  aelterLaeuft=true;
+  const r=await api(`/api/messages?kanal=${encodeURIComponent(kanal)}&vor=${erste.dataset.id}&limit=${AELTER_BLOCK}`);
+  aelterLaeuft=false;
+  if(kanal!==KANAL||GELADEN!==kanal||!r||!r.ok)return false;
+  if(r.messages.length<AELTER_BLOCK)AELTER_FERTIG[kanal]=true;
+  if(!r.messages.length)return false;
+  const tmp=document.createElement('div');for(const m of r.messages)zeige(m,false,tmp);
+  const hVor=box.scrollHeight,topVor=box.scrollTop;
+  const frag=document.createDocumentFragment();while(tmp.firstChild)frag.append(tmp.firstChild);
+  box.insertBefore(frag,erste);
+  box.scrollTop=topVor+(box.scrollHeight-hVor); // Leseposition halten
+  AELTER_GELADEN[kanal]=(AELTER_GELADEN[kanal]||0)+r.messages.length;
+  return true;
+}
+function aelterTraeufeln(kanal){
+  clearTimeout(aelterTimer);
+  aelterTimer=setTimeout(()=>{
+    if(kanal!==KANAL||AELTER_FERTIG[kanal]||(AELTER_GELADEN[kanal]||0)>=AELTER_STILL_BIS-ERSTE_LADUNG)return;
+    const los=()=>aeltereLaden(kanal).then(ok=>{if(ok)aelterTraeufeln(kanal);});
+    if(window.requestIdleCallback)requestIdleCallback(los,{timeout:3000});else los();
+  },2500);
+}
+$('#msgs').addEventListener('scroll',()=>{const b=$('#msgs');if(KANAL&&b.scrollTop<240)aeltereLaden(KANAL);},{passive:true});
+
+// ── Aufgehen wie eine App: die Fläche wächst aus der angeklickten Kanalzeile — aber erst, wenn die ersten Nachrichten
+//    stehen (höchstens 350 ms warten), damit sie nie leer aufgeht. Ohne Zeile (Handy-Auswahl) oder bei reduzierter
+//    Bewegung: kurzes Einblenden.
+let OEFFNEN=null;
+const ruhig=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch{return false;}};
+function oeffnenVorbereiten(kanal,von){const el=$('#main');if(!el.animate)return;clearTimeout(OEFFNEN&&OEFFNEN.t);el.style.opacity='0';OEFFNEN={kanal,von:von||null,t:setTimeout(()=>oeffnenJetzt(kanal),350)};}
+function oeffnenJetzt(kanal){
+  const w=OEFFNEN;if(!w||(kanal&&w.kanal!==kanal))return;OEFFNEN=null;clearTimeout(w.t);
+  const el=$('#main');el.style.opacity='';const fr=el.getBoundingClientRect(),vr=w.von;
+  if(ruhig()||!vr||!vr.width||!fr.width||!fr.height){el.animate([{opacity:0},{opacity:1}],{duration:160,easing:'ease-out'});return;}
+  const sx=Math.max(.02,vr.width/fr.width),sy=Math.max(.02,vr.height/fr.height);
+  el.animate([{transformOrigin:'0 0',transform:`translate(${vr.left-fr.left}px,${vr.top-fr.top}px) scale(${sx},${sy})`,borderRadius:'14px'},{transformOrigin:'0 0',transform:'none',borderRadius:'0px'}],{duration:380,easing:'cubic-bezier(.2,.9,.25,1)'});
+  el.animate([{opacity:0},{opacity:1}],{duration:380,easing:'linear'});
+}
+
+// ── Kein Kanal offen (Fenster geschlossen, während man drin war): Auswahl mittig, Kanäle mit Ungelesenem zum Antippen.
+let leerStand='';
+function leerAnsicht(){
+  termZu();kanalMenuZu();schwarmZeichnen([]);
+  KANAL='';LEER=true;LAST=0;GELADEN='';leerStand='';try{localStorage.removeItem('fc_kanal');}catch{}
+  $('#kopf').hidden=true;$('#composer').hidden=true;$('#ablageBar')&&($('#ablageBar').hidden=true);
+  leerZeichnen();
+}
+function leerZeichnen(){
+  if(KANAL||!LEER||ANSICHT!=='chat')return;
+  const alle=[...sortiert(FENSTER),...sortiert(KANAELE.filter(k=>!fNamenSet().has(k.name)))].filter(x=>!x.archiviert&&(UNREAD[x.name]||0)>0);
+  const h=alle.map(x=>`<button type="button" class="leer-kanal" data-k="${esc(x.name)}"><span>${esc(x.anzeige)}</span><span class="badge">${UNREAD[x.name]>99?'99+':UNREAD[x.name]}</span></button>`).join('');
+  const neu=`<div class="leer-box"><h2>Wähle einen Kanal</h2>${h?'<p>Ungelesen:</p><div class="leer-liste">'+h+'</div>':'<p>Alles gelesen ✓</p>'}</div>`;
+  if(neu===leerStand)return;leerStand=neu;$('#msgs').innerHTML=neu;
+}
+$('#msgs').addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.leer-kanal');if(b&&!KANAL)kanalWechseln(b.dataset.k,b.getBoundingClientRect());});
+setInterval(leerZeichnen,1500);
+
+// ── Kanal-Menü: EIN Menü je Kanal — ⋯ an der Zeile, ⋯ im Kanal-Kopf, Rechtsklick, lange drücken (Touch).
+//    Fenster: Starten/Neu starten, Terminal, Modus (Auto/Manual/Planen mit ✓), Schließen. Alle Kanäle: Umbenennen &
+//    Reihenfolge (der Dialog aus 1.1), Stumm, Archivieren. Heikles (Neu starten, Schließen) braucht einen zweiten Tipp.
+const KM=$('#kanalMenu');let KM_K='',KM_VON=null,LANG_GEDRUECKT=false;
+const KM_MODI=[['auto','Auto','fragt nur bei Riskantem'],['manual','Manual','fragt bei jeder Änderung'],['plan','Planen','plant erst, ändert nichts']];
+function kanalMenuZu(){if(KM.hidden)return;KM.hidden=true;KM.innerHTML='';if(KM_VON){KM_VON.setAttribute&&KM_VON.setAttribute('aria-expanded','false');}KM_K='';KM_VON=null;}
+function kanalMenuHtml(name){
+  const f=fensterVon(name),x=[...FENSTER,...KANAELE].find(y=>y.name===name)||{name};const z=(f&&f.zustand)||{};
+  const modus=z.modus==='default'?'manual':z.modus;let h=`<div class="km-kopf">${esc(anzeigeName(x))}${f?' · '+esc(lampeTitel(f)):''}</div>`;
+  if(f){
+    h+=`<button type="button" role="menuitem" data-akt="start">${f.laeuft?'🔄 Fenster neu starten':'▶️ Fenster starten'}</button>`;
+    if(f.laeuft)h+=`<button type="button" role="menuitem" data-akt="terminal">${TERM===name?'🖥 Terminal schließen':'🖥 Terminal ansehen'}</button>`;
+    if(f.laeuft)h+='<div class="km-titel">Modus</div>'+KM_MODI.map(m=>`<button type="button" role="menuitemradio" aria-checked="${modus===m[0]}" data-akt="modus-${m[0]}">${modus===m[0]?'✓ ':''}${m[1]} <span class="km-hint">${m[2]}</span></button>`).join('');
+    h+=`<button type="button" role="menuitem" data-akt="schliessen">🧹 Fenster schließen <span class="km-hint">${f.laeuft?'Stand sichern, dann zu':'sofort'}</span></button><hr>`;
+  }
+  h+=`<button type="button" role="menuitem" data-akt="verwalten">✏️ Umbenennen &amp; Reihenfolge …</button>`;
+  h+=`<button type="button" role="menuitem" data-akt="stumm">${EINST.stumm.includes(name)?'🔔 Wieder laut':'🔕 Stumm schalten'}</button>`;
+  h+=`<button type="button" role="menuitem" data-akt="archiv">${EINST.archiviert.includes(name)?'📤 Aus dem Archiv holen':'📦 Archivieren'}</button>`;
+  return h;
+}
+function kanalMenuAuf(name,x,y,von,rechtsbuendig){
+  if(!name)return;if(!KM.hidden&&KM_K===name&&(!von||KM_VON===von)){if(von)kanalMenuZu();return;} // ⋯ schaltet um; Rechtsklick/lange drücken öffnen nur
+  kanalMenuZu();KM_K=name;KM_VON=von||null;KM.innerHTML=kanalMenuHtml(name);KM.hidden=false;
+  if(von&&von.setAttribute)von.setAttribute('aria-expanded','true');
+  const b=KM.getBoundingClientRect(),vw=innerWidth,vh=innerHeight;
+  let l=rechtsbuendig?x-b.width:x;l=Math.max(8,Math.min(l,vw-b.width-8));let t=y;if(t+b.height>vh-8)t=Math.max(8,y-b.height-8);
+  KM.style.left=l+'px';KM.style.top=t+'px';
+  const erster=KM.querySelector('button');if(erster)try{erster.focus({preventScroll:true});}catch{erster.focus();}
+}
+async function fensterStarten(name,knopf){
+  const f=fensterVon(name);if(!f)return;if(knopf){knopf.disabled=true;knopf.textContent='startet …';}
+  const r=await api(`/api/fenster/${encodeURIComponent(name)}/${f.laeuft?'neustart':'start'}`,{method:'POST',body:'{}'});
+  toast(r&&r.ok?(f.laeuft?'Fenster startet neu — es meldet sich hier, sobald es bereit ist.':'Fenster startet — es meldet sich hier.'):'⚠️ '+((r&&r.fehler)||'Ging nicht'));
+  setTimeout(ladeKanaele,3000);
+}
+function zweiterTipp(btn,frage){if(btn.dataset.frag==='1')return false;btn.dataset.frag='1';btn.classList.add('frag');btn.textContent=frage;setTimeout(()=>{if(btn.isConnected&&btn.dataset.frag==='1'&&KM_K)KM.innerHTML=kanalMenuHtml(KM_K);},6000);return true;}
+KM.addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-akt]');if(!b)return;const k=KM_K,akt=b.dataset.akt,f=fensterVon(k);
+  if(akt==='start'){if(f&&f.laeuft&&zweiterTipp(b,'Wirklich neu starten? (nochmal tippen)'))return;kanalMenuZu();fensterStarten(k);return;}
+  if(akt==='schliessen'){if(zweiterTipp(b,f&&f.laeuft?'Stand sichern & schließen? (nochmal tippen)':'Wirklich schließen? (nochmal tippen)'))return;kanalMenuZu();if(!f)return;
+    const r=await api(`/api/fenster/${encodeURIComponent(k)}/schliessen`,{method:'POST',body:JSON.stringify({sofort:!f.laeuft})});
+    toast(r&&r.ok?(f.laeuft?'Das Fenster räumt auf und schließt in 60 s — danach verschwindet der Kanal.':'Fenster geschlossen.'):'⚠️ '+((r&&r.fehler)||'Ging nicht'));setTimeout(ladeKanaele,f.laeuft?62000:1500);return;}
+  kanalMenuZu();
+  if(akt==='terminal'){if(TERM===k){termZu();return;}if(KANAL!==k)kanalWechseln(k);const f2=fensterVon(k);if(f2)termAuf(f2);return;}
+  if(akt.startsWith('modus-')){const ziel=akt.slice(6);sende(ziel,undefined,k);toast(`Fenster schaltet auf ${(KM_MODI.find(m=>m[0]===ziel)||[,ziel])[1]} …`);return;}
+  if(akt==='verwalten'){kanalDialog(k);return;}
+  if(akt==='stumm'){const st=new Set(EINST.stumm);const war=st.has(k);if(war)st.delete(k);else st.add(k);if(await einstSpeichern({stumm:[...st]}))toast(war?'Kanal ist wieder laut.':'Kanal ist stumm — kein Zähler, keine Zahl im Tab.');return;}
+  if(akt==='archiv'){const a=new Set(EINST.archiviert);const war=a.has(k);if(war)a.delete(k);else a.add(k);if(await einstSpeichern({archiviert:[...a]}))toast(war?'Kanal ist zurück in der Liste.':'Kanal liegt im Archiv (unten in der Seitenleiste).');}
+});
+KM.addEventListener('keydown',e=>{const bs=[...KM.querySelectorAll('button')];const i=bs.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const j=(i+(e.key==='ArrowDown'?1:-1)+bs.length)%bs.length;bs[j].focus();}
+  else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();const v=KM_VON;kanalMenuZu();if(v&&v.focus)v.focus();}});
+document.addEventListener('pointerdown',e=>{if(!KM.hidden&&!KM.contains(e.target)&&!(KM_VON&&KM_VON.contains&&KM_VON.contains(e.target)))kanalMenuZu();},true);
+addEventListener('resize',kanalMenuZu);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!KM.hidden)kanalMenuZu();});
+ASIDE.addEventListener('contextmenu',e=>{const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(!r)return;e.preventDefault();kanalMenuAuf(r.dataset.k,e.clientX,e.clientY,null);});
+// Lange drücken (Touch, 550 ms): Menü statt Öffnen; der folgende Klick wird geschluckt.
+let langTimer=null,langStart=null;
+ASIDE.addEventListener('touchstart',e=>{const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(!r||e.target.closest('.kmenu'))return;const t=e.touches[0];langStart={x:t.clientX,y:t.clientY};
+  clearTimeout(langTimer);langTimer=setTimeout(()=>{LANG_GEDRUECKT=true;kanalMenuAuf(r.dataset.k,langStart.x,langStart.y,null);if(navigator.vibrate)try{navigator.vibrate(10);}catch{}},550);},{passive:true});
+ASIDE.addEventListener('touchmove',e=>{if(!langStart)return;const t=e.touches[0];if(Math.abs(t.clientX-langStart.x)>10||Math.abs(t.clientY-langStart.y)>10){clearTimeout(langTimer);langStart=null;}},{passive:true});
+ASIDE.addEventListener('touchend',()=>{clearTimeout(langTimer);langStart=null;setTimeout(()=>{LANG_GEDRUECKT=false;},400);});
+
+// ── Schwarm-Leiste: laufende Claude-Code-Workflows des offenen Fensters (Name, Phase, Agenten, Dauer, Balken);
+//    Klick klappt die Agentenliste je Phase auf. Quelle: GET /api/fenster/<name>/schwarm (Sitzungsordner des Fensters).
+let SCHWARM_OFFEN=false,schwarmJson='';
+function schwarmZeichnen(liste){
+  const bar=$('#schwarmBar');const j=JSON.stringify(liste||[]);if(j===schwarmJson)return;schwarmJson=j;
+  if(!liste||!liste.length){bar.hidden=true;bar.innerHTML='';return;}
+  const ICO={laeuft:'⏳',fertig:'✓',fehler:'✗'};
+  bar.innerHTML=liste.map(w=>{const pz=w.zustand==='fertig'?100:(w.gesamt?Math.round(100*w.fertig/w.gesamt):0);let ph='';
+    const li=(w.agenten||[]).map(a=>{let kopf='';if(a.phase&&a.phase!==ph){ph=a.phase;kopf=`<div class="sw-ph">${esc(a.phase)}</div>`;}return kopf+`<div>${ICO[a.status]||'·'} ${esc(a.label||'Agent')}</div>`;}).join('');
+    return `<div class="sw-zeile${w.zustand==='fertig'?' fertig':''}" title="${esc(w.beschreibung||w.text)}"><span class="sw-text">${esc(w.text)}</span>${w.gesamt?`<span class="sw-balken" role="progressbar" aria-valuenow="${pz}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pz}%"></i></span>`:''}<span class="sw-pfeil">${SCHWARM_OFFEN?'▴':'▾'}</span></div>`
+      +(li?`<div class="sw-liste">${w.beschreibung?`<div>${esc(w.beschreibung)}</div>`:''}${li}</div>`:'');}).join('');
+  bar.classList.toggle('offen',SCHWARM_OFFEN);bar.hidden=false;
+}
+$('#schwarmBar').addEventListener('click',e=>{if(e.target.closest('.sw-liste'))return;SCHWARM_OFFEN=!SCHWARM_OFFEN;const bar=$('#schwarmBar');bar.classList.toggle('offen',SCHWARM_OFFEN);bar.querySelectorAll('.sw-pfeil').forEach(x=>x.textContent=SCHWARM_OFFEN?'▴':'▾');});
+async function schwarmHolen(){
+  const f=ANSICHT==='chat'&&document.visibilityState!=='hidden'?fensterVon(KANAL):null;
+  if(!f||!f.laeuft){if(!f||ANSICHT!=='chat')schwarmZeichnen([]);return;}
+  const kanal=f.name,r=await api(`/api/fenster/${encodeURIComponent(kanal)}/schwarm`);
+  if(kanal===KANAL&&r&&r.ok)schwarmZeichnen(r.schwarm);
+}
+setInterval(()=>{if(ME)schwarmHolen();},4000);
+
+// ── Suchfeld-✕: sichtbar, sobald etwas drinsteht; ein Klick leert Begriff + Treffer, der Fokus bleibt im Feld.
+function sucheX(){$('#sucheLeeren').hidden=!sFeld.value;}
+$('#sucheLeeren').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();clearTimeout(sTimer);sFeld.value='';sLetzte='';sPanel.hidden=true;sPanel.innerHTML='';sucheX();sFeld.focus();});
+$('#sucheLeeren').addEventListener('pointerdown',e=>e.preventDefault()); // Fokus nicht aus dem Feld nehmen
+
+// ── ID-Chips: #karte-<n> im Text öffnet die Karte; in der Karte kopiert der Chip die Kennung („✓ kopiert“).
+document.addEventListener('click',async e=>{
+  const el=e.target.closest&&e.target.closest('.fc-id');if(!el)return;e.preventDefault();e.stopPropagation();
+  if(el.dataset.copy){const alt=el.dataset.copy;const ok=await kopieren(alt);el.classList.add('ok');el.textContent=ok?'✓ kopiert':'Kopieren ging nicht';setTimeout(()=>{el.classList.remove('ok');el.textContent=alt;},1200);return;}
+  const id=Number(el.dataset.karte);await ladeKarten();if(KARTEN.some(k=>k.id===id)){if($('#dlgKarte').open)$('#dlgKarte').close();karteOeffnen(id);}else toast(`Karte #karte-${id} gibt es nicht (mehr).`);
+});
+/* === Ende Chat-Komfort (1.2) === */
 gate();
 </script>
 </body>
