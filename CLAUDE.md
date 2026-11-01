@@ -23,7 +23,7 @@ Antwortet er, **nie einen zweiten starten** — weiter bei „Dich einbringen“
    für Skripte und Agenten ohne tmux.)
 4. **Konto für die Fenster**: Fenster starten als `claude` mit dem Standard-Konfigurationsordner
    (`~/.claude`). Soll ein anderes Konto laufen: `FC_CLAUDE_CONFIG_DIR=/pfad` beim Serverstart.
-5. **Erst einen Bereich, dann das erste Fenster** (seit 1.3). Ein Bereich merkt sich Ort, Ordner (oder Repo mit
+5. **Erst einen Bereich, dann das erste Fenster** (seit 1.2.1). Ein Bereich merkt sich Ort, Ordner (oder Repo mit
    eigenem Worktree je Baufenster) und optional einen ersten Satz; danach startet „＋ → Bereich → 🔨 Bau / 💬 Wissen“
    ein Fenster mit einem Klick (Name `<kürzel>-bau-<n>` bzw. `<kürzel>-wissen-<n>`, immer Auto-Modus).
    In der UI: „＋“ an „Fenster“ → „Ersten Bereich anlegen“ → „Anlegen & erstes Fenster starten“.
@@ -55,7 +55,7 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
   nennen (auch `[Video: …]`, `[Sprachnachricht: …]`, `[Datei: …]`) — der Chat zeigt die Vorschau.
 - **Anhänge des Menschen** kommen als Pfad: `[Bild: /…/data/media/abc.png]` — lies die Datei selbst.
   Aus der **Ablage** (dauerhaft, sprechende Namen) kommen sie als `[Video: /…/data/ablage/2026-10-06-1952-bildschirmaufnahme.webm]`.
-  Sprachnachrichten kommen seit 1.3 meist schon als Text: `<Text> [Sprachnachricht: /…/x.webm]` — der Text IST
+  Sprachnachrichten kommen seit 1.2.1 meist schon als Text: `<Text> [Sprachnachricht: /…/x.webm]` — der Text IST
   das Gesagte, du musst nichts transkribieren. Steht nur `🎤 Sprachnachricht` davor (Transkription aus), transkribiere
   selbst (ffmpeg + whisper, falls vorhanden), sonst sag, dass du sie nicht hören kannst. Zu Bildschirmaufnahmen aus der
   Ablage liegt das Transkript mit Zeitmarken daneben: `<pfad>.transkript.txt` — lies das zuerst.

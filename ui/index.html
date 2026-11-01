@@ -389,7 +389,7 @@ aside .kanal{-webkit-touch-callout:none}
   .av-fuss .rechts{margin-left:0}
 }
 /* === /Aufgaben (1.2) === */
-/* === Bereiche (1.3) === */
+/* === Bereiche (1.2.1) === */
 /* Eigenes Dropdown: das <select> bleibt als Wertträger (versteckt), sichtbar ist ein Knopf im Feld-Design; die Liste öffnet
    direkt darunter (oder darüber, wenn unten kein Platz ist) im selben Design, ✓ an der gewählten Option. */
 .fc-sel{position:relative;display:block;min-width:0}
@@ -476,8 +476,8 @@ dialog .fc-sel-knopf,.av-form .fc-sel-knopf{padding:.5rem .6rem}
 /* Suche: Treffer aus geschlossenen Fenstern */
 .s-treffer.archiv .s-kanal{color:var(--n500)}
 .s-text.voll{white-space:pre-wrap;max-height:40vh;overflow:auto;background:var(--n50);border-radius:8px;padding:6px 8px;margin-top:4px}
-/* === /Bereiche (1.3) === */
-/* === Aufnahme (1.3) === */
+/* === /Bereiche (1.2.1) === */
+/* === Aufnahme (1.2.1) === */
 /* Sprachnachricht wie WhatsApp: Punkt, Zeit, laufende Pegel-Welle, darunter das Mitgeschriebene. Ersetzt die Eingabezeile, solange sie läuft. */
 .composer.aufn-weg{display:none}
 .sprach-bar{display:flex;flex-direction:column;gap:6px;padding:10px 18px;background:var(--card);border-top:1px solid var(--n100)}
@@ -508,7 +508,7 @@ dialog .fc-sel-knopf,.av-form .fc-sel-knopf{padding:.5rem .6rem}
 .aufn-anh .zu{margin-left:auto}
 .ablage-bar .abl-tr{flex-basis:100%;font-size:.78rem;color:var(--n500);white-space:pre-wrap;max-height:5.5em;overflow:auto}
 @media(max-width:720px){.sprach-bar{padding:8px 10px}.sb-knopf{min-width:44px;padding:0 10px}.bild-bar,.aufn-anh{padding:6px 10px}.sb-hinweis{display:none}}
-/* === /Aufnahme (1.3) === */
+/* === /Aufnahme (1.2.1) === */
 </style>
 </head>
 <body>
@@ -795,7 +795,7 @@ $('#clip').onclick=()=>$('#datei').click();
 $('#datei').onchange=()=>{ladeHoch([...$('#datei').files]);$('#datei').value='';};
 document.addEventListener('dragover',e=>{e.preventDefault();});
 document.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer?.files?.length)ladeHoch([...e.dataTransfer.files]);});
-// Sprachnachricht (🎤) und Bildschirmaufnahme (🖥️): siehe Block „Aufnahme (1.3)“ am Ende.
+// Sprachnachricht (🎤) und Bildschirmaufnahme (🖥️): siehe Block „Aufnahme (1.2.1)“ am Ende.
 
 // ── Neues Fenster ──
 let GERAETE=[];
@@ -813,7 +813,7 @@ function ortGeaendert(){const v=$('#fOrt').value;$('#fHost').hidden=v!=='ssh';co
   $('#fOrdner').placeholder=g?'Standard: ~/fleet-themen/<name> auf dem Gerät':'/pfad/zum/projekt';
   const h=$('#fOrtHinweis');const aus=GERAETE.filter(x=>x.status==='gekoppelt'&&!x.offen);h.hidden=!aus.length;h.textContent=aus.length?`Nicht erreichbar: ${aus.map(x=>x.name).join(', ')} — Gerät einschalten/aufwecken, dann neu öffnen.`:'';
   if(v==='koppeln'){$('#fOrt').value='lokal';ortGeaendert();geraetDialog();}}
-// 1.3: ＋ öffnet das Bereiche-Popover (unten, Block „Bereiche (1.3)“); der Dialog hier ist der Experten-Weg „Einzelnes Fenster“.
+// 1.2.1: ＋ öffnet das Bereiche-Popover (unten, Block „Bereiche (1.2.1)“); der Dialog hier ist der Experten-Weg „Einzelnes Fenster“.
 function einzelFensterDialog(){const belegt=new Set([...FENSTER,...KANAELE].map(x=>x.name));let n=1;while(belegt.has('fenster-'+n))n++;$('#fName').value='fenster-'+n;$('#dlgFenster').showModal();$('#fName').focus();$('#fName').select();ortListe();}
 $('#fOrt').onchange=ortGeaendert;
 // ── Gerät koppeln: Name → Einmal-Code + Text für Claude Code am Gerät → warten, bis der Tunnel offen ist ──
@@ -922,7 +922,7 @@ function seitenleisteZeichnen(fNamen){
   $('#archivListe').hidden=!ARCHIV_AUF||!arch.length;$('#archivListe').innerHTML=arch.join('');
   titelZeichnen();
 }
-// 1.3: am Handy dieselbe Gruppierung — je Bereich eine Überschrift (optgroup), dann „Kanäle“.
+// 1.2.1: am Handy dieselbe Gruppierung — je Bereich eine Überschrift (optgroup), dann „Kanäle“.
 function mobilOptionen(fNamen){const opt=(x)=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}${x.knopf?` data-knopf="${esc(x.knopf)}"`:''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`;
   const fs=sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,g:grpVon(f),label:lampeEmoji(f)+' '+f.anzeige+(f.art==='wissen'?' 💬':''),knopf:lampeEmoji(f)+' '+vollerName(f)}));
   const ks=sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}));
@@ -944,7 +944,7 @@ ASIDE.addEventListener('dragleave',e=>{const r=e.target.closest&&e.target.closes
 ASIDE.addEventListener('drop',e=>{if(!DRAG)return;const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(!r||r.dataset.sek!==DRAG.sek||r.dataset.k===DRAG.k)return;e.preventDefault();
   const oben=r.classList.contains('ziel-oben');const {l,rest}=sektionNamen(DRAG.k);const o=l.filter(k=>k!==DRAG.k);const i=o.indexOf(r.dataset.k);o.splice(oben?i:i+1,0,DRAG.k);einstSpeichern({reihenfolge:[...o,...rest]});});
 // Reihenfolge: sichtbare Namen der eigenen Sektion (l) + alles andere (rest), damit nichts verloren geht.
-// 1.3: Fenster ordnen sich nur innerhalb ihres Bereichs (die Gruppe ist die Sektion).
+// 1.2.1: Fenster ordnen sich nur innerhalb ihres Bereichs (die Gruppe ist die Sektion).
 function sektionNamen(name){const fN=fNamenSet();const inF=fN.has(name);let eig=sortiert(inF?FENSTER:KANAELE.filter(k=>!fN.has(k.name))),and=sortiert(inF?KANAELE.filter(k=>!fN.has(k.name)):FENSTER);
   if(inF){const g=grpVon(fensterVon(name)||{});and=[...eig.filter(x=>grpVon(x)!==g),...and];eig=eig.filter(x=>grpVon(x)===g);}
   return {l:eig.filter(x=>!x.archiviert).map(x=>x.name),rest:[...eig.filter(x=>x.archiviert),...and].map(x=>x.name)};}
@@ -976,7 +976,7 @@ function sucheZeichnen(r,q){const t=r.treffer||[],ws=r.woerter||[];const label=(
     :'<div class="muted" style="padding:.6rem .7rem">Nichts gefunden. Alle Wörter müssen vorkommen — ein kürzeres Wort probieren.</div>');
   sPanel.hidden=false;$('#sucheSchliessen').onclick=sucheZu;
   sPanel.querySelectorAll('.s-treffer').forEach(el=>{const m=t[Number(el.dataset.i)]||{};
-    // 1.3: archivierte Treffer (Fenster geschlossen) klappen den ganzen Text hier im Panel auf — es gibt keinen Kanal zum Hinspringen.
+    // 1.2.1: archivierte Treffer (Fenster geschlossen) klappen den ganzen Text hier im Panel auf — es gibt keinen Kanal zum Hinspringen.
     const go=m.archiviert?()=>{const tx=el.querySelector('.s-text'),auf=!tx.classList.contains('voll');tx.classList.toggle('voll',auf);tx.innerHTML=markiere(auf?(m.text||m.ausschnitt):m.ausschnitt,ws);el.setAttribute('aria-expanded',String(auf));}:()=>springeZu(el.dataset.k,Number(el.dataset.id),el.querySelector('.s-text').textContent);el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};});}
 async function suchen(q){sLetzte=q;const r=await api('/api/search?q='+encodeURIComponent(q));if(q!==sLetzte||!r||!r.ok)return;sucheZeichnen(r,q);}
 sFeld.addEventListener('input',()=>{sucheX();const q=sFeld.value.trim();clearTimeout(sTimer);if(q.length<2){sLetzte='';sPanel.hidden=true;return;}sTimer=setTimeout(()=>suchen(q),300);});
@@ -1521,7 +1521,7 @@ const _aufgKarteOeffnen=karteOeffnen;karteOeffnen=function(id){_aufgKarteOeffnen
   span.innerHTML='<button class="knopf" id="kAufgabe" title="Aufgabe mit Zeitmessung zu dieser Karte — Stand und Abschluss landen im Verlauf">🎯 Als Aufgabe</button>';
   $('#kAufgabe').onclick=async()=>{const r=await aufgPost('/api/aufgaben',{titel:k.titel,beschreibung:k.beschreibung,karte_id:k.id});if(r&&r.ok){$('#dlgKarte').close();await aufgLaden();aufgViewAuf('aufgabe',r.aufgabe.id);}else fcStatus(aufgFehler(r));};};
 /* === /Aufgaben (1.2) === */
-/* === Bereiche (1.3) === */
+/* === Bereiche (1.2.1) === */
 // ── Eigenes Dropdown: verbessert jedes <select> im Kit. Das Select bleibt (versteckt) der Wertträger — value, change-
 // Events und das Befüllen per innerHTML laufen wie bisher; Knopf + Liste ziehen per MutationObserver und value-Setter mit.
 const SEL_V=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value'),SEL_I=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'selectedIndex');
@@ -1708,8 +1708,8 @@ FP.addEventListener('click',async e=>{
 });
 $('#neuFenster').onclick=(e)=>{e.stopPropagation();FP.hidden?fpAuf(e.currentTarget):fpZu();};
 $('#neuFensterMobil').onclick=(e)=>{e.stopPropagation();FP.hidden?fpAuf(e.currentTarget):fpZu();};
-/* === /Bereiche (1.3) === */
-/* === Aufnahme (1.3) === */
+/* === /Bereiche (1.2.1) === */
+/* === Aufnahme (1.2.1) === */
 // Sprachnachricht (🎤) und Bildschirmaufnahme (🖥️) wie im internen Flotten-Chat:
 //  • Sprachnachricht: Leiste statt Eingabezeile — Punkt, Zeit, Pegel-Welle, ⏸/▶, 🗑 verwerfen, ✍️ Stopp → Text ins Eingabefeld
 //    (die Sprachnachricht hängt an und geht mit „Senden“ mit), ➤ Stopp → sofort senden: Text + Sprachnachricht in EINER Nachricht.
@@ -2021,7 +2021,7 @@ const _aufnAblListe=ablageListeZeigen;ablageListeZeigen=async function(){
     const a=document.createElement('a');a.className='knopf klein';a.href=e.transkript_url;a.target='_blank';a.rel='noopener';a.textContent='📝';a.title='Transkript ansehen';
     akt.insertBefore(b,vor);akt.insertBefore(a,vor);});
 };
-/* === /Aufnahme (1.3) === */
+/* === /Aufnahme (1.2.1) === */
 gate();
 </script>
 </body>

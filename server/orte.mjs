@@ -82,7 +82,7 @@ function startTextAblegen(f) {
 }
 
 /** Start-Befehl für die Session-Shell (ein String). */
-// 1.3: Wissensfenster (fenster.art = 'wissen') bauen nichts — Claude Code startet mit gesperrten Schreib-Werkzeugen und ohne
+// 1.2.1: Wissensfenster (fenster.art = 'wissen') bauen nichts — Claude Code startet mit gesperrten Schreib-Werkzeugen und ohne
 // Befehle mit Wirkung auf Repo/Pakete. Das ist die harte Sperre; die Regel steht zusätzlich im Start-Text (bereiche.mjs).
 export const WISSEN_GESPERRT = ['Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'Bash(git commit:*)', 'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(git checkout:*)', 'Bash(rm:*)', 'Bash(mv:*)', 'Bash(npm publish:*)'];
 export function startBefehl(f) {

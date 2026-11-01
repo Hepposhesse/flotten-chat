@@ -324,7 +324,7 @@ export function aufgabenSchema(db) {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS idx_aufgaben_status ON aufgaben(status)');
   try { db.exec('ALTER TABLE fenster ADD COLUMN aufgabe_id INTEGER'); } catch { /* existiert schon */ }
-  try { db.exec('ALTER TABLE aufgaben ADD COLUMN bereich_id INTEGER'); } catch { /* 1.3, existiert schon */ }
+  try { db.exec('ALTER TABLE aufgaben ADD COLUMN bereich_id INTEGER'); } catch { /* 1.2.1, existiert schon */ }
 }
 
 const SPALTEN = ['titel', 'beschreibung', 'label', 'status', 'rang', 'faellig_am', 'faellig_gemeldet', 'start_um', 'autostart', 'erst_fragen', 'ort', 'ordner', 'repo', 'karte_id', 'erinnerung_id', 'bereich_id', 'fenster', 'gestartet', 'beendet', 'gestoppt', 'zeiten', 'tage', 'letztes_sample', 'fertig_ab_id', 'stand_text', 'ergebnis', 'laeufe'];
@@ -432,7 +432,7 @@ export function createAufgabenDienst({ db, konsole, fensterBauen, broadcast = ()
     const ort = eingabeSaeubern({ ort: opt.ort ?? a.ort }).ort; if (ort) b.ort = ort;
     const repo = String(opt.repo ?? a.repo ?? '').trim(), ordner = String(opt.ordner ?? a.ordner ?? '').trim();
     if (repo) b.repo = repo; else if (ordner) b.ordner = ordner;
-    // 1.3: Bereich der Aufgabe füllt, was sie nicht selbst angibt (Ort, Ordner/Repo + Worktree, Modus); das Fenster steht
+    // 1.2.1: Bereich der Aufgabe füllt, was sie nicht selbst angibt (Ort, Ordner/Repo + Worktree, Modus); das Fenster steht
     // dann in der Kanalliste unter diesem Bereich. Benannt wird es weiter nach dem Titel.
     const bid = Number(opt.bereich_id ?? a.bereich_id) || 0;
     const bereich = bid && bereichHolen ? bereichHolen(bid) : null;

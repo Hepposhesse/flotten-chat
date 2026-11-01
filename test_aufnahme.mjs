@@ -1,4 +1,4 @@
-// test_aufnahme.mjs — Aufnahme (v1.3): Weg-Wahl, Filter, Zeitmarken, Stück-Zusammensetzung, Fehlerpfade ohne Schlüssel.
+// test_aufnahme.mjs — Aufnahme (v1.2.1): Weg-Wahl, Filter, Zeitmarken, Stück-Zusammensetzung, Fehlerpfade ohne Schlüssel.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

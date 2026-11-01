@@ -1,4 +1,4 @@
-// server/transkription.mjs — Transkription als austauschbarer Weg (v1.3).
+// server/transkription.mjs — Transkription als austauschbarer Weg (v1.2.1).
 //
 // Drei Wege, gewählt per Umgebung — nie per Einstellungsseite:
 //   FC_TRANSKRIPTION=openai   OpenAI (gpt-4o-mini-transcribe), Schlüssel aus FC_OPENAI_API_KEY oder OPENAI_API_KEY, fetch ohne SDK

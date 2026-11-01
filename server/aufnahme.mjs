@@ -1,4 +1,4 @@
-// server/aufnahme.mjs — Mitschreiben beim Aufnehmen (v1.3): Sprachnachricht und Bildschirmaufnahme.
+// server/aufnahme.mjs — Mitschreiben beim Aufnehmen (v1.2.1): Sprachnachricht und Bildschirmaufnahme.
 //
 // Der Browser nimmt wie immer die ganze Datei auf. Daneben läuft ein zweiter, reiner Ton-Rekorder, der an Sprechpausen
 // (spätestens alle 15 s, bei ⏸ und beim Stopp) neu ansetzt — jedes Stück ist so eine vollständige kleine Datei, die ohne

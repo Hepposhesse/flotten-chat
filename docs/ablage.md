@@ -20,7 +20,7 @@ der Datei in `<name>.meta`: `{typ, dauer, mime}`) — nie die Endung. Ohne ffpro
 (`audio/webm` vom Mikrofon), ohne beides die Endung (webm → video). Eine Sprachnotiz wird als `audio/webm` ausgeliefert,
 sonst bleibt der Player schwarz.
 
-## Transkript am Eintrag (1.3)
+## Transkript am Eintrag (1.2.1)
 Bildschirmaufnahmen und Sprachnotizen bekommen ihr Transkript als Beiwerk `<name>.transkript.txt` (Bildschirmaufnahme mit
 Zeitmarken `[mm:ss]`). Die Liste trägt dann `transkript_pfad` und `transkript_url`, in der Ablage gibt es „Text“ und 📝.
 Löschen nimmt das Transkript mit. Wie es entsteht: [aufnahme.md](aufnahme.md).

@@ -1,4 +1,4 @@
-// server/bereiche.mjs — Bereiche (1.3).
+// server/bereiche.mjs — Bereiche (1.2.1).
 //
 // Ein Bereich ist eine Vorlage für Fenster: Ort, Ordner (oder Repo mit eigenem Worktree je Fenster) und optional ein
 // erster Satz. Je Bereich gibt es zwei Fensterarten, beide starten mit einem Klick im Auto-Modus:

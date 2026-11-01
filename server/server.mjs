@@ -39,14 +39,14 @@ import { protokollDir } from './orte.mjs';
 // === Aufgaben (1.2) ===
 import { createAufgabenDienst, TAKT_S as AUFGABEN_TAKT_S } from './aufgaben.mjs';
 // === /Aufgaben (1.2) ===
-// === Bereiche (1.3) ===
+// === Bereiche (1.2.1) ===
 import { createBereicheDienst, fensterBereichSetzen, bereichHolen } from './bereiche.mjs';
-// === /Bereiche (1.3) ===
-// === Aufnahme (1.3) ===
+// === /Bereiche (1.2.1) ===
+// === Aufnahme (1.2.1) ===
 import { createTranskription } from './transkription.mjs';
 import { createAufnahmeDienst, kennungGueltig as aufnKennung, nrGueltig as aufnNr, sekunden as aufnSek, transkriptName as aufnTranskriptName, STUECK_MAX_BYTES as AUFN_STUECK_MAX } from './aufnahme.mjs';
 import { nameGueltig as ablageNameGueltig } from './ablage.mjs';
-// === /Aufnahme (1.3) ===
+// === /Aufnahme (1.2.1) ===
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -127,7 +127,7 @@ const ZONE = process.env.FC_TZ || 'Europe/Berlin';
 erinnerungenSchema(db);
 // === Chat-Komfort (1.2): frischer Verlauf je Fenster (Spalte fenster.verlauf_ab, additiv) ===
 verlaufSchema(db);
-// === Aufnahme (1.3): Transkription als Weg (openai | lokal | aus) + Mitschreiben in Stücken ===
+// === Aufnahme (1.2.1): Transkription als Weg (openai | lokal | aus) + Mitschreiben in Stücken ===
 const transkription = createTranskription({ env: process.env, tmpDir: join(DATA, 'tmp') });
 const aufnahmeDienst = createAufnahmeDienst({ transkription, tmpDir: join(DATA, 'tmp'), log: (t) => console.error(t) });
 const stueckLimiter = createLimiter({ limit: Number(process.env.FC_STUECK_LIMIT || 120), windowMs: 60_000 });
@@ -140,7 +140,7 @@ const rohKoerper = (req, max) => new Promise((resolve) => {
   req.on('end', () => resolve(zuGross ? null : Buffer.concat(teile)));
   req.on('error', () => resolve(null)); req.on('close', () => { if (zuGross) resolve(null); });
 });
-// === /Aufnahme (1.3) ===
+// === /Aufnahme (1.2.1) ===
 
 // ── Geräte koppeln: Rückkanal-Tunnel je Gerät, Ort „geraet:<id>" ──
 const geraete = createGeraeteDienst(DATA);
@@ -214,9 +214,9 @@ function fensterBauen(b) {
     ordner = w.ordner; worktree = 1;
   }
   if (!ordner) ordner = process.env.FC_DEFAULT_ORDNER || process.cwd();
-  let f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || (ort === 'lokal' ? process.env.FC_CLAUDE_CONFIG_DIR || '' : ''), start_modus: 'auto', start_text: b.start_text || '', worktree }); // 1.3: Fenster starten immer im Auto-Modus
+  let f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || (ort === 'lokal' ? process.env.FC_CLAUDE_CONFIG_DIR || '' : ''), start_modus: 'auto', start_text: b.start_text || '', worktree }); // 1.2.1: Fenster starten immer im Auto-Modus
   if (!f) return { ok: false, fehler: 'Fenster konnte nicht angelegt werden.' };
-  // 1.3: Bereich (Kanalliste gruppiert) + Art (wissen = Claude startet mit gesperrten Schreib-Werkzeugen, orte.mjs)
+  // 1.2.1: Bereich (Kanalliste gruppiert) + Art (wissen = Claude startet mit gesperrten Schreib-Werkzeugen, orte.mjs)
   if (b.bereich_id || b.art) { fensterBereichSetzen(db, f.name, b.bereich_id || null, b.art || null); f = fensterHolen(db, f.name); }
   // Chat-Komfort (1.2): ein neues Fenster startet ohne den Verlauf eines geschlossenen Vorgängers gleichen Namens.
   { const ab = verlaufAbSetzen(db, f.name); if (ab) gelesenSetzen(db, f.name, ab); }
@@ -234,7 +234,7 @@ const aufgaben = createAufgabenDienst({ db, konsole, fensterBauen, broadcast, zo
 setInterval(() => { try { aufgaben.takt(Date.now()); } catch { /* fail-safe */ } }, AUFGABEN_TAKT_S * 1000).unref();
 // === /Aufgaben (1.2) ===
 
-// === Bereiche (1.3) ===
+// === Bereiche (1.2.1) ===
 // Ein Bereich ist eine Fenster-Vorlage (Ort, Ordner/Repo + Worktree, Modus). „＋ → Bereich" startet über fensterBauen ein
 // Fenster „<kürzel>-<n>" mit einem Klick; die Kanalliste gruppiert die Fenster nach Bereich.
 const DEFAULT_ORDNER = process.env.FC_DEFAULT_ORDNER || process.cwd();
@@ -247,7 +247,7 @@ const bereiche = createBereicheDienst({
   istRepo,
   standard: () => ({ ordner: DEFAULT_ORDNER, name: basename(DEFAULT_ORDNER) || 'Projekt', repo: istRepo(DEFAULT_ORDNER) }),
 });
-// === /Bereiche (1.3) ===
+// === /Bereiche (1.2.1) ===
 
 // ── Server ──────────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
@@ -364,7 +364,7 @@ const server = http.createServer(async (req, res) => {
     const admin = wer.rolle === 'admin';
 
     if (url.pathname === '/api/channels' && req.method === 'GET') {
-      return json(res, 200, { ok: true, channels: kanaele(db), fenster: fensterAlle(db).map(fensterMitZustand), bereiche: admin ? bereiche.alle() : [] }); // 1.3: Bereiche für die Gruppierung
+      return json(res, 200, { ok: true, channels: kanaele(db), fenster: fensterAlle(db).map(fensterMitZustand), bereiche: admin ? bereiche.alle() : [] }); // 1.2.1: Bereiche für die Gruppierung
     }
     if (url.pathname === '/api/channels' && req.method === 'POST') {
       const b = await koerper(req); const k = kanalAnlegen(db, b);
@@ -454,7 +454,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, counts: u.counts, gesamt: u.gesamt, gelesen: u.gelesen, einstellungen: einstellungenLaden(db) });
     }
     if (url.pathname === '/api/search' && req.method === 'GET') {
-      // 1.3: Admins finden auch Nachrichten geschlossener (archivierter) Fenster — gekennzeichnet als „archiviert", mit dem
+      // 1.2.1: Admins finden auch Nachrichten geschlossener (archivierter) Fenster — gekennzeichnet als „archiviert", mit dem
       // vollen Text (der Kanal ist ja weg). Ebenso der Verlauf eines geschlossenen Vorgängers gleichen Namens (vor verlauf_ab):
       // im Kanal selbst bleibt er ausgeblendet, in der Suche steht er als „archiviert".
       const archivKanaele = wer.agent ? [] : kanaele(db).filter((k) => k.archiviert).map((k) => k.name);
@@ -501,12 +501,12 @@ const server = http.createServer(async (req, res) => {
     if (mFA && req.method === 'POST' && admin && fensterHolen(db, mFA[1])) { if (mFA[2] === 'schliessen') aufgaben.fensterGeschlossen(mFA[1]); else aufgaben.fensterGeloescht(mFA[1]); }
     // === /Aufgaben (1.2) ===
 
-    // === Bereiche (1.3) === GET/POST /api/bereiche, POST /api/bereiche/<id>[/loeschen|/fenster]
+    // === Bereiche (1.2.1) === GET/POST /api/bereiche, POST /api/bereiche/<id>[/loeschen|/fenster]
     if (url.pathname === '/api/bereiche' || url.pathname.startsWith('/api/bereiche/')) {
       if (!admin) return json(res, 403, { ok: false, fehler: 'Nur Admin sieht und ändert Bereiche.' });
       if (await bereiche.route({ req, res, url, admin, json, koerper })) return;
     }
-    // === /Bereiche (1.3) ===
+    // === /Bereiche (1.2.1) ===
 
     // ── Fenster (v1.0): Registry + Steuerung ──
     if (url.pathname === '/api/fenster' && req.method === 'GET') return json(res, 200, { ok: true, fenster: fensterAlle(db).map(fensterMitZustand) });
@@ -604,7 +604,7 @@ const server = http.createServer(async (req, res) => {
     // Erinnerung → Fenster: seit 1.2 wird daraus eine Aufgabe mit Zeitmessung (Route im Block „Aufgaben (1.2)“ oben,
     // Antwort wie bisher {ok, fenster, start} + aufgabe).
 
-    // === Aufnahme (1.3): Weg-Stand, Stücke, Zwischenstand, Abschluss, Transkript einer Ablage-Datei ===
+    // === Aufnahme (1.2.1): Weg-Stand, Stücke, Zwischenstand, Abschluss, Transkript einer Ablage-Datei ===
     if (url.pathname === '/api/aufnahme/stand' && req.method === 'GET') return json(res, 200, transkription.stand());
     if (url.pathname.startsWith('/api/aufnahme/') && req.method === 'POST' && !admin) { req.resume(); return json(res, 403, { ok: false, fehler: 'Aufnahmen nur für Menschen im Chat.' }); }
     if (url.pathname === '/api/aufnahme/stueck' && req.method === 'POST') {
@@ -644,7 +644,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...(url.searchParams.get('dl') ? { 'content-disposition': `attachment; filename="${name.replace(/"/g, '')}.transkript.txt"` } : {}) });
       return createReadStream(pfad).pipe(res);
     }
-    // === /Aufnahme (1.3) ===
+    // === /Aufnahme (1.2.1) ===
 
     // ── 1.1: Ablage-Tresor 🔗 — ablegen (Chat-Medium → data/ablage mit sprechendem Namen), Liste, Löschen, Ausliefern (Range) ──
     if (url.pathname === '/api/ablage' && req.method === 'GET') return json(res, 200, ablageListe({ ablageDir: ABLAGE_DIR, max: Math.min(Number(url.searchParams.get('limit')) || 200, 1000) }));

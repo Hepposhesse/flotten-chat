@@ -3,7 +3,7 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
-## [1.3.0] — 2026-11-01
+## [1.2.1] — 2026-11-01
 
 ### Bereiche
 - **Bereiche** (`server/bereiche.mjs`): eine Vorlage für Fenster — Name, Kürzel, Ort (dieser Server, SSH, gekoppeltes

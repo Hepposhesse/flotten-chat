@@ -55,7 +55,7 @@ die Liste mit Stand, Weiter im alten oder neuen Fenster, Kanal schließen = erle
 Uhrzeit, Papierkorb, Auswertung je Tag. Erinnerungen und Board docken an (▶ Fenster an einer Erinnerung = Aufgabe; Karte
 als feste Stelle für den Stand) — siehe [docs/aufgaben.md](docs/aufgaben.md).
 
-Neu in 1.3: **Bereiche** — „＋“ an „Fenster“ fragt nicht mehr jedes Mal Ort, Ordner und Modus ab. Ein Bereich merkt
+Neu in 1.2.1: **Bereiche** — „＋“ an „Fenster“ fragt nicht mehr jedes Mal Ort, Ordner und Modus ab. Ein Bereich merkt
 sich Ort, Ordner bzw. Repo (eigener Worktree je Baufenster) und einen ersten Satz; danach startet ein Klick ein
 **🔨 Baufenster** („Bau 1“, „Bau 2“ …) oder ein **💬 Wissensfenster** („Wissen 1“ …: liest, erklärt, beantwortet Fragen,
 baut nichts — Schreib-Werkzeuge sind gesperrt). Alle Fenster laufen im Auto-Modus. Die Kanalliste gruppiert die Fenster
@@ -115,7 +115,7 @@ Branch gepusht (wenn Remote da) → Session beendet → Worktree entfernt, wenn 
 Worktrees listet `GET /api/worktrees?repo=…`; entfernt wird nur, was sauber ist und kein laufendes
 Fenster besitzt.
 
-Neu in 1.3: **Aufnahme wie im großen Bruder** — 🎤 Sprachnachricht wie WhatsApp (Pegel-Welle, ⏸/▶, 🗑, ✍️ Text ins
+Neu in 1.2.1: **Aufnahme wie im großen Bruder** — 🎤 Sprachnachricht wie WhatsApp (Pegel-Welle, ⏸/▶, 🗑, ✍️ Text ins
 Eingabefeld, ➤ senden), **schreibt beim Sprechen mit** (Stücke an Sprechpausen, jedes genau einmal transkribiert, der Text
 geht mit der Sprachnachricht in einer Nachricht ans Fenster — auch als Antwort auf eine Rückfrage). 🖥️ Bildschirmaufnahme
 (Bildschirm + System-Ton + Mikro) mit Leiste, die den Kanalwechsel übersteht, rotem Alarm ohne Ton, direkt in die Ablage

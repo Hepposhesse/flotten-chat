@@ -52,7 +52,7 @@ export function nurAktuellerVerlauf(zeilen, grenzen = {}) {
   return (zeilen || []).filter((z) => !(Number(grenzen[z.kanal]) > 0 && Number(z.id) <= Number(grenzen[z.kanal])));
 }
 
-/** 1.3: Suchtreffer als „archiviert" kennzeichnen statt sie zu verstecken (PURE): Kanal geschlossen/archiviert oder
+/** 1.2.1: Suchtreffer als „archiviert" kennzeichnen statt sie zu verstecken (PURE): Kanal geschlossen/archiviert oder
  *  Nachricht aus dem Verlauf eines geschlossenen Vorgängers gleichen Namens (id ≤ grenze). */
 export function archivMarkieren(zeilen, grenzen = {}, archiviert = new Set()) {
   return (zeilen || []).map((z) => ((archiviert.has(z.kanal) || (Number(grenzen[z.kanal]) > 0 && Number(z.id) <= Number(grenzen[z.kanal]))) ? { ...z, archiviert: true } : z));

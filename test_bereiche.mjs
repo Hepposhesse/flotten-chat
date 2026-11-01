@@ -1,4 +1,4 @@
-// test_bereiche.mjs — Bereiche (1.3): reine Logik, Datenbank (Migration idempotent), Dienst + Routen ohne tmux,
+// test_bereiche.mjs — Bereiche (1.2.1): reine Logik, Datenbank (Migration idempotent), Dienst + Routen ohne tmux,
 // Aufgaben nehmen Ort/Ordner/Modus aus dem Bereich.
 // Muster: pass/fail-Zähler, letzte Zeile "N passed, M failed".
 import { mkdtempSync, rmSync } from 'node:fs';

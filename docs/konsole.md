@@ -110,7 +110,7 @@ Text oder Befehle vom Client. Für alles, was der Spiegel (noch) nicht kennt. Nu
 Wird automatisch mit „Yes“ beantwortet und im Kanal gesagt — der Mensch hat das Fenster bewusst in
 diesem Ordner angelegt.
 
-## Bereiche, Bau- und Wissensfenster (1.3) — `server/bereiche.mjs`
+## Bereiche, Bau- und Wissensfenster (1.2.1) — `server/bereiche.mjs`
 Ein Bereich ist eine Vorlage: Name, Kürzel, Ort, Ordner oder Repo (+ eigener Worktree je Baufenster), optional ein erster
 Satz. `POST /api/bereiche/<id>/fenster {art}` legt über denselben Weg wie „＋ Fenster“ (`fensterBauen`) ein Fenster an:
 - **Bau** — `<kürzel>-bau-<n>`, Anzeige „Bau <n>“, Worktree wie im Bereich, Start-Text = erster Satz des Bereichs.
