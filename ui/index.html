@@ -293,7 +293,7 @@ aside .kanal{-webkit-touch-callout:none}
 .leer-kanal{display:flex;align-items:center;justify-content:space-between;gap:12px;font:inherit;font-weight:600;padding:12px 16px;border-radius:12px;border:1px solid var(--n200);background:var(--card);color:var(--n900);cursor:pointer;text-align:left;min-height:44px}
 .leer-kanal:hover{border-color:var(--blau)}
 .leer-kanal .badge{background:var(--blau);color:#fff;border-radius:999px;font-size:.78rem;padding:2px 9px}
-@media(max-width:720px){.suche-box{flex:1 1 100%;order:8;max-width:none}.suche-x{width:32px;height:32px;line-height:32px}.kopf .m:empty{display:none}.kopf #kopfMenu{min-height:36px}}
+@media(max-width:720px){header.top .lbl{display:none}header.top>.knopf{padding:6px 9px;min-width:0}header.top>b{font-size:.95rem;white-space:nowrap}.suche-box{flex:1 1 100%;order:8;max-width:none}.suche-x{width:32px;height:32px;line-height:32px}.kopf .m:empty{display:none}.kopf #kopfMenu{min-height:36px}}
 /* === Ende Chat-Komfort (1.2) === */
 /* === Aufgaben (1.2) === */
 /* Kacheln oben in der Seitenleiste: linkes Band = Stand (überfällig rot pulsierend · läuft grün · Pause/heute gelb). */
@@ -398,7 +398,7 @@ aside .kanal{-webkit-touch-callout:none}
   <span style="margin-left:auto"></span>
   <span class="suche-box" id="sucheBox" hidden><input id="sucheFeld" class="suche-feld" type="search" placeholder="Suchen in allen Kanälen … (Esc schließt)" aria-label="Suche" autocomplete="off" hidden><button type="button" class="suche-x" id="sucheLeeren" title="Suche leeren" aria-label="Suche leeren" hidden>×</button></span>
   <button class="knopf" id="sucheBtn" title="Suche (Strg+K)" aria-expanded="false">🔍</button>
-  <button class="knopf" id="boardBtn" title="Themen-Board">🗂 Board</button>
+  <button class="knopf" id="boardBtn" title="Themen-Board" aria-label="Themen-Board">🗂<span class="lbl"> Board</span></button>
   <button class="knopf" id="theme" title="Hell/Dunkel">☀️</button>
   <button class="knopf" id="menu" title="Konto">⋯</button>
 </header>
