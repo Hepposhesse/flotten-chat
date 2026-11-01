@@ -24,6 +24,9 @@ import { ansiZuHtml, TERMINAL_TASTEN } from './terminal.mjs';
 import { geraetAnlegen, geraetZumCode, geraetAnmelden, geraetOeffentlich, einfuegeBlock, einrichtungsSkript, sshArgs, tunnelUebergaenge } from './geraete.mjs';
 import { createGeraeteDienst } from './geraeteDienst.mjs';
 import { slug } from './protokoll.mjs';
+import { createAufraeumen, istAufgeraeumt } from './aufraeumen.mjs'; // 1.2 Spiegel
+import { nurShell } from './orte.mjs'; // 1.2 Spiegel
+import { letzteNachrichtId } from './db.mjs'; // 1.2 Spiegel
 import { einstellungenLaden, einstellungenSpeichern, gelesenLaden, gelesenSetzen, ungelesen } from './kanaele.mjs';
 import { sucheNachrichten } from './suche.mjs';
 import { ablegen as ablageAblegen, liste as ablageListe, loeschen as ablageLoeschen, streamen as ablageStreamen } from './ablage.mjs';
@@ -64,6 +67,43 @@ setInterval(() => {
 
 // ── Konsole im Chat: die Runde über alle Fenster ────────────────────────────
 const konsole = starteKonsole({ db, dataDir: DATA, broadcast });
+
+// ── 1.2 Spiegel: Aufräumen vor Neu starten / Löschen / Schließen ──────────────
+// Das Fenster schreibt seinen Stand weg und committet; die Aktion folgt nach „aufgeräumt“ (höchstens 2 Min).
+// Aus oder nur die nackte Shell im Fenster → sofort (dort räumt niemand auf).
+function fensterSchliessenJetzt(f) {
+  const hinweis = [];
+  if (f.worktree && !istSsh(f)) { const s = worktreeSichern(f.ordner); if (!s.ok) hinweis.push('Sichern scheiterte: ' + s.fehler); }
+  sessionBeenden(f);
+  if (f.worktree && !istSsh(f)) {
+    const repo = repoWurzel(f.ordner) || dirname(dirname(f.ordner));
+    const w = worktreeSauber(f.ordner) ? worktreeEntfernen(repo, f.ordner) : { ok: false, fehler: 'ungesichert' };
+    hinweis.push(w.ok ? `Worktree entfernt, Branch fc/${f.name} bleibt.` : `Worktree bleibt liegen (${w.fehler}).`);
+  }
+  const e = senden(db, { kanal: f.name, von: 'flottenchat', typ: 'system', inhalt: `✅ Fenster geschlossen. ${hinweis.join(' ')}`.trim() }); if (e) broadcast('message', e);
+  // Geschlossen = weg: Registry-Eintrag raus, Kanal archiviert (Verlauf bleibt in der DB), Name wieder frei.
+  fensterLoeschen(db, f.name);
+  broadcast('presence', { fenster: f.name, status: 'geschlossen' });
+  return { ok: true };
+}
+const aufraeumen = createAufraeumen({
+  lebt: (f) => !!prozessVon(f).lebt && !nurShell(f),
+  dialogOffen: (f) => { const z = konsole.zustand(f.name); return !!(z && z.dialog); },
+  escape: (f) => tastenSenden(f, ['Escape']),
+  textSenden: (f, text) => textSenden(f, text),
+  letzteId: (f) => letzteNachrichtId(db, f.name),
+  aufgeraeumtSeit: (f, id) => nachrichten(db, { kanal: f.name, seit: id, limit: 200 }).some((m) => m.typ === 'answer' && istAufgeraeumt(m.inhalt)),
+  melden: (f, text) => { const m = senden(db, { kanal: f.name, von: 'flottenchat', typ: 'system', inhalt: text }); if (m) broadcast('message', m); },
+  geaendert: (f) => broadcast('presence', { fenster: f.name, raeumt: true }),
+  ausfuehren: (f, art) => {
+    if (art === 'neustart') { const r = sessionNeustart(f); fensterAendern(db, f.name, { spiegel: {} }); return r; }
+    if (art === 'loeschen') {
+      if (f.worktree && !istSsh(f)) worktreeSichern(f.ordner); // Ungesichertes als WIP auf den Branch, nie verwerfen
+      sessionBeenden(f); fensterLoeschen(db, f.name); broadcast('presence', { fenster: f.name, geloescht: true }); return { ok: true };
+    }
+    return fensterSchliessenJetzt(f);
+  },
+});
 
 // ── 1.1: Ablage-Tresor (data/ablage, nie aufgeräumt) + Erinnerungs-Ordner (Schema additiv) ──
 const ABLAGE_DIR = join(DATA, 'ablage');
@@ -110,7 +150,7 @@ function auth(req, url) {
   return null;
 }
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.webm': 'video/webm', '.ogg': 'audio/ogg', '.pdf': 'application/pdf' };
-const fensterMitZustand = (f) => { let sp = {}; try { sp = JSON.parse(f.spiegel || '{}'); } catch { sp = {}; } const z = konsole.zustand(f.name) || {}; return { ...f, spiegel: undefined, sitzung: sp.sitzung || '', zustand: z, laeuft: !!z.lebt, gestartet_ms: z.gestartetMs || 0 }; };
+const fensterMitZustand = (f) => { let sp = {}; try { sp = JSON.parse(f.spiegel || '{}'); } catch { sp = {}; } const z = konsole.zustand(f.name) || {}; return { ...f, spiegel: undefined, sitzung: sp.sitzung || '', zustand: z, laeuft: !!z.lebt, gestartet_ms: z.gestartetMs || 0, raeumt: aufraeumen.stand(f.name) }; };
 const SUPPORT_URL = process.env.FC_SUPPORT_URL || 'https://sales-engine.app/api/flotten-chat-hilfe';
 const INSTANZ_FILE = join(DATA, 'instanz-id');
 if (!existsSync(INSTANZ_FILE)) writeFileSync(INSTANZ_FILE, crypto.randomBytes(8).toString('hex'), { mode: 0o600 });
@@ -286,6 +326,7 @@ const server = http.createServer(async (req, res) => {
       const m = senden(db, { kanal, von: b.von || wer.name, typ: b.typ, inhalt: b.inhalt, bezug_id: b.bezug_id, media: b.media, client_id: clientIdSauber(b.client_id), meta: b.meta || null });
       if (!m) return json(res, 400, { ok: false, fehler: 'kanal und inhalt sind Pflicht.' });
       if (!m.dedup) broadcast('message', m);
+      if (!m.dedup) konsole.anstossen(); // 1.2 Spiegel: Nachricht an ein Fenster sofort zustellen, nicht erst im Takt
       // Hilfe-Kanal (v1.0): Nachrichten des Menschen gehen zusätzlich an den Hersteller (Support-Brücke), fail-soft.
       if (!m.dedup && kanal === 'hilfe' && admin && SUPPORT_URL) {
         fetch(SUPPORT_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ instanz: INSTANZ, von: m.von, text: m.inhalt, id: m.id, antwort_url: (b.basis || '') + '/api/hilfe/antwort', antwort_token: HILFE_TOKEN }), signal: AbortSignal.timeout(8000) })
@@ -405,36 +446,16 @@ const server = http.createServer(async (req, res) => {
       if (!f) return json(res, 404, { ok: false, fehler: 'Fenster unbekannt.' });
       const b = await koerper(req);
       if (mF[2] === 'start') { const r = sessionStarten(f); if (r.ok) fensterAendern(db, f.name, { status: 'laeuft' }); return json(res, r.ok ? 200 : 400, r); }
-      if (mF[2] === 'neustart') { const r = sessionNeustart(f); fensterAendern(db, f.name, { spiegel: {} }); return json(res, r.ok ? 200 : 400, r); }
+      if (mF[2] === 'neustart') { const { fertig, ...r } = aufraeumen.starten(f, 'neustart'); return json(res, r.ok ? 200 : 400, r); } // 1.2: erst aufräumen
       if (mF[2] === 'stop') { const r = sessionBeenden(f); fensterAendern(db, f.name, { status: 'aus' }); broadcast('presence', { fenster: f.name, status: 'aus' }); return json(res, 200, r); }
       if (mF[2] === 'tippen') { const r = textSenden(f, String(b.text || '')); return json(res, r.ok ? 200 : 400, r); }
       if (mF[2] === 'pane') return json(res, 200, { ok: true, pane: paneLesen(f), prozess: prozessVon(f) });
-      if (mF[2] === 'schliessen') {
-        // Schließ-Ritual: Stand wegschreiben lassen → Ungesichertes als WIP sichern → Session beenden → Worktree weg, wenn sauber.
-        const sofort = !!b.sofort;
-        fensterAendern(db, f.name, { status: 'schliesst' });
-        const m = senden(db, { kanal: f.name, von: 'flottenchat', typ: 'system', inhalt: `🧹 Fenster wird geschlossen${sofort ? ' (sofort)' : ' — es bekommt 60 s, um seinen Stand wegzuschreiben'}.` }); if (m) broadcast('message', m);
-        (async () => {
-          if (!sofort && prozessVon(f).lebt) {
-            textSenden(f, 'Das Fenster wird in 60 Sekunden geschlossen: schreib jetzt deinen Stand an die feste Stelle (Verlaufs-Eintrag an der Board-Karte, falls es eine gibt), committe alles auf deinen Branch und antworte mit einem Satz „aufgeräumt".');
-            await new Promise((r) => setTimeout(r, 60_000));
-          }
-          const hinweis = [];
-          if (f.worktree && !istSsh(f)) { const s = worktreeSichern(f.ordner); if (!s.ok) hinweis.push('Sichern scheiterte: ' + s.fehler); }
-          sessionBeenden(f);
-          if (f.worktree && !istSsh(f)) {
-            const repo = repoWurzel(f.ordner) || dirname(dirname(f.ordner));
-            const w = worktreeSauber(f.ordner) ? worktreeEntfernen(repo, f.ordner) : { ok: false, fehler: 'ungesichert' };
-            hinweis.push(w.ok ? `Worktree entfernt, Branch fc/${f.name} bleibt.` : `Worktree bleibt liegen (${w.fehler}).`);
-          }
-          const e = senden(db, { kanal: f.name, von: 'flottenchat', typ: 'system', inhalt: `✅ Fenster geschlossen. ${hinweis.join(' ')}`.trim() }); if (e) broadcast('message', e);
-          // Geschlossen = weg: Registry-Eintrag raus, Kanal archiviert (Verlauf bleibt in der DB), Name wieder frei.
-          fensterLoeschen(db, f.name);
-          broadcast('presence', { fenster: f.name, status: 'geschlossen' });
-        })();
-        return json(res, 200, { ok: true, laeuft: !sofort });
+      // 1.2: Schließen und Löschen über denselben Aufräum-Ablauf (Stand wegschreiben → „aufgeräumt“ → Aktion, max. 2 Min).
+      if (mF[2] === 'schliessen' || mF[2] === 'loeschen') {
+        if (mF[2] === 'schliessen') fensterAendern(db, f.name, { status: 'schliesst' });
+        const { fertig, ...r } = aufraeumen.starten(f, mF[2], { sofort: !!b.sofort });
+        return json(res, r.ok ? 200 : 400, { ...r, laeuft: r.ok && !r.sofort });
       }
-      if (mF[2] === 'loeschen') { sessionBeenden(f); fensterLoeschen(db, f.name); broadcast('presence', { fenster: f.name, geloescht: true }); return json(res, 200, { ok: true }); }
     }
     // Verwaiste Worktrees eines Repos (Kehrdienst): Liste + Aufräumen per Klick (nur saubere).
     if (url.pathname === '/api/worktrees' && req.method === 'GET') {

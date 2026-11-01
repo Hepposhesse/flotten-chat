@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
-import { protokollOrdner, protokollZuProzess } from './protokoll.mjs';
+import { protokollOrdner, protokollZuProzess, sitzungsIdAus } from './protokoll.mjs';
 
 const TMUX = process.env.FC_TMUX || 'tmux';
 const SOCK = process.env.FC_TMUX_SOCKET || 'flottenchat';
@@ -67,12 +67,33 @@ export function prozessVon(f) {
   return { lebt: true, pid: kandidat, gestartetMs: sek ? Date.now() - sek * 1000 : 0 };
 }
 
+// Langer Start-Text: send-keys tippt die Startzeile in die Shell, das Terminal nimmt aber höchstens 4095 Zeichen je Zeile
+// (kanonischer Modus, solange die Shell hochfährt). Ein längerer Auftrag wurde abgeschnitten → Anführungszeichen offen,
+// die Shell wartet mit „>“, kein Claude. Darum ab START_TEXT_MAX: Text in eine Datei (0600), getippt wird "$(cat <datei>)".
+export const START_TEXT_MAX = 1000;
+/** Datei für einen langen Start-Text (am Ort des Fensters, im Temp-Ordner, Name nur aus [A-Za-z0-9_-]). PURE. */
+export const startTextDatei = (f) => `/tmp/flottenchat-start-${String(f.tmux || f.name || 'x').replace(/[^A-Za-z0-9_-]/g, '_')}.txt`;
+/** Muss der Start-Text über eine Datei laufen? PURE. */
+export const startTextLang = (f) => String(f.start_text || '').replace(/\s+/g, ' ').trim().length > START_TEXT_MAX;
+function startTextAblegen(f) {
+  const text = String(f.start_text || '').replace(/\s+/g, ' ').trim();
+  if (!istSsh(f)) { fs.writeFileSync(startTextDatei(f), text, { mode: 0o600 }); return; }
+  run(f, 'sh', ['-c', `umask 077 && printf '%s' ${q(text)} > ${q(startTextDatei(f))}`], { timeout: 15000 });
+}
+
 /** Start-Befehl für die Session-Shell (ein String). */
 export function startBefehl(f) {
   const cfg = f.config_dir ? `CLAUDE_CONFIG_DIR=${q(f.config_dir)} ` : '';
   const modus = ['auto', 'default', 'plan', 'acceptEdits'].includes(f.start_modus) ? f.start_modus : 'auto';
   const text = String(f.start_text || '').replace(/\s+/g, ' ').trim();
-  return `cd ${q(f.ordner)} && clear && export DISABLE_AUTOUPDATER=1 && ${cfg}exec ${CLAUDE} --permission-mode ${modus}${text ? ' ' + q(text) : ''}`;
+  const arg = !text ? '' : startTextLang(f) ? ` "$(cat ${q(startTextDatei(f))})"` : ' ' + q(text);
+  return `cd ${q(f.ordner)} && clear && export DISABLE_AUTOUPDATER=1 && ${cfg}exec ${CLAUDE} --permission-mode ${modus}${arg}`;
+}
+
+/** Läuft im Fenster nur die nackte Shell (Claude ist nie hochgekommen oder beendet)? Dann räumt dort niemand auf. */
+export function nurShell(f) {
+  const cmd = String(tm(f, ['list-panes', '-t', `${f.tmux}:0`, '-F', '#{pane_current_command}']) || '').split('\n')[0].trim();
+  return /^-?(bash|zsh|sh|dash|fish)$/.test(cmd);
 }
 
 /** Session anlegen + Claude starten (idempotent: läuft sie schon, nichts tun). */
@@ -84,6 +105,7 @@ export function sessionStarten(f) {
   if (istSsh(f)) run(f, 'mkdir', ['-p', f.ordner]);
   tm(f, ['new-session', '-d', '-s', f.tmux, '-c', f.ordner]);
   if (!sessions().includes(f.tmux)) return { ok: false, fehler: 'tmux-Session konnte nicht angelegt werden (tmux installiert? Ort erreichbar?)' };
+  if (startTextLang(f)) startTextAblegen(f);
   tm(f, ['send-keys', '-t', `${f.tmux}:0`, startBefehl(f), 'Enter']);
   return { ok: true };
 }
@@ -92,6 +114,7 @@ export function sessionStarten(f) {
 export function sessionNeustart(f) {
   const liste = tm(f, ['list-sessions', '-F', '#{session_name}']).split('\n');
   if (!liste.includes(f.tmux)) return sessionStarten(f);
+  if (startTextLang(f)) startTextAblegen(f);
   tm(f, ['set-option', '-t', f.tmux, 'remain-on-exit', 'on']);
   tm(f, ['respawn-pane', '-k', '-t', `${f.tmux}:0`, `bash -lc ${q(startBefehl(f))}`]);
   return { ok: true };
@@ -169,11 +192,34 @@ export function protokollDateien(f) {
   const out = run(f, 'sh', ['-c', `cd ${rq(dir)} 2>/dev/null && (stat -c '%n %s %W %Y' *.jsonl 2>/dev/null || stat -f '%N %z %B %m' *.jsonl 2>/dev/null)`], { timeout: 8000 });
   return out.split('\n').filter(Boolean).map((z) => { const [name, groesse, geburt, letzte] = z.trim().split(/\s+/); return { name, groesse: Number(groesse) || 0, geburtMs: (Number(geburt) || Number(letzte) || 0) * 1000, letzteMs: (Number(letzte) || 0) * 1000 }; }).filter((d) => d.name && d.name.endsWith('.jsonl'));
 }
+/**
+ * sessionId der laufenden Claude-Sitzung aus `<config>/sessions/<pid>.json` (Claude-Prozess oder eines seiner Kinder).
+ * '' = unbekannt (ältere Claude-Version, Datei fehlt) — dann gilt die Zuordnung über die Startzeit.
+ */
+export function sitzungsIdVon(f, pid) {
+  if (!pid) return '';
+  const dir = path.join(path.dirname(path.dirname(protokollDir(f))), 'sessions');
+  if (!istSsh(f)) {
+    let kinder = [];
+    try { kinder = fs.readFileSync(`/proc/${pid}/task/${pid}/children`, 'utf8').trim().split(/\s+/).filter(Boolean); } catch { /* kein /proc (macOS) */ }
+    for (const p of [String(pid), ...kinder]) { try { const sid = sitzungsIdAus(fs.readFileSync(path.join(dir, `${p}.json`), 'utf8')); if (sid) return sid; } catch { /* weiter */ } }
+    return '';
+  }
+  const out = run(f, 'sh', ['-c', `for P in ${Number(pid)} $(pgrep -P ${Number(pid)} 2>/dev/null); do cat ${rq(dir)}/$P.json 2>/dev/null && break; done`]);
+  return sitzungsIdAus(out);
+}
+
 /** Das laufende Protokoll dieses Fensters (Datei, Sitzung, Start), oder null. */
 export function laufendesProtokoll(f) {
   const p = prozessVon(f);
   if (!p.lebt || !p.gestartetMs) return null;
   const dateien = protokollDateien(f);
+  // Sagt Claude selbst, welche Sitzung läuft, gilt das — auch bei mehreren Fenstern im selben Ordner. Sonst Startzeit.
+  const sid = sitzungsIdVon(f, p.pid);
+  if (sid && dateien.some((d) => d.name === `${sid}.jsonl`)) {
+    const d = dateien.find((x) => x.name === `${sid}.jsonl`);
+    return { datei: path.join(protokollDir(f), d.name), name: d.name, sitzung: sid, gestartetMs: p.gestartetMs, pid: p.pid, groesse: d.groesse };
+  }
   const name = protokollZuProzess(p.gestartetMs, dateien);
   if (!name) return null;
   const d = dateien.find((x) => x.name === name);

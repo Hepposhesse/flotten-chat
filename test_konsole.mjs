@@ -419,5 +419,76 @@ import { paneFingerabdruck as s12Fp, hintergrundAktiv as s12Hg, geheimMaske as s
   ok(s12Sid('kaputt') === '' && s12Sid('{"sessionId":"../../etc/passwd"}') === '', 'sessionId: kaputt/unsicher → leer');
 }
 
+// ── 1.2 Spiegel: Runde (Anstoß, Horcher, Zustand), langer Start-Text, Aufräumen ──
+import { createAnstoss as s12Anstoss, createHorcher as s12Horcher, zustandsSchluessel as s12ZSchl, NACHLAUF_MS as s12Nachlauf } from './server/konsole.mjs';
+import { startTextLang as s12Lang, startTextDatei as s12Datei, START_TEXT_MAX as s12Max } from './server/orte.mjs';
+import { createAufraeumen as s12Aufr, aufraeumText as s12AText, kanalHinweis as s12Hinweis, istAufgeraeumt as s12Aufg } from './server/aufraeumen.mjs';
+{
+  // Anstoß: viele Ereignisse → ein Satz Runden (sofort + Nachlauf), nichts gestapelt.
+  const geplant = []; let laeufe = 0;
+  const a = s12Anstoss({ lauf: () => laeufe++, setze: (fn, ms) => geplant.push({ fn, ms }) });
+  a.anstossen(); a.anstossen(); a.anstossen();
+  ok(geplant.length === s12Nachlauf.length && a.anstehend === s12Nachlauf.length, 'Anstoß: drei Ereignisse → ein Satz Nachlauf-Runden');
+  geplant.splice(0).forEach((g) => g.fn());
+  ok(laeufe === s12Nachlauf.length && a.anstehend === 0, 'Anstoß: alle Stufen gelaufen, nichts mehr offen');
+  a.anstossen(); ok(geplant.length === s12Nachlauf.length, 'Anstoß: danach wieder planbar');
+  // Horcher: genau ein Watcher je Datei, verschwundene werden geschlossen, Fehler beim Beobachten kein Abbruch.
+  const zu = [], neu = []; let cb = null;
+  const h = s12Horcher({ beobachte: (d, f) => { if (d === 'kaputt') throw new Error('x'); neu.push(d); cb = f; return { close: () => zu.push(d) }; }, beiAenderung: (d) => zu.push('aenderung:' + d) });
+  h.sync(['a.jsonl', 'b.jsonl', null]); h.sync(['a.jsonl', 'b.jsonl']);
+  ok(neu.join() === 'a.jsonl,b.jsonl' && h.anzahl === 2, 'Horcher: ein Watcher je Protokoll, keine Doppel');
+  h.sync(['b.jsonl', 'kaputt']);
+  ok(zu.includes('a.jsonl') && h.anzahl === 2, 'Horcher: verschwundene Datei wird nicht mehr beobachtet, Fehler bricht nichts ab');
+  cb(); ok(zu.includes('aenderung:b.jsonl'), 'Horcher: neue Protokollzeile stößt eine Runde an');
+  h.stop(); ok(h.anzahl === 0 && zu.includes('b.jsonl'), 'Horcher: stop schließt alle');
+  // Zustands-Schlüssel: Dialog auf/zu, Modus, Lampe wecken die Oberfläche; die Uhr nicht.
+  const z0 = { modus: 'auto', dialog: null, lebt: true, lampe: 'beschaeftigt', busy_sekunden: 3 };
+  ok(s12ZSchl(z0) === s12ZSchl({ ...z0, busy_sekunden: 9 }), 'Zustand: laufende Uhr weckt nicht');
+  ok(s12ZSchl(z0) !== s12ZSchl({ ...z0, dialog: { art: 'frage' }, kennung: 'k1' }) && s12ZSchl({ ...z0, dialog: { art: 'frage' }, kennung: 'k1' }) !== s12ZSchl({ ...z0, dialog: { art: 'frage' }, kennung: 'k2' }), 'Zustand: Dialog auf/neu weckt');
+  ok(s12ZSchl(z0) !== s12ZSchl({ ...z0, modus: 'default' }) && s12ZSchl(z0) !== s12ZSchl({ ...z0, lampe: 'bereit' }) && s12ZSchl(null) === '', 'Zustand: Modus/Lampe wecken');
+
+  // Langer Start-Text über eine Datei (das Terminal kappt eine getippte Zeile bei 4095 Zeichen).
+  const kurzF = { ordner: '/tmp/x', tmux: 'fc-thema', start_text: 'Mach das.' };
+  const langF = { ...kurzF, start_text: 'Bericht ' + 'x'.repeat(4200) + " mit 'Quote'" };
+  ok(!s12Lang(kurzF) && s12Lang(langF), 'Start-Text: lang erst über ' + s12Max + ' Zeichen');
+  ok(startBefehl(langF).length < 300 && startBefehl(langF).endsWith(`"$(cat '/tmp/flottenchat-start-fc-thema.txt')"`), 'Start-Text: lange Zeile wird zu $(cat Datei)');
+  ok(startBefehl(kurzF).endsWith(" 'Mach das.'"), 'Start-Text: kurzer bleibt direkt');
+  eq(s12Datei({ tmux: 'fc-a/../b' }), '/tmp/flottenchat-start-fc-a____b.txt', 'Start-Text-Datei: keine Pfad-Tricks');
+
+  // Aufräumen vor Neu starten / Löschen / Schließen.
+  const welt = ({ lebt = true, dialog = false, aufgeraeumtNach = Infinity, stirbtNach = Infinity } = {}) => {
+    let t = 0; const log = [];
+    const a = s12Aufr({
+      jetzt: () => t, warte: async (ms) => { t += ms; },
+      lebt: () => (t === 0 ? lebt : lebt && t < stirbtNach), dialogOffen: () => dialog, escape: () => log.push('esc'),
+      textSenden: (f, text) => log.push('text:' + text.slice(0, 20)), letzteId: () => 41,
+      aufgeraeumtSeit: (f, id) => { log.push('pruef:' + id); return t >= aufgeraeumtNach; },
+      ausfuehren: (f, art, grund) => { log.push(`aus:${art}:${grund}`); return { ok: true }; },
+      melden: (f, text) => log.push('meld:' + text.slice(0, 12)),
+    });
+    return { a, log, zeit: () => t };
+  };
+  { const { a, log } = welt({ lebt: false }); const r = a.starten({ name: 'w1' }, 'loeschen');
+    ok(r.ok && r.sofort && log.join() === 'aus:loeschen:aus' && a.stand('w1') === null, 'Aufräumen: Fenster aus → sofort, ohne Auftrag'); }
+  { const { a, log } = welt(); const r = a.starten({ name: 'w1' }, 'schliessen', { sofort: true });
+    ok(r.sofort && log.join() === 'aus:schliessen:sofort', 'Aufräumen: „sofort“ überspringt das Warten'); }
+  { const { a, log, zeit } = welt({ aufgeraeumtNach: 9_000 }); const r = a.starten({ name: 'w2' }, 'neustart');
+    ok(r.ok && r.sofort === false && a.stand('w2').art === 'neustart', 'Aufräumen: läuft → Stand gesetzt („räumt auf …“)');
+    ok(a.starten({ name: 'w2' }, 'loeschen').laeuft_schon, 'Aufräumen: zweiter Klick startet nichts Neues');
+    const grund = await r.fertig;
+    ok(grund === 'aufgeraeumt' && zeit() === 9_000 && a.stand('w2') === null, 'Aufräumen: Aktion nach „aufgeräumt“, nicht länger gewartet');
+    ok(log[0].startsWith('meld:') && log[1].startsWith('text:') && log.includes('pruef:41') && log[log.length - 1] === 'aus:neustart:aufgeraeumt', 'Aufräumen: Hinweis, Auftrag, Prüfung ab der Nachricht davor, dann Aktion'); }
+  { const { a, log, zeit } = welt(); const grund = await a.starten({ name: 'w3' }, 'loeschen').fertig;
+    ok(grund === 'zeit' && zeit() >= 120_000 && zeit() <= 123_000 && log[log.length - 1] === 'aus:loeschen:zeit', 'Aufräumen: höchstens 2 Minuten'); }
+  { const { a, log } = welt({ dialog: true, aufgeraeumtNach: 3_000 }); await a.starten({ name: 'w4' }, 'neustart').fertig;
+    ok(log.indexOf('esc') >= 0 && log.indexOf('esc') < log.findIndex((x) => x.startsWith('text:')), 'Aufräumen: offene Rückfrage erst mit Esc schließen'); }
+  { const { a } = welt({ stirbtNach: 6_000 }); ok(await a.starten({ name: 'w5' }, 'neustart').fertig === 'beendet', 'Aufräumen: Fenster beendet sich → sofort weiter'); }
+  { let t = 0; const a = s12Aufr({ jetzt: () => t, warte: async (ms) => { t += ms; }, lebt: () => true, textSenden: () => {}, aufgeraeumtSeit: () => true, ausfuehren: () => { throw new Error('x'); } });
+    ok(await a.starten({ name: 'w6' }, 'loeschen').fertig === 'fehler' && a.stand('w6') === null, 'Aufräumen: Fehler in der Aktion blockiert das Fenster nicht'); }
+  ok(s12Aufr({ lebt: () => true }).starten(null, 'neustart').ok === false && s12Aufr({ lebt: () => true }).starten({ name: 'x' }, 'boom').ok === false, 'Aufräumen: ohne Fenster / unbekannte Aktion → Fehler');
+  ok(/gelöscht/.test(s12AText('loeschen')) && /geschlossen/.test(s12AText('schliessen')) && /neu gestartet/.test(s12AText('neustart')) && /startet/.test(s12Hinweis('neustart')), 'Aufräumen: Wortlaut je Aktion');
+  ok(s12Aufg('aufgeräumt') && s12Aufg('Stand steht in der Karte, alles committet. Aufgeräumt.') && !s12Aufg(s12AText('neustart')) && !s12Aufg('räumt noch auf'), 'Aufräumen: „aufgeräumt“ erkannt, der Auftrag selbst zählt nicht');
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
