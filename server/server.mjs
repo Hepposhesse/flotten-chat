@@ -5,7 +5,7 @@
 //         (Admin-Token in data/admin-token; Agenten-Tokens via Self-Connect).
 import http from 'node:http';
 import { readFileSync, writeFileSync, existsSync, createReadStream, createWriteStream, statSync, unlinkSync } from 'node:fs';
-import { join, dirname, extname } from 'node:path';
+import { join, dirname, extname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import {
@@ -32,13 +32,16 @@ import { sucheNachrichten } from './suche.mjs';
 import { ablegen as ablageAblegen, liste as ablageListe, loeschen as ablageLoeschen, streamen as ablageStreamen } from './ablage.mjs';
 import { erinnerungenSchema, ordnerAlle, ordnerAnlegen, ordnerUmbenennen, ordnerLoeschen, reminderInOrdner, reminderTitel, reminderNotiz, reminderUebergeben, uebergabeText } from './erinnerungen.mjs';
 // === Chat-Komfort (1.2) ===
-import { verlaufSchema, verlaufAb, verlaufAbSetzen, nachrichtenEtappe, nurAktuellerVerlauf } from './verlauf.mjs';
+import { verlaufSchema, verlaufAb, verlaufAbSetzen, nachrichtenEtappe, archivMarkieren } from './verlauf.mjs';
 import { schwarmFuerOrdner } from './schwarm.mjs';
 import { protokollDir } from './orte.mjs';
 // === Ende Chat-Komfort (1.2) ===
 // === Aufgaben (1.2) ===
 import { createAufgabenDienst, TAKT_S as AUFGABEN_TAKT_S } from './aufgaben.mjs';
 // === /Aufgaben (1.2) ===
+// === Bereiche (1.3) ===
+import { createBereicheDienst, fensterBereichSetzen, bereichHolen } from './bereiche.mjs';
+// === /Bereiche (1.3) ===
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -192,8 +195,10 @@ function fensterBauen(b) {
     ordner = w.ordner; worktree = 1;
   }
   if (!ordner) ordner = process.env.FC_DEFAULT_ORDNER || process.cwd();
-  const f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || (ort === 'lokal' ? process.env.FC_CLAUDE_CONFIG_DIR || '' : ''), start_modus: b.start_modus || 'auto', start_text: b.start_text || '', worktree });
+  let f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || (ort === 'lokal' ? process.env.FC_CLAUDE_CONFIG_DIR || '' : ''), start_modus: 'auto', start_text: b.start_text || '', worktree }); // 1.3: Fenster starten immer im Auto-Modus
   if (!f) return { ok: false, fehler: 'Fenster konnte nicht angelegt werden.' };
+  // 1.3: Bereich (Kanalliste gruppiert) + Art (wissen = Claude startet mit gesperrten Schreib-Werkzeugen, orte.mjs)
+  if (b.bereich_id || b.art) { fensterBereichSetzen(db, f.name, b.bereich_id || null, b.art || null); f = fensterHolen(db, f.name); }
   // Chat-Komfort (1.2): ein neues Fenster startet ohne den Verlauf eines geschlossenen Vorgängers gleichen Namens.
   { const ab = verlaufAbSetzen(db, f.name); if (ab) gelesenSetzen(db, f.name, ab); }
   let start = { ok: false };
@@ -206,9 +211,24 @@ function fensterBauen(b) {
 // Der Takt (alle 20 s) misst die Zeit an der Konsole (busy/Dialog) und an den Nachrichten des Menschen, erkennt den
 // Fertig-Satz, startet Aufgaben zur Uhrzeit und meldet Fälligkeiten im Kanal „Erinnerungen“. FC_AUFGABEN_ERST_FRAGEN=0
 // schaltet die Start-Text-Vorlage „erst Lage + Empfehlung + Rückfrage“ als Standard ab.
-const aufgaben = createAufgabenDienst({ db, konsole, fensterBauen, broadcast, zone: ZONE, erstFragen: process.env.FC_AUFGABEN_ERST_FRAGEN !== '0', reminderUebergeben });
+const aufgaben = createAufgabenDienst({ db, konsole, fensterBauen, broadcast, zone: ZONE, erstFragen: process.env.FC_AUFGABEN_ERST_FRAGEN !== '0', reminderUebergeben, bereichHolen: (id) => bereichHolen(db, id) });
 setInterval(() => { try { aufgaben.takt(Date.now()); } catch { /* fail-safe */ } }, AUFGABEN_TAKT_S * 1000).unref();
 // === /Aufgaben (1.2) ===
+
+// === Bereiche (1.3) ===
+// Ein Bereich ist eine Fenster-Vorlage (Ort, Ordner/Repo + Worktree, Modus). „＋ → Bereich" startet über fensterBauen ein
+// Fenster „<kürzel>-<n>" mit einem Klick; die Kanalliste gruppiert die Fenster nach Bereich.
+const DEFAULT_ORDNER = process.env.FC_DEFAULT_ORDNER || process.cwd();
+const istRepo = (o) => { try { return !!o && existsSync(join(String(o), '.git')); } catch { return false; } };
+const bereiche = createBereicheDienst({
+  db, fensterBauen, broadcast,
+  fensterAlle: () => fensterAlle(db),
+  belegt: (name) => !!fensterHolen(db, name) || kanaele(db).some((k) => k.name === name && !k.archiviert),
+  lebt: (f) => !!(konsole.zustand(f.name) || {}).lebt,
+  istRepo,
+  standard: () => ({ ordner: DEFAULT_ORDNER, name: basename(DEFAULT_ORDNER) || 'Projekt', repo: istRepo(DEFAULT_ORDNER) }),
+});
+// === /Bereiche (1.3) ===
 
 // ── Server ──────────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
@@ -415,10 +435,18 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, counts: u.counts, gesamt: u.gesamt, gelesen: u.gelesen, einstellungen: einstellungenLaden(db) });
     }
     if (url.pathname === '/api/search' && req.method === 'GET') {
-      const r = sucheNachrichten(db, { q: url.searchParams.get('q') || '', kanaele: sichtbareKanaele(), limit: url.searchParams.get('limit') || 50 });
-      // Chat-Komfort (1.2): Treffer aus dem Verlauf eines geschlossenen Vorgängers gleichen Namens fallen weg.
+      // 1.3: Admins finden auch Nachrichten geschlossener (archivierter) Fenster — gekennzeichnet als „archiviert", mit dem
+      // vollen Text (der Kanal ist ja weg). Ebenso der Verlauf eines geschlossenen Vorgängers gleichen Namens (vor verlauf_ab):
+      // im Kanal selbst bleibt er ausgeblendet, in der Suche steht er als „archiviert".
+      const archivKanaele = wer.agent ? [] : kanaele(db).filter((k) => k.archiviert).map((k) => k.name);
+      const r = sucheNachrichten(db, { q: url.searchParams.get('q') || '', kanaele: [...sichtbareKanaele(), ...archivKanaele], limit: url.searchParams.get('limit') || 50 });
       const grenzen = Object.fromEntries(fensterAlle(db).map((f) => [f.name, Number(f.verlauf_ab) || 0]));
-      return json(res, 200, { ok: true, woerter: r.woerter, treffer: nurAktuellerVerlauf(r.treffer, grenzen) });
+      const offen = new Set(fensterAlle(db).map((f) => f.name));
+      const labels = Object.fromEntries(kanaele(db).map((k) => [k.name, k.label || k.name]));
+      const treffer = archivMarkieren(r.treffer, grenzen, new Set(archivKanaele.filter((k) => !offen.has(k)))).map((t) => (t.archiviert
+        ? { ...t, kanal_label: labels[t.kanal] || t.kanal, text: String((db.prepare('SELECT inhalt FROM messages WHERE id = ?').get(t.id) || {}).inhalt || '').slice(0, 20000) }
+        : t));
+      return json(res, 200, { ok: true, woerter: r.woerter, treffer });
     }
 
     // ── Geräte ──
@@ -453,6 +481,13 @@ const server = http.createServer(async (req, res) => {
     const mFA = /^\/api\/fenster\/([a-z0-9_-]+)\/(schliessen|loeschen)$/.exec(url.pathname);
     if (mFA && req.method === 'POST' && admin && fensterHolen(db, mFA[1])) { if (mFA[2] === 'schliessen') aufgaben.fensterGeschlossen(mFA[1]); else aufgaben.fensterGeloescht(mFA[1]); }
     // === /Aufgaben (1.2) ===
+
+    // === Bereiche (1.3) === GET/POST /api/bereiche, POST /api/bereiche/<id>[/loeschen|/fenster]
+    if (url.pathname === '/api/bereiche' || url.pathname.startsWith('/api/bereiche/')) {
+      if (!admin) return json(res, 403, { ok: false, fehler: 'Nur Admin sieht und ändert Bereiche.' });
+      if (await bereiche.route({ req, res, url, admin, json, koerper })) return;
+    }
+    // === /Bereiche (1.3) ===
 
     // ── Fenster (v1.0): Registry + Steuerung ──
     if (url.pathname === '/api/fenster' && req.method === 'GET') return json(res, 200, { ok: true, fenster: fensterAlle(db).map(fensterMitZustand) });

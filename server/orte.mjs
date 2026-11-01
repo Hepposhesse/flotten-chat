@@ -82,12 +82,17 @@ function startTextAblegen(f) {
 }
 
 /** Start-Befehl für die Session-Shell (ein String). */
+// 1.3: Wissensfenster (fenster.art = 'wissen') bauen nichts — Claude Code startet mit gesperrten Schreib-Werkzeugen und ohne
+// Befehle mit Wirkung auf Repo/Pakete. Das ist die harte Sperre; die Regel steht zusätzlich im Start-Text (bereiche.mjs).
+export const WISSEN_GESPERRT = ['Edit', 'MultiEdit', 'Write', 'NotebookEdit', 'Bash(git commit:*)', 'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(git checkout:*)', 'Bash(rm:*)', 'Bash(mv:*)', 'Bash(npm publish:*)'];
 export function startBefehl(f) {
   const cfg = f.config_dir ? `CLAUDE_CONFIG_DIR=${q(f.config_dir)} ` : '';
+  // Die Sperrliste steht VOR --permission-mode: die Option nimmt mehrere Werte und würde sonst den Start-Text schlucken.
+  const sperre = f.art === 'wissen' ? ` --disallowedTools ${q(WISSEN_GESPERRT.join(','))}` : '';
   const modus = ['auto', 'default', 'plan', 'acceptEdits'].includes(f.start_modus) ? f.start_modus : 'auto';
   const text = String(f.start_text || '').replace(/\s+/g, ' ').trim();
   const arg = !text ? '' : startTextLang(f) ? ` "$(cat ${q(startTextDatei(f))})"` : ' ' + q(text);
-  return `cd ${q(f.ordner)} && clear && export DISABLE_AUTOUPDATER=1 && ${cfg}exec ${CLAUDE} --permission-mode ${modus}${arg}`;
+  return `cd ${q(f.ordner)} && clear && export DISABLE_AUTOUPDATER=1 && ${cfg}exec ${CLAUDE}${sperre} --permission-mode ${modus}${arg}`;
 }
 
 /** Läuft im Fenster nur die nackte Shell (Claude ist nie hochgekommen oder beendet)? Dann räumt dort niemand auf. */

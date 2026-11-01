@@ -14,6 +14,7 @@
 // injizierten Abhängigkeiten — so ist auch der Ablauf ohne tmux testbar.
 import { senden, fensterHolen, fensterAlle, karteHolen, karteVerlauf, letzteNachrichtId } from './db.mjs';
 import { slug } from './protokoll.mjs';
+import { fensterAngaben } from './bereiche.mjs';
 
 export const STATUS = ['geplant', 'laeuft', 'pausiert', 'fertig', 'abgebrochen'];
 export const OFFEN = ['geplant', 'laeuft', 'pausiert'];
@@ -56,7 +57,7 @@ export function eingabeSaeubern(e = {}) {
   if (e.erst_fragen !== undefined) raus.erst_fragen = e.erst_fragen === false || e.erst_fragen === 0 || e.erst_fragen === '0' ? 0 : 1;
   if (e.ort !== undefined) raus.ort = /^(lokal|ssh:\S{1,118}|geraet:[a-z0-9-]{1,40})$/.test(String(e.ort || '')) ? String(e.ort) : '';
   for (const k of ['ordner', 'repo']) if (e[k] !== undefined) raus[k] = String(e[k] ?? '').trim().slice(0, 400);
-  for (const k of ['karte_id', 'erinnerung_id']) if (e[k] !== undefined) { const n = Math.floor(Number(e[k])); raus[k] = Number.isFinite(n) && n > 0 ? n : null; }
+  for (const k of ['karte_id', 'erinnerung_id', 'bereich_id']) if (e[k] !== undefined) { const n = Math.floor(Number(e[k])); raus[k] = Number.isFinite(n) && n > 0 ? n : null; }
   return raus;
 }
 
@@ -323,9 +324,10 @@ export function aufgabenSchema(db) {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS idx_aufgaben_status ON aufgaben(status)');
   try { db.exec('ALTER TABLE fenster ADD COLUMN aufgabe_id INTEGER'); } catch { /* existiert schon */ }
+  try { db.exec('ALTER TABLE aufgaben ADD COLUMN bereich_id INTEGER'); } catch { /* 1.3, existiert schon */ }
 }
 
-const SPALTEN = ['titel', 'beschreibung', 'label', 'status', 'rang', 'faellig_am', 'faellig_gemeldet', 'start_um', 'autostart', 'erst_fragen', 'ort', 'ordner', 'repo', 'karte_id', 'erinnerung_id', 'fenster', 'gestartet', 'beendet', 'gestoppt', 'zeiten', 'tage', 'letztes_sample', 'fertig_ab_id', 'stand_text', 'ergebnis', 'laeufe'];
+const SPALTEN = ['titel', 'beschreibung', 'label', 'status', 'rang', 'faellig_am', 'faellig_gemeldet', 'start_um', 'autostart', 'erst_fragen', 'ort', 'ordner', 'repo', 'karte_id', 'erinnerung_id', 'bereich_id', 'fenster', 'gestartet', 'beendet', 'gestoppt', 'zeiten', 'tage', 'letztes_sample', 'fertig_ab_id', 'stand_text', 'ergebnis', 'laeufe'];
 export function aufgabeHolen(db, id) { return zeileLesen(db.prepare('SELECT * FROM aufgaben WHERE id = ?').get(Number(id) || 0)); }
 export function aufgabenAlle(db) { return db.prepare('SELECT * FROM aufgaben ORDER BY id').all().map(zeileLesen); }
 function setzen(db, id, felder, jetztMs) {
@@ -397,7 +399,7 @@ export function fensterAufgabeSetzen(db, name, id) { db.prepare('UPDATE fenster 
  *        deps.broadcast, deps.zone, deps.jetzt (() => ms), deps.erstFragen (Standard der Vorlage),
  *        deps.reminderUebergeben (db, id, an) aus erinnerungen.mjs
  */
-export function createAufgabenDienst({ db, konsole, fensterBauen, broadcast = () => {}, zone = 'Europe/Berlin', jetzt = () => Date.now(), erstFragen = true, reminderUebergeben = null, log = console } = {}) {
+export function createAufgabenDienst({ db, konsole, fensterBauen, broadcast = () => {}, zone = 'Europe/Berlin', jetzt = () => Date.now(), erstFragen = true, reminderUebergeben = null, bereichHolen = null, log = console } = {}) {
   aufgabenSchema(db);
   const post = (kanal, von, typ, inhalt, meta = null) => { const m = senden(db, { kanal, von, typ, inhalt, meta }); if (m) broadcast('message', m); return m; };
   const geaendert = (a) => { broadcast('aufgaben', { id: a ? a.id : null }); return a; };
@@ -430,6 +432,17 @@ export function createAufgabenDienst({ db, konsole, fensterBauen, broadcast = ()
     const ort = eingabeSaeubern({ ort: opt.ort ?? a.ort }).ort; if (ort) b.ort = ort;
     const repo = String(opt.repo ?? a.repo ?? '').trim(), ordner = String(opt.ordner ?? a.ordner ?? '').trim();
     if (repo) b.repo = repo; else if (ordner) b.ordner = ordner;
+    // 1.3: Bereich der Aufgabe füllt, was sie nicht selbst angibt (Ort, Ordner/Repo + Worktree, Modus); das Fenster steht
+    // dann in der Kanalliste unter diesem Bereich. Benannt wird es weiter nach dem Titel.
+    const bid = Number(opt.bereich_id ?? a.bereich_id) || 0;
+    const bereich = bid && bereichHolen ? bereichHolen(bid) : null;
+    if (bereich) {
+      const v = fensterAngaben(bereich, { name, n: 0 });
+      if (!b.ort) b.ort = v.ort;
+      if (!repo && !ordner) { if (b.ort === v.ort && v.repo) b.repo = v.repo; else if (v.repo || v.ordner) b.ordner = v.repo || v.ordner; }
+      if (!b.start_modus) b.start_modus = v.start_modus;
+      b.bereich_id = bereich.id;
+    }
     let r; try { r = fensterBauen(b); } catch (e) { r = fehler(String((e && e.message) || e)); }
     if (!r || !r.ok) return { status: 400, ok: false, fehler: (r && r.fehler) || 'Fenster ging nicht' };
     const s = aufgabeStarten(db, a.id, { fenster: r.fenster.name, fertig_ab_id: letzteNachrichtId(db, r.fenster.name) }, t);
