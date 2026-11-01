@@ -389,6 +389,38 @@ aside .kanal{-webkit-touch-callout:none}
   .av-fuss .rechts{margin-left:0}
 }
 /* === /Aufgaben (1.2) === */
+/* === Aufnahme (1.3) === */
+/* Sprachnachricht wie WhatsApp: Punkt, Zeit, laufende Pegel-Welle, darunter das Mitgeschriebene. Ersetzt die Eingabezeile, solange sie läuft. */
+.composer.aufn-weg{display:none}
+.sprach-bar{display:flex;flex-direction:column;gap:6px;padding:10px 18px;background:var(--card);border-top:1px solid var(--n100)}
+.sprach-bar .sb-zeile{display:flex;align-items:center;gap:8px;min-width:0}
+.sb-knopf{flex:none;min-width:44px;min-height:44px;border-radius:999px;border:1px solid var(--n200);background:var(--card);color:var(--n900);font-size:1.05rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 12px}
+.sb-knopf:hover{border-color:var(--blau)}
+.sb-knopf.pri{background:var(--blau);border-color:var(--blau);color:#fff;font-weight:700}
+.sb-knopf.weg{color:var(--bad)}
+.sb-knopf:disabled{opacity:.45;cursor:default}
+.sb-punkt{flex:none;width:10px;height:10px;border-radius:50%;background:var(--bad);animation:puls 1s infinite}
+.sb-punkt.pause{animation:none;background:var(--n400)}
+.sb-zeit{flex:none;font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--n900);min-width:3.2em}
+.sb-welle{flex:1;min-width:40px;height:30px;display:flex;align-items:center;justify-content:flex-end;gap:2px;overflow:hidden}
+.sb-welle i{flex:none;width:3px;border-radius:2px;background:var(--blau);opacity:.85}
+.sb-hinweis{flex:0 1 auto;min-width:0;font-size:.82rem;color:var(--n500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-mit{width:100%;box-sizing:border-box;min-height:2.6em;max-height:24vh;resize:vertical;border:1px solid var(--n100);border-radius:10px;padding:.4rem .6rem;font:inherit;font-size:.9rem;line-height:1.4;background:var(--n50);color:var(--n900)}
+.sb-mit[readonly]{color:var(--n500)}
+.sb-stand{font-size:.76rem;color:var(--n500)}
+.sb-stand.fehler{color:var(--bad)}
+/* Bildschirmaufnahme: Leiste über der Eingabe, bleibt beim Kanalwechsel stehen */
+.bild-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 18px;background:var(--bad-soft);border-top:1px solid var(--n100);font-size:.86rem;color:var(--n900)}
+.bild-bar b{font-weight:700}
+.bild-bar .bb-zeile{flex:1;min-width:0;color:var(--n500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bild-bar .bb-ton{color:var(--bad);font-weight:600}
+.bild-bar .knopf{min-height:36px}
+/* Angehängte Sprachnachricht (Stopp mit ✍️): wartet über der Eingabe auf „Senden“ */
+.aufn-anh{display:flex;align-items:center;gap:8px;padding:6px 18px;background:var(--blau-soft);border-top:1px solid var(--n100);font-size:.84rem}
+.aufn-anh .zu{margin-left:auto}
+.ablage-bar .abl-tr{flex-basis:100%;font-size:.78rem;color:var(--n500);white-space:pre-wrap;max-height:5.5em;overflow:auto}
+@media(max-width:720px){.sprach-bar{padding:8px 10px}.sb-knopf{min-width:44px;padding:0 10px}.bild-bar,.aufn-anh{padding:6px 10px}.sb-hinweis{display:none}}
+/* === /Aufnahme (1.3) === */
 </style>
 </head>
 <body>
@@ -675,31 +707,7 @@ $('#clip').onclick=()=>$('#datei').click();
 $('#datei').onchange=()=>{ladeHoch([...$('#datei').files]);$('#datei').value='';};
 document.addEventListener('dragover',e=>{e.preventDefault();});
 document.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer?.files?.length)ladeHoch([...e.dataTransfer.files]);});
-// Sprachnachricht (Mikrofon) → webm/ogg
-let micRec=null,micChunks=[];
-$('#mic').onclick=async()=>{
-  if(micRec&&micRec.state!=='inactive'){micRec.stop();return;}
-  let s;try{s=await navigator.mediaDevices.getUserMedia({audio:true});}catch{fcStatus('⚠️ Kein Mikrofon-Zugriff.');return;}
-  micChunks=[];const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/ogg';
-  micRec=new MediaRecorder(s,{mimeType:mime});micRec.ondataavailable=e=>{if(e.data.size)micChunks.push(e.data);};
-  micRec.onstop=async()=>{s.getTracks().forEach(t=>t.stop());$('#mic').classList.remove('rec');$('#mic').textContent='🎤';const blob=new Blob(micChunks,{type:mime});if(!blob.size)return;const m=await upload(blob,'Sprachnachricht.'+(mime.includes('webm')?'webm':'ogg'),mime);if(m)anhangFertig('🎤 Sprachnachricht',m);};
-  micRec.start(500);$('#mic').classList.add('rec');$('#mic').textContent='⏹';
-};
-// Bildschirmaufnahme (mit Ton)
-let scRec=null,scChunks=[];
-$('#screen').onclick=async()=>{
-  if(scRec&&scRec.state!=='inactive'){scRec.stop();return;}
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){fcStatus('⚠️ Bildschirmaufnahme wird hier nicht unterstützt.');return;}
-  let disp;try{disp=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});}catch{return;}
-  let mic=null;try{mic=await navigator.mediaDevices.getUserMedia({audio:true});}catch{}
-  const tracks=[disp.getVideoTracks()[0]];const sys=disp.getAudioTracks();let ctx=null;
-  if(sys.length||mic){try{ctx=new AudioContext();const dest=ctx.createMediaStreamDestination();if(sys.length)ctx.createMediaStreamSource(new MediaStream([sys[0]])).connect(dest);if(mic)ctx.createMediaStreamSource(mic).connect(dest);tracks.push(dest.stream.getAudioTracks()[0]);}catch{if(sys.length)tracks.push(sys[0]);else if(mic)tracks.push(mic.getAudioTracks()[0]);}}
-  scChunks=[];try{scRec=new MediaRecorder(new MediaStream(tracks),{mimeType:'video/webm'});}catch{scRec=new MediaRecorder(new MediaStream(tracks));}
-  scRec.ondataavailable=e=>{if(e.data.size)scChunks.push(e.data);};
-  scRec.onstop=async()=>{[disp,mic].forEach(x=>x&&x.getTracks().forEach(t=>t.stop()));if(ctx)ctx.close();$('#screen').classList.remove('rec');$('#screen').textContent='🖥️';const blob=new Blob(scChunks,{type:'video/webm'});if(!blob.size)return;const m=await upload(blob,'Bildschirmaufnahme.webm','video/webm');if(m)anhangFertig('🖥️ Bildschirmaufnahme',m);};
-  tracks[0].addEventListener('ended',()=>{if(scRec&&scRec.state!=='inactive')scRec.stop();});
-  scRec.start(1000);$('#screen').classList.add('rec');$('#screen').textContent='⏹';
-};
+// Sprachnachricht (🎤) und Bildschirmaufnahme (🖥️): siehe Block „Aufnahme (1.3)“ am Ende.
 
 // ── Neues Fenster ──
 let GERAETE=[];
@@ -1410,6 +1418,319 @@ const _aufgKarteOeffnen=karteOeffnen;karteOeffnen=function(id){_aufgKarteOeffnen
   span.innerHTML='<button class="knopf" id="kAufgabe" title="Aufgabe mit Zeitmessung zu dieser Karte — Stand und Abschluss landen im Verlauf">🎯 Als Aufgabe</button>';
   $('#kAufgabe').onclick=async()=>{const r=await aufgPost('/api/aufgaben',{titel:k.titel,beschreibung:k.beschreibung,karte_id:k.id});if(r&&r.ok){$('#dlgKarte').close();await aufgLaden();aufgViewAuf('aufgabe',r.aufgabe.id);}else fcStatus(aufgFehler(r));};};
 /* === /Aufgaben (1.2) === */
+/* === Aufnahme (1.3) === */
+// Sprachnachricht (🎤) und Bildschirmaufnahme (🖥️) wie im internen Flotten-Chat:
+//  • Sprachnachricht: Leiste statt Eingabezeile — Punkt, Zeit, Pegel-Welle, ⏸/▶, 🗑 verwerfen, ✍️ Stopp → Text ins Eingabefeld
+//    (die Sprachnachricht hängt an und geht mit „Senden“ mit), ➤ Stopp → sofort senden: Text + Sprachnachricht in EINER Nachricht.
+//    Darunter schreibt sie mit: ein zweiter, reiner Ton-Rekorder setzt an Sprechpausen neu an (spätestens alle 15 s, bei ⏸ und
+//    beim Stopp), jedes Stück geht sofort an den Server und wird genau einmal transkribiert (server/aufnahme.mjs).
+//  • Bildschirmaufnahme: Bildschirm + System-Ton + Mikro gemischt, Leiste mit Zeit/Stopp, die beim Kanalwechsel stehen bleibt.
+//    Fertig → direkt in die Ablage, Link sofort in die Zwischenablage, nichts im Chat. Das Transkript entsteht mitlaufend in
+//    Stücken und hängt mit Zeitmarken („[00:12] …“) am Ablage-Eintrag (Text kopieren, Transkript-Link). Ohne Ton: sofort rot.
+//  • Ohne Transkription (FC_TRANSKRIPTION=aus, kein Schlüssel, kein whisper) geht alles weiter, nur ohne Text — einmal je Sitzung
+//    sagt der Status, warum und wie man es einschaltet.
+let TR_STAND=null;
+async function trStand(){if(!TR_STAND){const r=await api('/api/aufnahme/stand');TR_STAND=r&&r.ok?r:{weg:'aus',hinweis:''};}return TR_STAND;}
+function trHinweisEinmal(){if(!TR_STAND||TR_STAND.weg!=='aus'||!TR_STAND.hinweis)return;let schon=false;try{schon=sessionStorage.getItem('fc_tr_hinweis')==='1';sessionStorage.setItem('fc_tr_hinweis','1');}catch{}if(!schon)fcStatus('ℹ️ '+TR_STAND.hinweis);}
+const aufnId=()=>{const a=new Uint8Array(16);crypto.getRandomValues(a);return [...a].map(x=>'abcdefghijklmnopqrstuvwxyz0123456789'[x%36]).join('');};
+const aufnUhr=(s)=>{s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+const aufnMime=(liste)=>window.MediaRecorder?(liste.find(m=>{try{return MediaRecorder.isTypeSupported(m);}catch{return false;}})||''):'';
+const TON_MIMES=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+const ohneCodec=(m)=>String(m||'').split(';')[0]||'application/octet-stream';
+const tonEndung=(m)=>/ogg/.test(m)?'ogg':/mp4|m4a|aac/.test(m)?'m4a':'webm';
+
+// Pegel über den Audio-Takt (ScriptProcessor statt requestAnimationFrame): misst auch, wenn der Tab im Hintergrund liegt —
+// bei einer Bildschirmaufnahme ist das der Normalfall.
+function pegelMesser(stream,cb){
+  let ctx;try{ctx=new (window.AudioContext||window.webkitAudioContext)();}catch{return {an:false,stop(){}};}
+  try{
+    const src=ctx.createMediaStreamSource(stream),sp=ctx.createScriptProcessor(2048,1,1),stumm=ctx.createGain();stumm.gain.value=0;
+    sp.onaudioprocess=(e)=>{const d=e.inputBuffer.getChannelData(0);let mx=0;for(let i=0;i<d.length;i+=2){const v=d[i]<0?-d[i]:d[i];if(v>mx)mx=v;}cb(mx);};
+    src.connect(sp);sp.connect(stumm);stumm.connect(ctx.destination);if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    let zu=false;
+    return {an:true,stop(){if(zu)return;zu=true;try{sp.onaudioprocess=null;src.disconnect();sp.disconnect();}catch{}ctx.close().catch(()=>{});}};
+  }catch{ctx.close().catch(()=>{});return {an:false,stop(){}};}
+}
+
+// Mitschrift in Stücken. Liefert {id, pegel(p), pause(), weiter(), ende()→Promise, abbruch(), teile, kaputt}.
+function mitschriftStart(stream,art,{teil=()=>{},fehler=()=>{}}={}){
+  const mime=aufnMime(TON_MIMES),ton=new MediaStream(stream.getAudioTracks());
+  const M={id:aufnId(),nr:0,laeuft:true,tot:false,kaputt:false,gesamt:0,lauf0:performance.now(),akt:null,stilleMs:0,letzter:performance.now(),zusagen:[],teile:[],pegelDa:false,takt:null};
+  const zeit=()=>(M.gesamt+(M.laeuft?performance.now()-M.lauf0:0))/1000;
+  function neu(){
+    if(M.tot)return;let r;
+    try{r=mime?new MediaRecorder(ton,{mimeType:mime,audioBitsPerSecond:32000}):new MediaRecorder(ton);}catch{M.kaputt=true;fehler('Mitschreiben geht in diesem Browser nicht.');return;}
+    const st={rec:r,von:zeit(),chunks:[],sprache:false,spitze:0};r.ondataavailable=(e)=>{if(e.data&&e.data.size)st.chunks.push(e.data);};
+    try{r.start();}catch{M.kaputt=true;return;}M.akt=st;
+  }
+  function hoch(nr,von,bis,blob,still,letztes){
+    if(M.tot)return Promise.resolve(null);
+    if(M.kaputt&&!letztes)return Promise.resolve(null);
+    const q=`/api/aufnahme/stueck?id=${M.id}&nr=${nr}&art=${art}&von=${von.toFixed(2)}&bis=${bis.toFixed(2)}${still||!blob?'&still=1':''}${letztes?'&letztes=1':''}`;
+    const p=fetch(q,{method:'POST',credentials:'same-origin',headers:{'content-type':blob&&!still?(blob.type||'audio/webm'):'application/octet-stream'},body:blob&&!still?blob:new Blob([])})
+      .then(r=>r.json()).catch(()=>null).then(r=>{
+        if(M.tot)return null;
+        if(!r||!r.ok){if(!M.kaputt){M.kaputt=true;fehler((r&&r.fehler)||'Netz weg');}return null;}
+        if(r.text){M.teile.push({nr,von,text:r.text});M.teile.sort((a,b)=>a.nr-b.nr);teil(M.teile);}
+        return r;});
+    M.zusagen.push(p);return p;
+  }
+  function schneiden(letztes){
+    const st=M.akt;M.akt=null;const bis=zeit();
+    if(!letztes&&M.laeuft)neu();
+    const nr=M.nr++;
+    if(!st)return hoch(nr,bis,bis,null,true,letztes);
+    // Stille (kein Pegel über der Schwelle) wird gar nicht erst geschickt — spart Geld und Whisper-Erfindungen.
+    const still=M.pegelDa&&!st.sprache;
+    return new Promise((fertig)=>{
+      st.rec.onstop=()=>fertig(hoch(nr,st.von,bis,new Blob(st.chunks,{type:st.rec.mimeType||mime||'audio/webm'}),still,letztes));
+      try{st.rec.stop();}catch{fertig(hoch(nr,st.von,bis,null,true,letztes));}
+    });
+  }
+  function pruefen(){const st=M.akt;if(!M.laeuft||!st||M.tot)return;const seit=zeit()-st.von;if((st.sprache&&M.stilleMs>=700&&seit>=4)||seit>=15){M.stilleMs=0;schneiden(false);}}
+  neu();
+  M.takt=setInterval(pruefen,1000); // Rückfall ohne Pegel (kein Web-Audio): spätestens alle 15 s ein Stück
+  return {
+    id:M.id,get teile(){return M.teile;},get kaputt(){return M.kaputt;},
+    // Sprechpause = Pegel nahe am Grundrauschen. Der Boden folgt leisen Stellen sofort und lauten nur langsam — so klappt es
+    // im stillen Büro (Boden ≈ 0) wie mit Lüfter oder Straße (Boden 0,1) mit derselben Regel.
+    pegel(p){
+      const j=performance.now(),dt=Math.min(200,j-M.letzter);M.letzter=j;M.pegelDa=true;const st=M.akt;if(!M.laeuft||!st)return;
+      M.boden=M.boden===undefined?p:(p<M.boden?p:M.boden+(p-M.boden)*0.002);
+      const still=Math.max(0.03,M.boden*1.8+0.015);
+      if(p>st.spitze)st.spitze=p;
+      if(p<still)M.stilleMs+=dt;else{M.stilleMs=0;if(p>still*1.5)st.sprache=true;}
+      pruefen();
+    },
+    pause(){if(!M.laeuft)return;M.gesamt+=performance.now()-M.lauf0;M.laeuft=false;schneiden(false);},
+    weiter(){if(M.laeuft)return;M.lauf0=performance.now();M.laeuft=true;M.stilleMs=0;neu();},
+    async ende(){clearInterval(M.takt);if(M.laeuft){M.gesamt+=performance.now()-M.lauf0;M.laeuft=false;}await schneiden(true);await Promise.all(M.zusagen);return M.id;},
+    abbruch(){clearInterval(M.takt);M.tot=true;const st=M.akt;M.akt=null;if(st)try{st.rec.stop();}catch{}fetch(`/api/aufnahme/${M.id}/verwerfen`,{method:'POST',credentials:'same-origin'}).catch(()=>{});}
+  };
+}
+
+// ── Leisten (einmal angelegt; die Sprach-Leiste ersetzt die Eingabezeile, die Bild-Leiste steht darüber) ──
+$('#composer').insertAdjacentHTML('afterend',`<div class="sprach-bar" id="sprachBar" role="group" aria-label="Sprachnachricht wird aufgenommen" hidden>
+<div class="sb-zeile"><button type="button" class="sb-knopf weg" id="sbWeg" title="Verwerfen" aria-label="Aufnahme verwerfen">🗑</button><span class="sb-punkt" id="sbPunkt"></span><span class="sb-zeit" id="sbZeit">0:00</span><div class="sb-welle" id="sbWelle" aria-hidden="true"></div><span class="sb-hinweis" id="sbHinweis"></span><button type="button" class="sb-knopf" id="sbPause" title="Pause" aria-label="Pause">⏸</button><button type="button" class="sb-knopf" id="sbFeld" title="Stopp — der Text kommt ins Eingabefeld, die Sprachnachricht hängt an und geht mit „Senden“ mit" aria-label="Stopp, Text ins Eingabefeld">✍️</button><button type="button" class="sb-knopf pri" id="sbSenden" title="Stopp und senden — Text und Sprachnachricht in einer Nachricht" aria-label="Stopp und senden">➤</button></div>
+<textarea class="sb-mit" id="sbMit" rows="2" readonly placeholder="Hier steht gleich, was du sagst. In der Pause (⏸) kannst du korrigieren — beim Stopp gilt dieser Text." aria-label="Mitgeschriebener Text"></textarea><span class="sb-stand" id="sbStand" aria-live="polite"></span></div>`);
+$('#composer').insertAdjacentHTML('beforebegin','<div class="aufn-anh" id="aufnAnh" role="status" hidden></div>');
+$('#status').insertAdjacentHTML('beforebegin','<div class="bild-bar" id="bildBar" role="status" aria-live="polite" hidden></div>');
+
+// ── Sprachnachricht ──
+let SPR=null,AUFN_ANH=null;
+function sbStand(t,fehler){const el=$('#sbStand');el.textContent=t||'';el.classList.toggle('fehler',!!fehler);}
+function sbWelle(p){const w=$('#sbWelle');if(!w||!SPR)return;SPR.wSpitze=Math.max(SPR.wSpitze||0,p);const j=performance.now();if(j-(SPR.wT||0)<90)return;SPR.wT=j;
+  const b=document.createElement('i');b.style.height=Math.round(3+Math.min(1,SPR.wSpitze*2.2)*25)+'px';SPR.wSpitze=0;w.appendChild(b);const max=Math.max(8,Math.floor((w.clientWidth||160)/5));while(w.children.length>max)w.firstChild.remove();}
+function sprachSek(){if(!SPR)return 0;return (SPR.gesamt+(SPR.pausiert?0:performance.now()-SPR.lauf0))/1000;}
+async function sprachStart(){
+  if(SPR)return;
+  const ablage=ABLAGE_MODUS;if(ablage)ablageModus(false);
+  if(!KANAL&&!ablage)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){fcStatus('⚠️ Aufnahme wird von diesem Browser nicht unterstützt.');return;}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}catch{fcStatus('⚠️ Kein Mikrofon-Zugriff — im Browser das Mikrofon für diese Seite erlauben.');return;}
+  const st=await trStand();trHinweisEinmal();
+  const mime=aufnMime(TON_MIMES);let rec;
+  try{rec=mime?new MediaRecorder(stream,{mimeType:mime,audioBitsPerSecond:64000}):new MediaRecorder(stream);}catch{stream.getTracks().forEach(t=>t.stop());fcStatus('⚠️ Aufnahme nicht möglich.');return;}
+  SPR={rec,stream,chunks:[],mime:rec.mimeType||mime||'audio/webm',kanal:KANAL,ablage,gesamt:0,lauf0:performance.now(),pausiert:false,spitze:0,bearbeitet:false,mit:null,messer:null,uhr:null,stoppt:false};
+  rec.ondataavailable=(e)=>{if(e.data&&e.data.size&&SPR)SPR.chunks.push(e.data);};
+  rec.start(1000);
+  const S=SPR;
+  if(st.weg!=='aus')S.mit=mitschriftStart(stream,'sprache',{teil:(teile)=>{if(SPR!==S||S.bearbeitet)return;$('#sbMit').value=teile.map(t=>t.text).join(' ');},fehler:(f)=>{if(SPR===S)sbStand('⚠️ Mitschreiben ausgefallen ('+f+') — der Text kommt nach dem Stopp aus der ganzen Aufnahme.',true);}});
+  S.messer=pegelMesser(stream,(p)=>{if(SPR!==S||S.pausiert)return;if(p>S.spitze)S.spitze=p;sbWelle(p);if(S.mit)S.mit.pegel(p);});
+  $('#composer').classList.add('aufn-weg');$('#sprachBar').hidden=false;$('#sbWelle').innerHTML='';$('#sbMit').value='';$('#sbMit').readOnly=true;$('#sbMit').hidden=!S.mit;
+  $('#sbPunkt').classList.remove('pause');$('#sbPause').textContent='⏸';$('#sbPause').title='Pause';$('#sbPause').hidden=false;
+  ['#sbWeg','#sbPause','#sbFeld','#sbSenden'].forEach(k=>$(k).disabled=false);
+  $('#sbFeld').hidden=ablage;$('#sbSenden').title=ablage?'Stopp — die Sprachnotiz kommt in die Ablage, nicht in den Chat':'Stopp und senden — Text und Sprachnachricht in einer Nachricht';
+  $('#sbHinweis').textContent=ablage?'🔗 für die Ablage':(S.mit?'':'ohne Mitschrift');
+  sbStand(S.mit?'':(TR_STAND&&TR_STAND.hinweis?'Ohne Text: '+TR_STAND.hinweis:''));
+  $('#sbZeit').textContent='0:00';S.uhr=setInterval(()=>{if(SPR===S)$('#sbZeit').textContent=aufnUhr(sprachSek());},250);
+}
+function sprachZu(){
+  const S=SPR;if(!S)return;SPR=null;clearInterval(S.uhr);if(S.messer)S.messer.stop();
+  try{if(S.rec.state!=='inactive')S.rec.stop();}catch{}S.stream.getTracks().forEach(t=>t.stop());
+  $('#sprachBar').hidden=true;$('#composer').classList.remove('aufn-weg');sbStand('');
+}
+function sprachPause(){
+  const S=SPR;if(!S||S.stoppt)return;
+  if(!S.pausiert){try{S.rec.requestData();S.rec.pause();}catch{}S.gesamt+=performance.now()-S.lauf0;S.pausiert=true;if(S.mit)S.mit.pause();
+    $('#sbPunkt').classList.add('pause');$('#sbPause').textContent='▶';$('#sbPause').title='Weiter';$('#sbPause').setAttribute('aria-label','Weiter');$('#sbHinweis').textContent='Pausiert';if(S.mit){$('#sbMit').readOnly=false;}}
+  else{try{S.rec.resume();}catch{}S.lauf0=performance.now();S.pausiert=false;if(S.mit)S.mit.weiter();
+    $('#sbPunkt').classList.remove('pause');$('#sbPause').textContent='⏸';$('#sbPause').title='Pause';$('#sbPause').setAttribute('aria-label','Pause');$('#sbHinweis').textContent=S.ablage?'🔗 für die Ablage':'';$('#sbMit').readOnly=true;}
+}
+$('#sbMit').addEventListener('input',()=>{if(SPR)SPR.bearbeitet=true;});
+function sprachVerwerfen(){const S=SPR;if(!S||S.stoppt)return;if(S.mit)S.mit.abbruch();sprachZu();toast('Aufnahme verworfen.');}
+async function sprachStopp(wie){
+  const S=SPR;if(!S||S.stoppt)return;S.stoppt=true;
+  clearInterval(S.uhr);if(!S.pausiert){S.gesamt+=performance.now()-S.lauf0;S.pausiert=true;}
+  const sek=S.gesamt/1000;
+  ['#sbWeg','#sbPause','#sbFeld','#sbSenden'].forEach(k=>$(k).disabled=true);$('#sbPunkt').classList.add('pause');$('#sbMit').readOnly=true;
+  $('#sbHinweis').textContent='';sbStand(S.mit&&!S.mit.kaputt?'✍️ schreibt die letzten Worte …':'⬆️ wird hochgeladen …');
+  const blob=await new Promise((fertig)=>{if(S.rec.state==='inactive')return fertig(new Blob(S.chunks,{type:S.mime}));S.rec.onstop=()=>fertig(new Blob(S.chunks,{type:S.mime}));try{S.rec.stop();}catch{fertig(new Blob(S.chunks,{type:S.mime}));}});
+  if(S.messer)S.messer.stop();
+  const mitFertig=S.mit?S.mit.ende().catch(()=>null):Promise.resolve(null);
+  if(!blob.size){if(S.mit)S.mit.abbruch();sprachZu();fcStatus('⚠️ Die Aufnahme war leer — bitte nochmal aufnehmen.');return;}
+  const stumm=S.spitze<0.02&&S.messer&&S.messer.an;
+  const [m]=await Promise.all([upload(blob,'Sprachnachricht.'+tonEndung(S.mime),ohneCodec(S.mime)),mitFertig]);
+  if(!m){if(S.mit)S.mit.abbruch();sprachZu();return;} // upload() hat den Fehler schon gemeldet
+  if(S.ablage){
+    sprachZu();
+    const e=await aufnAblegen(m,'sprache');
+    if(e&&TR_STAND&&TR_STAND.weg!=='aus')aufnTranskriptHolen(S.mit?S.mit.id:aufnId(),e,'sprache');
+    if(stumm)fcStatus('⚠️ Kein Ton erkannt — Mikrofon prüfen.');
+    return;
+  }
+  let text=$('#sbMit').value.trim();
+  if(TR_STAND&&TR_STAND.weg!=='aus'){
+    sbStand('✍️ Text wird fertig …');
+    const r=await api(`/api/aufnahme/${S.mit?S.mit.id:aufnId()}/abschluss`,{method:'POST',body:JSON.stringify({media_id:m.id,art:'sprache'})});
+    if(r&&r.ok&&r.text&&(!S.bearbeitet||!text))text=r.text;
+    else if(r&&!r.ok&&r.fehler&&!text)fcStatus('⚠️ Kein Text: '+r.fehler);
+  }
+  sprachZu();
+  if(stumm)fcStatus('⚠️ Kein Ton erkannt — Mikrofon/Eingabegerät prüfen. Die Sprachnachricht ist trotzdem dabei.');
+  const anh={...m,dauer:Math.round(sek)};
+  if(wie==='feld'){
+    if(text&&S.kanal===KANAL){const i=$('#inp');i.value=i.value.trim()?i.value.replace(/\s+$/,'')+'\n'+text:text;i.dispatchEvent(new Event('input'));i.focus();}
+    aufnAnhaengen(anh,S.kanal,text);
+    return;
+  }
+  sende(text||'🎤 Sprachnachricht',[anh],S.kanal);
+}
+// Angehängte Sprachnachricht (✍️): geht mit dem nächsten „Senden“ in DERSELBEN Nachricht mit — Fenster bekommt Text + Pfad.
+function aufnAnhaengen(m,kanal,text){
+  AUFN_ANH={m,kanal,text};const el=$('#aufnAnh');
+  el.innerHTML=`<span>🎤 Sprachnachricht${m.dauer?' · '+aufnUhr(m.dauer):''} hängt an${kanal!==KANAL?' — geht an „'+esc(kanal)+'“':''}${text?'':' (ohne Text)'}</span><button type="button" class="knopf klein zu" id="aufnAnhZu" aria-label="Sprachnachricht entfernen">✕</button>`;
+  el.hidden=false;$('#aufnAnhZu').onclick=()=>{AUFN_ANH=null;el.hidden=true;};
+}
+const _aufnSendenAlt=$('#senden').onclick;
+$('#senden').onclick=()=>{
+  if(!AUFN_ANH)return _aufnSendenAlt();
+  const a=AUFN_ANH;AUFN_ANH=null;$('#aufnAnh').hidden=true;
+  const t=$('#inp').value.trim();$('#inp').value='';$('#inp').style.height='';
+  sende(t||'🎤 Sprachnachricht',[a.m],a.kanal||KANAL);
+};
+$('#mic').onclick=()=>sprachStart();
+$('#sbWeg').onclick=()=>sprachVerwerfen();
+$('#sbPause').onclick=()=>sprachPause();
+$('#sbFeld').onclick=()=>sprachStopp('feld');
+$('#sbSenden').onclick=()=>sprachStopp('senden');
+
+// ── Bildschirmaufnahme ──
+let BILD=null;
+function bildLeiste(){
+  const B=BILD,el=$('#bildBar');if(!B){el.hidden=true;el.innerHTML='';return;}
+  el.hidden=false;
+  if(!el.firstChild)el.innerHTML='<span class="sb-punkt" id="bbPunkt"></span><b>Bildschirmaufnahme</b><span class="sb-zeit" id="bbZeit">0:00</span><span class="bb-zeile" id="bbZeile"></span><button type="button" class="knopf" id="bbWeg" title="Aufnahme verwerfen">Verwerfen</button><button type="button" class="knopf pri" id="bbStopp" title="Stopp — die Aufnahme kommt in die Ablage, der Link in die Zwischenablage">⏹ Stopp</button>';
+  $('#bbStopp').onclick=()=>bildStopp(false);$('#bbWeg').onclick=()=>bildStopp(true);
+}
+function bildZeile(t,ton){const z=$('#bbZeile');if(!z)return;z.textContent=t||'';z.classList.toggle('bb-ton',!!ton);}
+async function bildStart(){
+  if(BILD){bildStopp(false);return;}
+  if(ABLAGE_MODUS)ablageModus(false); // landet ohnehin in der Ablage
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia||!window.MediaRecorder){fcStatus('⚠️ Bildschirmaufnahme geht in diesem Browser nicht — am Rechner in Chrome, Edge oder Firefox.');return;}
+  let disp;try{disp=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});}catch{return;} // Auswahl abgebrochen
+  let mic=null;try{mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});}catch{mic=null;}
+  const vid=disp.getVideoTracks()[0],sys=disp.getAudioTracks(),spuren=[vid];let ctx=null,ton=null;
+  if(sys.length||mic){
+    try{ctx=new (window.AudioContext||window.webkitAudioContext)();const ziel=ctx.createMediaStreamDestination();
+      if(sys.length)ctx.createMediaStreamSource(new MediaStream([sys[0]])).connect(ziel);if(mic)ctx.createMediaStreamSource(mic).connect(ziel);
+      ton=ziel.stream;spuren.push(ton.getAudioTracks()[0]);}
+    catch{const t=sys[0]||(mic&&mic.getAudioTracks()[0]);if(t){spuren.push(t);ton=new MediaStream([t]);}}
+  }
+  const gemischt=new MediaStream(spuren),mime=aufnMime(['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']);let rec;
+  try{rec=mime?new MediaRecorder(gemischt,{mimeType:mime}):new MediaRecorder(gemischt);}catch{[disp,mic].forEach(x=>x&&x.getTracks().forEach(t=>t.stop()));if(ctx)ctx.close();fcStatus('⚠️ Aufnahme nicht möglich.');return;}
+  const st=await trStand();
+  BILD={rec,disp,mic,ctx,ton,chunks:[],mime:rec.mimeType||mime||'video/webm',start:performance.now(),mit:null,messer:null,uhr:null,stoppt:false,ohneTon:!ton};
+  const B=BILD;
+  rec.ondataavailable=(e)=>{if(e.data&&e.data.size)B.chunks.push(e.data);};
+  rec.onstop=()=>{if(B.stopp)B.stopp();};
+  vid.addEventListener('ended',()=>{if(BILD===B)bildStopp(false);}); // „Freigabe beenden“ des Browsers
+  rec.start(1000);
+  bildLeiste();$('#bbPunkt').classList.remove('pause');
+  if(B.ohneTon){bildZeile('⚠️ OHNE Ton — Mikrofon nicht freigegeben und kein System-Ton',true);fcStatus('⚠️ Die Aufnahme läuft OHNE Ton — Mikrofon für diese Seite erlauben (bei Fenster-Aufnahmen gibt es keinen System-Ton).');}
+  else if(!mic){bildZeile('⚠️ ohne Mikrofon — nur System-Ton',true);}
+  else if(st.weg==='aus'){bildZeile('ohne Mitschrift');trHinweisEinmal();}
+  if(ton&&st.weg!=='aus'){
+    B.mit=mitschriftStart(ton,'bildschirm',{teil:(teile)=>{if(BILD===B&&!B.ohneTon){const l=teile[teile.length-1];bildZeile('📝 '+l.text);}},fehler:(f)=>{if(BILD===B)bildZeile('⚠️ Mitschreiben ausgefallen — das Transkript kommt nach dem Stopp',true);}});
+    B.messer=pegelMesser(ton,(p)=>{if(B.mit)B.mit.pegel(p);});
+  }
+  $('#screen').classList.add('rec');$('#screen').textContent='⏹';$('#screen').title='Bildschirmaufnahme stoppen';
+  B.uhr=setInterval(()=>{const z=$('#bbZeit');if(z&&BILD===B)z.textContent=aufnUhr((performance.now()-B.start)/1000);},500);
+}
+async function bildStopp(verwerfen){
+  const B=BILD;if(!B||B.stoppt)return;B.stoppt=true;
+  clearInterval(B.uhr);if(B.messer)B.messer.stop();
+  const blob=await new Promise((fertig)=>{const zu=()=>fertig(new Blob(B.chunks,{type:ohneCodec(B.mime)}));if(B.rec.state==='inactive')return zu();B.stopp=zu;try{B.rec.stop();}catch{zu();}});
+  // ende() hält den Stück-Rekorder sofort an (synchron), erst danach die Spuren stoppen — das letzte Stück geht so nicht verloren.
+  const mitFertig=B.mit&&!verwerfen?B.mit.ende().catch(()=>null):Promise.resolve(null);
+  if(verwerfen&&B.mit)B.mit.abbruch();
+  [B.disp,B.mic].forEach(x=>x&&x.getTracks().forEach(t=>t.stop()));if(B.ctx)B.ctx.close().catch(()=>{});
+  BILD=null;bildLeiste();$('#screen').classList.remove('rec');$('#screen').textContent='🖥️';$('#screen').title='Bildschirm/Fenster aufnehmen (mit Ton)';
+  if(B.ohneTon)fcStatus('');
+  if(verwerfen){toast('Bildschirmaufnahme verworfen.');return;}
+  if(!blob.size){fcStatus('⚠️ Die Aufnahme war leer.');return;}
+  const m=await upload(blob,'Bildschirmaufnahme.'+(/mp4/.test(B.mime)?'mp4':'webm'),ohneCodec(B.mime));
+  if(!m){if(B.mit)B.mit.abbruch();return;}
+  await mitFertig;
+  const e=await aufnAblegen(m,'bildschirm');
+  if(!e){aufnAnhaengenDatei(m);if(B.mit)B.mit.abbruch();return;}
+  if(!B.ohneTon&&TR_STAND&&TR_STAND.weg!=='aus')aufnTranskriptHolen(B.mit?B.mit.id:aufnId(),e,'bildschirm');
+}
+// Ablegen ging nicht → nichts verloren: als Anhang über die Eingabe (geht mit dem nächsten „Senden“ in den Kanal).
+function aufnAnhaengenDatei(m){
+  AUFN_ANH={m,kanal:KANAL,text:''};const el=$('#aufnAnh');
+  el.innerHTML=`<span>🖥️ ${esc(m.name)} hängt an — Ablegen ging nicht, mit „Senden“ geht sie in den Kanal.</span><button type="button" class="knopf klein zu" id="aufnAnhZu" aria-label="Anhang entfernen">✕</button>`;
+  el.hidden=false;$('#aufnAnhZu').onclick=()=>{AUFN_ANH=null;el.hidden=true;};
+}
+$('#screen').onclick=()=>bildStart();
+
+// ── Ablage: Aufnahme ablegen, Leiste mit Link/Text/Transkript ──
+async function aufnAblegen(m,art){
+  fcStatus('🔗 wird abgelegt …');
+  const r=await api('/api/ablage',{method:'POST',body:JSON.stringify({ids:[m.id]})});
+  if(!r||!r.ok||!r.eintraege||!r.eintraege.length){fcStatus('⚠️ Ablegen ging nicht'+(r&&r.fehler&&r.fehler.length?': '+r.fehler.join(', '):''));return null;}
+  fcStatus('');const e=r.eintraege[0];aufnLeiste(e,art);if($('#dlgAblage').open)ablageListeZeigen();return e;
+}
+let AUFN_LEISTE=null; // {e, art, text, uhr}
+function aufnLeiste(e,art){
+  const bar=$('#ablageBar'),um=new Date(),uhr=String(um.getHours()).padStart(2,'0')+':'+String(um.getMinutes()).padStart(2,'0');
+  const was=art==='bildschirm'?'🖥️ Bildschirmaufnahme':'🎤 Sprachnotiz',link=location.origin+e.url;
+  const L=AUFN_LEISTE={e,art,text:'',zeittext:'',pfad:'',url:''};
+  const tr=TR_STAND&&TR_STAND.weg!=='aus';
+  bar.innerHTML=`<span id="alTitel">✅ ${was} ${uhr} abgelegt</span><code title="${esc(e.pfad)}">${esc(e.name)}</code><button class="knopf klein" id="alLink">Link kopieren</button>${tr?'<button class="knopf klein" id="alText" disabled>📝 Transkript läuft …</button><a class="knopf klein" id="alTr" target="_blank" rel="noopener" hidden>Transkript</a>':''}<button class="knopf klein" id="alPfad">Pfad kopieren</button><button class="knopf klein" id="alIns" title="Als [Video: /pfad] in die Nachricht — das Fenster liest Datei und Transkript selbst">In die Nachricht</button><button class="knopf klein zu" id="alZu" aria-label="Leiste schließen">✕</button><div class="abl-tr" id="alVorschau" hidden></div>`;
+  bar.hidden=false;
+  const titel=(t)=>{const x=$('#alTitel');if(x&&AUFN_LEISTE===L)x.textContent=t;};
+  $('#alLink').onclick=async()=>{const ok=await kopieren(link);$('#alLink').textContent=ok?'Link kopiert ✓':'Kopieren ging nicht';if(ok)titel(`✅ ${was} ${uhr} — Link kopiert`);};
+  $('#alPfad').onclick=async()=>{$('#alPfad').textContent=(await kopieren(e.pfad))?'Pfad kopiert ✓':'Kopieren ging nicht';};
+  $('#alIns').onclick=()=>{const i=$('#inp');i.value=(i.value?i.value+' ':'')+ablMarker(e)+(L.pfad?' Transkript: '+L.pfad:'');i.focus();i.dispatchEvent(new Event('input'));};
+  $('#alZu').onclick=()=>{bar.hidden=true;AUFN_LEISTE=null;};
+  if($('#alText'))$('#alText').onclick=async()=>{const t=L.art==='bildschirm'?L.zeittext:L.text;if(!t)return;$('#alText').textContent=(await kopieren(t))?'Text kopiert ✓':'Kopieren ging nicht';};
+  // Link sofort in die Zwischenablage (Bildschirmaufnahme); bei der Sprachnotiz kommt gleich der Text hinein.
+  kopieren(link).then(ok=>{if(ok){$('#alLink').textContent='Link kopiert ✓';titel(`✅ ${was} ${uhr} — Link kopiert`);}});
+}
+async function aufnTranskriptHolen(id,e,art){
+  const r=await api(`/api/aufnahme/${id}/abschluss`,{method:'POST',body:JSON.stringify({ablage:e.name,art})});
+  const L=AUFN_LEISTE;if(!L||L.e.name!==e.name)return;
+  const knopf=$('#alText'),a=$('#alTr'),vor=$('#alVorschau');
+  if(!r||!r.ok||!(art==='bildschirm'?r.zeittext:r.text)){if(knopf){knopf.textContent=r&&r.fehler?'Kein Text':'Kein Text (Stille)';knopf.title=r&&r.fehler?r.fehler:'In der Aufnahme wurde nichts gesprochen.';}return;}
+  L.text=r.text;L.zeittext=r.zeittext;L.pfad=r.transkript_pfad||'';L.url=r.transkript_url||'';
+  if(knopf){knopf.disabled=false;knopf.textContent='Text kopieren';}
+  if(a&&L.url){a.href=L.url;a.hidden=false;}
+  if(vor){vor.textContent='📝 '+(art==='bildschirm'?r.zeittext:r.text);vor.hidden=false;}
+  if(art==='sprache'&&knopf){const ok=await kopieren(r.text);if(ok){knopf.textContent='Text kopiert ✓';const x=$('#alTitel');if(x)x.textContent='✅ 🎤 Sprachnotiz — Text kopiert';}}
+  if($('#dlgAblage').open)ablageListeZeigen();
+}
+// Ablage-Liste: Einträge mit Transkript bekommen „Text“ und „📝“ (Transkript-Link).
+const _aufnAblListe=ablageListeZeigen;ablageListeZeigen=async function(){
+  await _aufnAblListe();const r=await api('/api/ablage');const liste=r&&r.ok?r.eintraege:[];
+  document.querySelectorAll('#ablListe .abl-reihe').forEach(row=>{const e=liste.find(x=>x.name===row.dataset.name);if(!e||!e.transkript_url||row.querySelector('[data-a="text"]'))return;
+    const akt=row.querySelector('.akt'),vor=row.querySelector('[data-a="ins"]');
+    const b=document.createElement('button');b.className='knopf klein';b.dataset.a='text';b.textContent='Text';b.title='Transkript kopieren';
+    b.onclick=async()=>{const t=await fetch(e.transkript_url,{credentials:'same-origin'}).then(x=>x.ok?x.text():'').catch(()=>'');b.textContent=t&&(await kopieren(t.trim()))?'kopiert ✓':'ging nicht';setTimeout(()=>b.textContent='Text',1500);};
+    const a=document.createElement('a');a.className='knopf klein';a.href=e.transkript_url;a.target='_blank';a.rel='noopener';a.textContent='📝';a.title='Transkript ansehen';
+    akt.insertBefore(b,vor);akt.insertBefore(a,vor);});
+};
+/* === /Aufnahme (1.3) === */
 gate();
 </script>
 </body>
