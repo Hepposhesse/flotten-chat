@@ -71,6 +71,8 @@ ExecStart=/usr/bin/node bin/flottenchat.mjs up
 Restart=on-failure
 # Wichtig: nur der Node-Prozess stirbt beim Neustart — der tmux-Server mit den Fenstern lebt weiter.
 KillMode=process
+# Ein Speicher-Fresser in EINEM Fenster (OOM-Kill) soll nicht den ganzen Dienst stoppen.
+OOMPolicy=continue
 [Install]
 WantedBy=multi-user.target
 ```
@@ -79,7 +81,8 @@ WantedBy=multi-user.target
 Login und Alarm-/Support-Eingänge sind gebremst (Rate-Limits), Medien-URLs sind unratbar.
 
 ## Wie die Konsole im Chat funktioniert
-Alle drei Sekunden je Fenster: Terminalbild lesen (Modus, Dialog, beschäftigt?) → neue Zeilen des
+Jede Sekunde je Fenster (entfernte Orte alle drei Sekunden) und sofort, wenn das Sitzungsprotokoll wächst
+oder eine Nachricht kommt: Terminalbild lesen (Modus, Dialog, beschäftigt?) → neue Zeilen des
 Claude-Sitzungsprotokolls (`~/.claude/projects/…/<sitzung>.jsonl`) als Chat-Beiträge → offener Dialog
 als Frage mit Knöpfen → neue Chat-Nachrichten des Menschen per `tmux send-keys` ins Fenster.
 Das Fenster kennt den Chat nicht; es antwortet im Terminal. Details: `docs/konsole.md`.
@@ -89,7 +92,8 @@ zweiter Server; SSH-Key vorausgesetzt).
 
 ## Worktree-Hygiene
 Ein Fenster mit „eigener Worktree“ arbeitet in `<repo>/worktrees/<name>` auf Branch `fc/<name>`.
-„Schließen“ = 60 s Zeit zum Stand-Wegschreiben → Ungesichertes wird als WIP committet (nie gelöscht) →
+„Schließen“, „Neu starten“ (und `…/loeschen`) = erst aufräumen: das Fenster schreibt seinen Stand weg, committet
+und antwortet „aufgeräumt“ (höchstens 2 Min, der Kanal zeigt „räumt auf …“) → Ungesichertes wird als WIP committet (nie gelöscht) →
 Branch gepusht (wenn Remote da) → Session beendet → Worktree entfernt, wenn sauber. Verwaiste
 Worktrees listet `GET /api/worktrees?repo=…`; entfernt wird nur, was sauber ist und kein laufendes
 Fenster besitzt.

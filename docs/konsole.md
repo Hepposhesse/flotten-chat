@@ -2,7 +2,12 @@
 
 Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server macht alles.
 
-## Die Runde (alle 3 s, je Fenster) — `server/konsole.mjs`
+## Die Runde (jede Sekunde, je Fenster) — `server/konsole.mjs`
+Lokale Fenster jede Sekunde, entfernte Orte (ssh/Gerät) jede dritte — außer dort arbeitet etwas oder ein Dialog
+ist offen. Dazu sofort (+300/900 ms Nachlauf): wenn das Sitzungsprotokoll eines lokalen Fensters wächst
+(Protokoll-Horcher, `fs.watch`) und wenn eine Chat-Nachricht ankommt. Ändert sich Dialog, Modus oder Lampe eines
+Fensters, weckt der Server die Oberfläche per SSE (`presence`), statt auf den nächsten Abruf zu warten.
+
 1. **Terminalbild** (`tmux capture-pane`) → `paneZustand()`:
    Modus (`auto` / `default` = Manual / `plan` / `accept`), offener Dialog (nummerierte Liste mit
    Cursor ❯ — oder, seit Claude Code 2.1.289, auch ohne Nummern über einem Fuß „Enter to confirm · Esc to
@@ -48,6 +53,34 @@ Der Kern von 1.0. Kein Bus, kein Watcher im Fenster, kein Re-Arm. Der Server mac
    - Absenden-Karte: „1“ = Absenden, „2“/„nein“ = Abbrechen; Freitext wartet.
    - „manual“/„auto“/„plan“ → Shift+Tab bis der Modus steht (mit Warten auf die TUI)
    Zu alte Nachrichten (> 2 h, Fenster war weg) werden nicht nachgeliefert — sie stehen ja im Chat.
+   Anhänge (Sprachnachricht, Bild) gehen nie verloren: als Antwort auf eine Rückfrage steht ihr Pfad im
+   Antwortfeld, nach einer Wahl oder beim Warten kommen sie mit dem Text hinterher.
+   Eine **nackte Zahl** kurz (15 Min) nach einer geschlossenen Rückfrage wird nicht getippt — sie war für die alte Karte.
+
+## Robustheit des Spiegels (1.2)
+- **Keine Doppelkarten:** ein Dialog gilt erst nach 1,5 s ohne Dialog als zu (Neuzeichnen); gleicher Kartentext
+  binnen 2 Min = dieselbe Karte. Eine neue Rückfrage schließt die vorige Karte.
+- **Gemerkter Dialog** aus dem vergrößerten Bild gilt nur, solange das kleine Bild gleich aussieht
+  (`paneFingerabdruck()`); nach einer Antwort aus dem Chat wird frisch gelesen. Ein Bild, das auch groß nicht
+  lesbar ist, wird nicht alle 30 s neu vergrößert.
+- **Keine Karte für** Claude Codes eigene Dialoge (/model, /login, Rewind — `claudeEigenerDialog()`) und
+  Anzeige-Panels (/status, /usage — `infoPanel()`). Die Bypass-Bestätigung bleibt ein Dialog.
+- **Erkennung:** Optionen mit langen Beschreibungen, Freigaben mit umgebrochenem „Nou“, ▔-Rahmen (auch mit
+  Effort-Anzeige) nicht im Titel; eine neue Rückfrage bekommt nie den Titel der vorigen (`frageIndex()`).
+- **Text vor dem Dialog** auch vor Freigaben; Bilder in einer Frage hängen als Medien an der Karte.
+- **Geheimnisse:** `geheimMaske()` macht `pwd=…`, `--password …`, `token: …`, `Bearer …`, `Authorization: …` in
+  allem, was der Spiegel in den Chat schreibt, zu `***`.
+- **Protokoll-Zuordnung:** zuerst exakt über `<config>/sessions/<pid>.json` (sessionId), sonst über die Startzeit —
+  auch mehrere Fenster im selben Ordner bekommen so ihr eigenes Protokoll.
+- **Hintergrund-Agent/Schwarm** („Waiting for 1 background agent“, „◯ name … 3m35s“) zählt für die Lampe als beschäftigt.
+- **Langer Start-Text** (> 1000 Zeichen) geht über eine Datei (`/tmp/flottenchat-start-<session>.txt`, 0600) statt
+  getippt — das Terminal kappt eine Zeile bei 4095 Zeichen.
+
+## Aufräumen vor Neu starten / Schließen / Löschen (1.2) — `server/aufraeumen.mjs`
+Das Fenster bekommt „Stand wegschreiben, committen, antworte nur mit „aufgeräumt““. Die Aktion folgt, sobald es
+„aufgeräumt“ antwortet, der Prozess endet oder nach höchstens 2 Minuten. Eine offene Rückfrage wird vorher mit Esc
+geschlossen. Läuft im Fenster nichts (aus oder nur die nackte Shell), passiert die Aktion sofort. Solange es aufräumt,
+steht `raeumt: {art, seit}` am Fenster (`/api/fenster`, `/api/channels`) und der Kanal zeigt „räumt auf …“.
 
 ## Fenster-Lampen (1.1) — `server/lampen.mjs`
 Je Runde schreibt die Konsole den Lampen-Stand fort (`lampenStand()`, rein, Zeit als Parameter) und gibt ihn in

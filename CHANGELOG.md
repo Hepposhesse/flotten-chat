@@ -3,6 +3,35 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [1.2.0] — 2026-11-01
+
+### Spiegel
+- Rückfragen kommen schneller im Chat an: die Runde läuft jede Sekunde (entfernte Orte alle drei Sekunden, bei offenem Dialog oder Arbeit jede Sekunde).
+- Eine neue Zeile im Sitzungsprotokoll löst sofort eine Runde aus (Protokoll-Horcher), eine Chat-Nachricht ebenso.
+- Dialog auf oder zu, Modus und Lampe wecken die Oberfläche sofort per SSE.
+- Rückfragen mit langen Options-Beschreibungen werden erkannt, auch im schmalen Fenster.
+- Freigaben bleiben Freigaben, auch wenn „No“ als „Nou“ umbricht.
+- Passwörter, Token und `Authorization`-Köpfe aus Freigaben und Antworten erscheinen im Chat als `***`.
+- Eine neue Rückfrage bekommt nie den Titel der vorigen.
+- Der Text über einem Dialog kommt jetzt auch vor Freigaben und vor langen Fragen in den Chat.
+- Keine Doppelkarten mehr: das Dialog-Ende ist entprellt, gleicher Kartentext binnen 2 Minuten gilt als dieselbe Karte.
+- Eine neue Rückfrage schließt die vorige Karte; ist kein Dialog offen, haben alte Karten keine Knöpfe mehr.
+- Eine nackte Zahl kurz nach einer geschlossenen Rückfrage wird nicht mehr ins Fenster getippt.
+- Bilder in einer Rückfrage hängen als Medien an der Karte.
+- Sprachnachrichten und Bilder als Antwort auf eine Rückfrage gehen nicht mehr verloren (Pfad im Antwortfeld bzw. hinterher).
+- Sprachnachrichten werden nicht mehr als Doppel verschluckt (eigener Vergleichs-Schlüssel je Datei).
+- Der Fragetext behält seine Zeilenumbrüche (Listen, Tabellen).
+- Claude Codes eigene Dialoge (/model, /login, Rewind) und Anzeige-Panels (/status, /usage) erzeugen keine Karte und kein Vergrößern.
+- Der ▔-Rahmen der Systemdialoge (auch mit Effort-Anzeige) steht nicht mehr im Fragetitel.
+- Dialoge ohne Nummern (Bypass-Bestätigung) werden auch mit vielen Leerzeilen darunter erkannt.
+- Ein gemerkter Dialog aus dem vergrößerten Fenster gilt nur, solange das Bild gleich aussieht; ein unlesbares Bild wird nicht alle 30 s neu vergrößert.
+- Das Protokoll wird exakt über `<config>/sessions/<pid>.json` zugeordnet — mehrere Fenster im selben Ordner stören sich nicht mehr.
+- Ein laufender Hintergrund-Agent oder Schwarm zählt für die Lampe als beschäftigt.
+- Ein langer Start-Text (über 1000 Zeichen) geht über eine Datei statt getippt — das Terminal kappte bei 4095 Zeichen, Claude startete nicht.
+- Neu starten, Schließen und Löschen räumen vorher auf: das Fenster schreibt seinen Stand weg, committet und antwortet „aufgeräumt“ (höchstens 2 Minuten). Der Kanal zeigt solange „räumt auf …“.
+- Läuft im Fenster nur die nackte Shell, passieren Neu starten, Schließen und Löschen sofort.
+- README: systemd-Unit mit `OOMPolicy=continue` — ein Speicher-Fresser in einem Fenster stoppt nicht mehr den ganzen Dienst.
+
 ## [1.1.0] — 2026-10-06
 
 Schwerpunkt: **Mehrstufige Rückfragen.** Alles, was eine `AskUserQuestion` kann, geht jetzt auch im Chat —
