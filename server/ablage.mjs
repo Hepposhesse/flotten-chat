@@ -13,7 +13,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 export const ABLAGE_ROUTE = '/api/ablage/';
-export const SIDECARS = ['.meta'];
+export const SIDECARS = ['.meta', '.transkript.txt']; // 1.3: Transkript einer Aufnahme liegt als <name>.transkript.txt daneben
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', webm: 'video/webm', mp4: 'video/mp4', mov: 'video/quicktime', ogg: 'audio/ogg', oga: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', json: 'application/json', zip: 'application/zip' };
 
 // ── rein ────────────────────────────────────────────────────────────────────
@@ -73,6 +73,12 @@ export function eintragFuer(name, ablageDir) {
 }
 
 // ── I/O ─────────────────────────────────────────────────────────────────────
+/** 1.3: Transkript-Pfad und -Link einer Aufnahme (nur wenn eins da ist). Das Fenster liest den Pfad, alle anderen den Link. */
+export function transkriptFuer(name, ablageDir) {
+  const pfad = path.join(ablageDir, name + '.transkript.txt');
+  return fs.existsSync(pfad) ? { transkript_pfad: pfad, transkript_url: ABLAGE_ROUTE + encodeURIComponent(name) + '.transkript.txt' } : {};
+}
+
 /** Bildspur + Dauer per ffprobe. Fail-soft: ohne ffprobe oder bei kaputter Datei {} — dann zählt die Endung. */
 export function messen(pfad) {
   try {
@@ -129,7 +135,7 @@ export function liste({ ablageDir, max = 200 } = {}) {
     if (!st.isFile()) continue;
     let meta = metaLesen(ablageDir, name);
     if (!meta.typ) { const g = messen(voll); meta = { typ: typVon(name, g), dauer: g.dauer }; meta.mime = mimeVon(name, meta); metaSchreiben(ablageDir, name, meta); }
-    eintraege.push({ ...eintragFuer(name, ablageDir), typ: meta.typ, dauer: meta.dauer, groesse: st.size, zeit: new Date(st.mtimeMs).toISOString(), zeit_ms: st.mtimeMs });
+    eintraege.push({ ...eintragFuer(name, ablageDir), typ: meta.typ, dauer: meta.dauer, groesse: st.size, zeit: new Date(st.mtimeMs).toISOString(), zeit_ms: st.mtimeMs, ...transkriptFuer(name, ablageDir) });
   }
   eintraege.sort((a, b) => b.zeit_ms - a.zeit_ms);
   return { ok: true, eintraege: eintraege.slice(0, max) };
