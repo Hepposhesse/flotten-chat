@@ -26,8 +26,9 @@ wer das baut, teilt es bitte (AGPL).
 3. **Knöpfe statt Rückfragen-Chaos** — eine `AskUserQuestion` wird zu Buttons, auch mehrstufig: Mehrfachauswahl
    mit Häkchen + eigener Antwort + „Weiter“, mehrere Fragen hintereinander, Absenden-Übersicht. Freigaben
    („darf ich …?“) tippst du weg wie eine WhatsApp-Antwort. „manual“/„auto“ schaltet den Modus des Fensters.
-4. **Sprache rein, Bild raus** — Sprachnachricht im Chat → Auftrag; Antworten mit Screenshot, PDF,
-   Video inline (Anhang-Bühne).
+4. **Sprache rein, Bild raus** — Sprachnachricht im Chat → Auftrag, mit Pegel-Welle und Mitschrift (das Fenster
+   bekommt Text + Datei); Bildschirmaufnahme mit Ton direkt in die Ablage, Link in der Zwischenablage, Transkript mit
+   Zeitmarken. Antworten mit Screenshot, PDF, Video inline (Anhang-Bühne).
 5. **Frische Fenster** — Kanal = Fenster = Thema. „Schließen“ lässt das Fenster seinen Stand
    wegschreiben, sichert Ungesichertes als WIP, räumt seinen Worktree auf — dann ist der Kanal weg.
    Kein Kontext-Müll.
@@ -114,6 +115,14 @@ Branch gepusht (wenn Remote da) → Session beendet → Worktree entfernt, wenn 
 Worktrees listet `GET /api/worktrees?repo=…`; entfernt wird nur, was sauber ist und kein laufendes
 Fenster besitzt.
 
+Neu in 1.3: **Aufnahme wie im großen Bruder** — 🎤 Sprachnachricht wie WhatsApp (Pegel-Welle, ⏸/▶, 🗑, ✍️ Text ins
+Eingabefeld, ➤ senden), **schreibt beim Sprechen mit** (Stücke an Sprechpausen, jedes genau einmal transkribiert, der Text
+geht mit der Sprachnachricht in einer Nachricht ans Fenster — auch als Antwort auf eine Rückfrage). 🖥️ Bildschirmaufnahme
+(Bildschirm + System-Ton + Mikro) mit Leiste, die den Kanalwechsel übersteht, rotem Alarm ohne Ton, direkt in die Ablage
+mit Link in der Zwischenablage und **Transkript mit Zeitmarken** am Eintrag (Text kopieren, Transkript-Link). Transkription
+als austauschbarer Weg: OpenAI (`gpt-4o-mini-transcribe`, ≈ 0,3 ct/min), lokales Whisper oder aus — alles läuft auch ohne,
+nur ohne Text. Siehe [docs/aufnahme.md](docs/aufnahme.md) (Schalter, Kosten, Datenschutz).
+
 ## API (Auszug, Bearer Admin-Token oder Login-Cookie)
 `GET/POST /api/bereiche {name, kuerzel?, ort?, ordner|repo, worktree?, start_text?}` · `POST /api/bereiche/<id>` (ändern) ·
 `POST /api/bereiche/<id>/fenster {art: bau|wissen, start_text?}` · `POST /api/bereiche/<id>/loeschen` (409, solange Fenster laufen) ·
@@ -121,7 +130,8 @@ Fenster besitzt.
 `POST /api/fenster/<name>/(start|neustart|stop|schliessen|loeschen|tippen)` · `GET /api/fenster/<name>/terminal`, `POST …/tasten` ·
 `GET/POST /api/karten`, `POST /api/karten/<id>/verlauf` ·
 `GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session|ordner|titel|notiz|uebergeben)`, `GET/POST /api/reminders/ordner`, `POST /api/reminders/ordner/<id>/(umbenennen|loeschen)` ·
-`GET/POST /api/ablage`, `POST /api/ablage/loeschen`, `GET /api/ablage/<name>` (Range) ·
+`GET/POST /api/ablage`, `POST /api/ablage/loeschen`, `GET /api/ablage/<name>` (Range), `GET /api/ablage/<name>.transkript.txt` ·
+`GET /api/aufnahme/stand`, `POST /api/aufnahme/stueck`, `POST /api/aufnahme/<id>/(abschluss|verwerfen)` ·
 `POST /api/send {kanal, inhalt, media?, client_id?}` · `GET /api/messages?kanal=&seit=` · `GET /api/events` (SSE) ·
 `POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`) ·
 `GET/POST /api/kanal-einstellungen {reihenfolge, archiviert, stumm, namen}` · `GET /api/unread` · `GET/POST /api/gelesen {kanal, bis, force?}` ·

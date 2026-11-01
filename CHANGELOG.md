@@ -36,6 +36,32 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   Tastatur ↑/↓/Pos1/Ende/Enter/Esc/Anfangsbuchstabe, Klick außerhalb schließt, ARIA listbox/option. Das `<select>` bleibt
   versteckt als Wertträger — `change`-Events und nachträglich befüllte Optionen laufen wie bisher.
 
+### Aufnahme
+- **Sprachnachricht wie WhatsApp**: 🎤 öffnet eine Leiste statt der Eingabezeile — roter Punkt, Zeit, laufende Pegel-Welle,
+  ⏸/▶, 🗑 Verwerfen, ✍️ Stopp → Text ins Eingabefeld (die Sprachnachricht hängt an und geht mit „Senden“ mit), ➤ Stopp →
+  sofort senden. Am Handy bedienbar (44-px-Knöpfe, volle Breite).
+- **Mitschreiben beim Aufnehmen**: ein zweiter, reiner Ton-Rekorder setzt an Sprechpausen neu an (≥ 0,7 s still, frühestens
+  alle 4 s, spätestens alle 15 s, bei ⏸ und beim Stopp). Jedes Stück ist eine vollständige Datei, wird sofort hochgeladen
+  und genau einmal transkribiert; der Text erscheint unter der Aufnahme und ist in der Pause korrigierbar. Stille Stücke
+  werden nicht geschickt. Die Pausen-Erkennung folgt dem Grundrauschen (stilles Büro wie laute Umgebung).
+- **Text + Sprachnachricht in einer Nachricht**: das Fenster bekommt `<Text> [Sprachnachricht: /pfad]` — ohne zweites
+  Transkribieren der fertigen Datei (nur als Rückfall, wenn ein Stück fehlt oder scheitert).
+- **Antwort auf eine Rückfrage per Sprache**: der Text ist die Antwort im Antwortfeld, der Pfad steht dahinter.
+- **Bildschirmaufnahme wie intern**: Bildschirm + System-Ton + Mikro gemischt, rote Leiste über der Eingabe mit Zeit, letzter
+  mitgeschriebener Zeile, Verwerfen und Stopp; sie übersteht den Kanalwechsel. Ohne Tonspur sofort rot. Fertig → direkt in
+  die Ablage (nichts im Chat), Link sofort in der Zwischenablage; geht das Ablegen schief, hängt die Aufnahme an der Eingabe.
+- **Transkript mit Zeitmarken am Ablage-Eintrag** (`<name>.transkript.txt`, `[00:00] …`): „Text kopieren“, Transkript-Link,
+  Vorschau in der Leiste; in der Ablage-Liste „Text“ und 📝; „In die Nachricht“ nennt den Transkript-Pfad mit.
+  Sprachnotizen in der Ablage legen den Text in die Zwischenablage.
+- **Transkription als austauschbarer Weg** (`server/transkription.mjs`): `FC_TRANSKRIPTION=openai|lokal|aus` (Komma =
+  Rückfall-Reihenfolge), OpenAI `gpt-4o-mini-transcribe` per fetch ohne SDK (`OPENAI_API_KEY`/`FC_OPENAI_API_KEY`), lokal
+  `whisper-cli`/`whisper`/`whisper-ctranslate2`/`faster-whisper` oder `FC_WHISPER_CMD`; Standard: openai mit Schlüssel,
+  sonst lokal, sonst aus. ffmpeg nur, wenn vorhanden. Ohne Transkription geht alles weiter, die Oberfläche sagt einmal, warum
+  kein Text kommt und wie man es einschaltet. `GET /api/aufnahme/stand` nennt den Weg, nie den Schlüssel.
+- **Filter gegen Erfundenes**: fremde Schrift, Untertitel-Abspänne und erfundene Reststücke am Ende („Und schau.“, Echo)
+  fallen raus — eine Nachricht, die nur „Tschüss.“ ist, bleibt.
+- Neu: `server/aufnahme.mjs`, `docs/aufnahme.md` (Schalter, Kosten, Datenschutz), `test_aufnahme.mjs`.
+
 ## [1.2.0] — 2026-11-01
 
 ### Spiegel

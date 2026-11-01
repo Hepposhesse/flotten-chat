@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "node --no-warnings bin/flottenchat.mjs up",
-    "test": "node --no-warnings test_kern.mjs && node --no-warnings test_konsole.mjs && node --no-warnings test_geraete.mjs && node --no-warnings test_kanaele.mjs && node --no-warnings test_lampen.mjs && node --no-warnings test_ablage.mjs && node --no-warnings test_erinnerungen.mjs && node --no-warnings test_komfort.mjs && node --no-warnings test_aufgaben.mjs && node --no-warnings test_bereiche.mjs"
+    "test": "node --no-warnings test_kern.mjs && node --no-warnings test_konsole.mjs && node --no-warnings test_geraete.mjs && node --no-warnings test_kanaele.mjs && node --no-warnings test_lampen.mjs && node --no-warnings test_ablage.mjs && node --no-warnings test_erinnerungen.mjs && node --no-warnings test_komfort.mjs && node --no-warnings test_aufgaben.mjs && node --no-warnings test_bereiche.mjs && node --no-warnings test_aufnahme.mjs"
   },
   "repository": {
     "type": "git",

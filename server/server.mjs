@@ -42,6 +42,11 @@ import { createAufgabenDienst, TAKT_S as AUFGABEN_TAKT_S } from './aufgaben.mjs'
 // === Bereiche (1.3) ===
 import { createBereicheDienst, fensterBereichSetzen, bereichHolen } from './bereiche.mjs';
 // === /Bereiche (1.3) ===
+// === Aufnahme (1.3) ===
+import { createTranskription } from './transkription.mjs';
+import { createAufnahmeDienst, kennungGueltig as aufnKennung, nrGueltig as aufnNr, sekunden as aufnSek, transkriptName as aufnTranskriptName, STUECK_MAX_BYTES as AUFN_STUECK_MAX } from './aufnahme.mjs';
+import { nameGueltig as ablageNameGueltig } from './ablage.mjs';
+// === /Aufnahme (1.3) ===
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -122,6 +127,20 @@ const ZONE = process.env.FC_TZ || 'Europe/Berlin';
 erinnerungenSchema(db);
 // === Chat-Komfort (1.2): frischer Verlauf je Fenster (Spalte fenster.verlauf_ab, additiv) ===
 verlaufSchema(db);
+// === Aufnahme (1.3): Transkription als Weg (openai | lokal | aus) + Mitschreiben in Stücken ===
+const transkription = createTranskription({ env: process.env, tmpDir: join(DATA, 'tmp') });
+const aufnahmeDienst = createAufnahmeDienst({ transkription, tmpDir: join(DATA, 'tmp'), log: (t) => console.error(t) });
+const stueckLimiter = createLimiter({ limit: Number(process.env.FC_STUECK_LIMIT || 120), windowMs: 60_000 });
+setInterval(() => aufnahmeDienst.aufraeumen(), 10 * 60_000).unref();
+{ const t = transkription.stand(); console.log(`   Transkription: ${t.weg === 'aus' ? 'aus — ' + t.hinweis : t.wege.join(' → ') + (t.modell ? ` (${t.modell})` : '') + (t.ffmpeg ? '' : ', ohne ffmpeg')}`); }
+/** Rohen Körper lesen (Ton-Stück), höchstens `max` Bytes — sonst null. */
+const rohKoerper = (req, max) => new Promise((resolve) => {
+  const teile = []; let n = 0, zuGross = false;
+  req.on('data', (d) => { n += d.length; if (n > max) { zuGross = true; req.destroy(); } else teile.push(d); });
+  req.on('end', () => resolve(zuGross ? null : Buffer.concat(teile)));
+  req.on('error', () => resolve(null)); req.on('close', () => { if (zuGross) resolve(null); });
+});
+// === /Aufnahme (1.3) ===
 
 // ── Geräte koppeln: Rückkanal-Tunnel je Gerät, Ort „geraet:<id>" ──
 const geraete = createGeraeteDienst(DATA);
@@ -584,6 +603,48 @@ const server = http.createServer(async (req, res) => {
     if (mVer && req.method === 'POST') { const b = await koerper(req); const r = reminderVerschieben(db, mVer[1], b.faellig_am); return r ? json(res, 200, { ok: true, reminder: r }) : json(res, 400, { ok: false, fehler: 'faellig_am ist Pflicht.' }); }
     // Erinnerung → Fenster: seit 1.2 wird daraus eine Aufgabe mit Zeitmessung (Route im Block „Aufgaben (1.2)“ oben,
     // Antwort wie bisher {ok, fenster, start} + aufgabe).
+
+    // === Aufnahme (1.3): Weg-Stand, Stücke, Zwischenstand, Abschluss, Transkript einer Ablage-Datei ===
+    if (url.pathname === '/api/aufnahme/stand' && req.method === 'GET') return json(res, 200, transkription.stand());
+    if (url.pathname.startsWith('/api/aufnahme/') && req.method === 'POST' && !admin) { req.resume(); return json(res, 403, { ok: false, fehler: 'Aufnahmen nur für Menschen im Chat.' }); }
+    if (url.pathname === '/api/aufnahme/stueck' && req.method === 'POST') {
+      const lim = stueckLimiter.check(wer.rolle + ':' + wer.name);
+      if (!lim.ok) { req.resume(); return zuViele(res, lim); }
+      const id = String(url.searchParams.get('id') || ''); const nr = aufnNr(url.searchParams.get('nr'));
+      if (!aufnKennung(id) || nr === null) { req.resume(); return json(res, 400, { ok: false, fehler: 'Kennung oder Stücknummer ungültig.' }); }
+      if (!groesseErlaubt(req.headers['content-length'], AUFN_STUECK_MAX)) { req.resume(); return json(res, 413, { ok: false, fehler: 'Stück zu groß.' }); }
+      const daten = await rohKoerper(req, AUFN_STUECK_MAX);
+      if (!daten) return json(res, 413, { ok: false, fehler: 'Stück zu groß.' });
+      const r = await aufnahmeDienst.stueck({ id, nr, von: aufnSek(url.searchParams.get('von')), bis: aufnSek(url.searchParams.get('bis')), letztes: url.searchParams.get('letztes') === '1',
+        still: url.searchParams.get('still') === '1', art: url.searchParams.get('art') === 'bildschirm' ? 'bildschirm' : 'sprache', mime: String(req.headers['content-type'] || ''), daten });
+      return json(res, r.ok ? 200 : 502, r);
+    }
+    const mAufn = /^\/api\/aufnahme\/([a-z0-9]{8,40})(?:\/(abschluss|verwerfen))?$/.exec(url.pathname);
+    if (mAufn && !mAufn[2] && req.method === 'GET') return json(res, 200, aufnahmeDienst.zwischenstand(mAufn[1], url.searchParams.get('ab')));
+    if (mAufn && mAufn[2] === 'verwerfen' && req.method === 'POST') return json(res, 200, aufnahmeDienst.verwerfen(mAufn[1]));
+    if (mAufn && mAufn[2] === 'abschluss' && req.method === 'POST') {
+      // Rückfall-Datei: eine hochgeladene Chat-Datei (media_id) oder eine Ablage-Datei (ablage) — dorthin kommt auch das Transkript.
+      const b = await koerper(req);
+      let datei = '', mime = '', transkriptPfad = '';
+      const video = b.art === 'bildschirm';
+      if (b.ablage && ablageNameGueltig(String(b.ablage)) && existsSync(join(ABLAGE_DIR, String(b.ablage)))) {
+        datei = join(ABLAGE_DIR, String(b.ablage)); transkriptPfad = join(ABLAGE_DIR, aufnTranskriptName(String(b.ablage)));
+      } else if (b.media_id) {
+        const m = db.prepare('SELECT id, mime FROM media WHERE id = ?').get(String(b.media_id));
+        if (m) { datei = join(DATA, 'media', m.id); mime = m.mime; }
+      }
+      const r = await aufnahmeDienst.abschluss(mAufn[1], { datei, mime, video, transkriptPfad });
+      return json(res, 200, { ...r, transkript_url: transkriptPfad && r.ok && (video ? r.zeittext : r.text) ? '/api/ablage/' + encodeURIComponent(String(b.ablage)) + '.transkript.txt' : '', transkript_pfad: transkriptPfad && existsSync(transkriptPfad) ? transkriptPfad : '' });
+    }
+    const mAbTr = /^\/api\/ablage\/([^/]+)\.transkript\.txt$/.exec(url.pathname);
+    if (mAbTr && req.method === 'GET') {
+      let name = ''; try { name = decodeURIComponent(mAbTr[1]); } catch { name = ''; }
+      const pfad = ablageNameGueltig(name) ? join(ABLAGE_DIR, aufnTranskriptName(name)) : '';
+      if (!pfad || !existsSync(pfad)) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('Zu dieser Aufnahme gibt es (noch) kein Transkript.'); }
+      res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...(url.searchParams.get('dl') ? { 'content-disposition': `attachment; filename="${name.replace(/"/g, '')}.transkript.txt"` } : {}) });
+      return createReadStream(pfad).pipe(res);
+    }
+    // === /Aufnahme (1.3) ===
 
     // ── 1.1: Ablage-Tresor 🔗 — ablegen (Chat-Medium → data/ablage mit sprechendem Namen), Liste, Löschen, Ausliefern (Range) ──
     if (url.pathname === '/api/ablage' && req.method === 'GET') return json(res, 200, ablageListe({ ablageDir: ABLAGE_DIR, max: Math.min(Number(url.searchParams.get('limit')) || 200, 1000) }));
