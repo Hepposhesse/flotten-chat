@@ -634,7 +634,7 @@ const server = http.createServer(async (req, res) => {
 
 const HOST = process.env.FC_HOST || '127.0.0.1';
 server.listen(PORT, HOST, () => {
-  console.log(`\n⚡ Sales Engine Flotten Chat 1.0 läuft: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${HOST === '0.0.0.0' ? '  ⚠ gebunden an 0.0.0.0 — nur hinter TLS-Proxy/Firewall betreiben!' : ''}`);
+  console.log(`\n⚡ Sales Engine Flotten Chat ${JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version} läuft: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${HOST === '0.0.0.0' ? '  ⚠ gebunden an 0.0.0.0 — nur hinter TLS-Proxy/Firewall betreiben!' : ''}`);
   console.log(`   Datenverzeichnis: ${DATA}`);
   console.log(`   ${nutzerAnzahl(db) ? 'Login: E-Mail + Passwort im Browser.' : 'Ersteinrichtung: im Browser öffnen und den ersten Zugang anlegen.'}`);
   console.log(`   Admin-Token (nur für Skripte/Agenten, geheim halten): ${ADMIN}\n`);
