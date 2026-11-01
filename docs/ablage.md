@@ -20,8 +20,14 @@ der Datei in `<name>.meta`: `{typ, dauer, mime}`) — nie die Endung. Ohne ffpro
 (`audio/webm` vom Mikrofon), ohne beides die Endung (webm → video). Eine Sprachnotiz wird als `audio/webm` ausgeliefert,
 sonst bleibt der Player schwarz.
 
+## Transkript am Eintrag (1.3)
+Bildschirmaufnahmen und Sprachnotizen bekommen ihr Transkript als Beiwerk `<name>.transkript.txt` (Bildschirmaufnahme mit
+Zeitmarken `[mm:ss]`). Die Liste trägt dann `transkript_pfad` und `transkript_url`, in der Ablage gibt es „Text“ und 📝.
+Löschen nimmt das Transkript mit. Wie es entsteht: [aufnahme.md](aufnahme.md).
+
 ## API (Login-Cookie oder Admin-Token)
-- `GET /api/ablage?limit=200` → `{ok, eintraege:[{name, pfad, url, typ, groesse, dauer, zeit}]}`
+- `GET /api/ablage?limit=200` → `{ok, eintraege:[{name, pfad, url, typ, groesse, dauer, zeit, transkript_pfad?, transkript_url?}]}`
+- `GET /api/ablage/<name>.transkript.txt` — Transkript als Text (404, solange keins da ist).
 - `POST /api/ablage {ids:[<media-id>, …]}` — kopiert hochgeladene Chat-Medien (`POST /api/media`) in die Ablage, max. 20,
   Original bleibt. Antwort wie die Liste, dazu `fehler:[…]` je nicht gefundener Datei.
 - `POST /api/ablage/loeschen {name}` — Datei samt `.meta` weg.

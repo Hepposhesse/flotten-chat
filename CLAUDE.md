@@ -26,7 +26,14 @@ Antwortet er, **nie einen zweiten starten** — weiter bei „Dich einbringen“
 5. **Erstes Fenster**: in der UI „＋“ → Thema, Ordner (oder Repo + Worktree), Start-Modus. Oder per
    API: `POST /api/fenster {name, ordner|repo, start_modus, start_text}` (Bearer Admin-Token).
    Claude Code fragt beim ersten Start je Ordner nach Vertrauen — der Chat bestätigt das automatisch.
-6. **Selbsttest**: schreib dem neuen Fenster im Chat „Melde dich startklar“ — die Antwort erscheint
+6. **Transkription prüfen und anbieten** (Sprachnachrichten und Bildschirmaufnahmen schreiben mit):
+   Die Startmeldung des Servers nennt den Weg („Transkription: …“), genauer:
+   `curl -s -H "Authorization: Bearer $(cat data/admin-token)" http://127.0.0.1:3900/api/aufnahme/stand`.
+   Steht `weg: "aus"`, sag deinem Menschen ehrlich, warum (Feld `hinweis`), und biete die zwei Wege an:
+   OpenAI (`OPENAI_API_KEY` beim Serverstart setzen, ≈ 0,3 Cent je Minute, Ton geht an OpenAI) oder lokal
+   (`whisper`/`whisper-cli` + ffmpeg installieren, kostenlos, langsamer). Empfiehl `FC_TRANSKRIPTION_SPRACHE=de`.
+   Nichts einschalten ohne sein Ja — Schlüssel nie in Dateien im Repo. Details: `docs/aufnahme.md`.
+7. **Selbsttest**: schreib dem neuen Fenster im Chat „Melde dich startklar“ — die Antwort erscheint
    im Kanal. Dann bist du fertig. Melde deinem Menschen kurz: URL, Login angelegt, erstes Fenster läuft.
 
 Was du dabei NICHT tust: Fenster-Listen von Hand pflegen (die Registry ist die Datenbank),
@@ -43,8 +50,10 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
   nennen (auch `[Video: …]`, `[Sprachnachricht: …]`, `[Datei: …]`) — der Chat zeigt die Vorschau.
 - **Anhänge des Menschen** kommen als Pfad: `[Bild: /…/data/media/abc.png]` — lies die Datei selbst.
   Aus der **Ablage** (dauerhaft, sprechende Namen) kommen sie als `[Video: /…/data/ablage/2026-10-06-1952-bildschirmaufnahme.webm]`.
-  Sprachnachrichten: transkribiere sie (ffmpeg + whisper, falls vorhanden), sonst sag, dass du sie
-  nicht hören kannst.
+  Sprachnachrichten kommen seit 1.3 meist schon als Text: `<Text> [Sprachnachricht: /…/x.webm]` — der Text IST
+  das Gesagte, du musst nichts transkribieren. Steht nur `🎤 Sprachnachricht` davor (Transkription aus), transkribiere
+  selbst (ffmpeg + whisper, falls vorhanden), sonst sag, dass du sie nicht hören kannst. Zu Bildschirmaufnahmen aus der
+  Ablage liegt das Transkript mit Zeitmarken daneben: `<pfad>.transkript.txt` — lies das zuerst.
 - **Themen statt Rollen**: du bist ein Thema (Kanalname), keine Dauer-Rolle. Ein Neustart ist
   wirklich frisch — dein Stand lebt an festen Orten: Karte auf dem Board (`POST /api/karten/<id>/verlauf`
   mit Admin-Token, wenn es zu deinem Thema eine Karte gibt), Repo, CLAUDE.md, Memory.
