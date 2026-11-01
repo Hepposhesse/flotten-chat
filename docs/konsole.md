@@ -102,7 +102,7 @@ Hooks, „bin ich noch wach?“), ist gestorben, sobald ein Fenster neu startete
 Jetzt gibt es genau einen Zustand: das Terminal. Der Chat ist nur die Fernbedienung und der Spiegel.
 
 ## Live-Terminal
-Knopf „Terminal“ im Kanal-Kopf: das echte Terminalbild mit Farben (`capture-pane -e` → `server/terminal.mjs`),
+Im Kanal-Menü (⋯ im Kanal-Kopf, Rechtsklick oder lange drücken auf den Kanal) „🖥 Terminal ansehen“: das echte Terminalbild mit Farben (`capture-pane -e` → `server/terminal.mjs`),
 alle 2 s, nur lesen — dazu eine Tastenleiste mit fester Liste (1–6, ↑ ↓, Tab, Esc, Shift+Tab, Enter). Nie
 Text oder Befehle vom Client. Für alles, was der Spiegel (noch) nicht kennt. Nur für Admins.
 

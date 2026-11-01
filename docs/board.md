@@ -8,7 +8,8 @@ Kopplung erzeugte nur Pflege (Karte wählen, Karte nachziehen, Karte beim Schlie
 
 - **Verlauf**: kurze Einträge für Menschen (was ist passiert), optional mit Medium. Ein Fenster, dessen
   Thema eine Karte hat, schreibt seinen Stand dorthin (`POST /api/karten/<id>/verlauf`) — z. B. beim
-  Schließen.
+  Schließen. Schreibt das Fenster im Chat `#karte-<id>`, wird daraus ein Chip, der die Karte öffnet; die Kennung
+  steht oben in jeder Karte zum Kopieren.
 - **Spalten** schiebt der Mensch. Das Fenster sagt im Chat, wenn etwas zu prüfen ist.
 - **Regeln**: die KI legt Karten nie selbst an, sondern nur auf Zuruf — sie befüllt vorhandene Karten
   (Meilensteine, Entscheidungen, Stand) aber selbständig.

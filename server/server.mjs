@@ -31,6 +31,11 @@ import { einstellungenLaden, einstellungenSpeichern, gelesenLaden, gelesenSetzen
 import { sucheNachrichten } from './suche.mjs';
 import { ablegen as ablageAblegen, liste as ablageListe, loeschen as ablageLoeschen, streamen as ablageStreamen } from './ablage.mjs';
 import { erinnerungenSchema, ordnerAlle, ordnerAnlegen, ordnerUmbenennen, ordnerLoeschen, reminderInOrdner, reminderTitel, reminderNotiz, reminderUebergeben, uebergabeText } from './erinnerungen.mjs';
+// === Chat-Komfort (1.2) ===
+import { verlaufSchema, verlaufAb, verlaufAbSetzen, nachrichtenEtappe, nurAktuellerVerlauf } from './verlauf.mjs';
+import { schwarmFuerOrdner } from './schwarm.mjs';
+import { protokollDir } from './orte.mjs';
+// === Ende Chat-Komfort (1.2) ===
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -109,6 +114,8 @@ const aufraeumen = createAufraeumen({
 const ABLAGE_DIR = join(DATA, 'ablage');
 const ZONE = process.env.FC_TZ || 'Europe/Berlin';
 erinnerungenSchema(db);
+// === Chat-Komfort (1.2): frischer Verlauf je Fenster (Spalte fenster.verlauf_ab, additiv) ===
+verlaufSchema(db);
 
 // ── Geräte koppeln: Rückkanal-Tunnel je Gerät, Ort „geraet:<id>" ──
 const geraete = createGeraeteDienst(DATA);
@@ -184,6 +191,8 @@ function fensterBauen(b) {
   if (!ordner) ordner = process.env.FC_DEFAULT_ORDNER || process.cwd();
   const f = fensterAnlegen(db, { name, label: b.label || b.thema || name, ort, ordner, config_dir: b.config_dir || (ort === 'lokal' ? process.env.FC_CLAUDE_CONFIG_DIR || '' : ''), start_modus: b.start_modus || 'auto', start_text: b.start_text || '', worktree });
   if (!f) return { ok: false, fehler: 'Fenster konnte nicht angelegt werden.' };
+  // Chat-Komfort (1.2): ein neues Fenster startet ohne den Verlauf eines geschlossenen Vorgängers gleichen Namens.
+  { const ab = verlaufAbSetzen(db, f.name); if (ab) gelesenSetzen(db, f.name, ab); }
   let start = { ok: false };
   if (b.starten !== false) { start = sessionStarten(f); if (start.ok) fensterAendern(db, f.name, { status: 'laeuft', gestartet_am: nowIso() }); }
   return { ok: true, fenster: fensterHolen(db, f.name), start };
@@ -314,8 +323,14 @@ const server = http.createServer(async (req, res) => {
       const angefragt = url.searchParams.get('kanal');
       if (wer.rolle === 'agent' && angefragt && angefragt !== wer.agent.kanal) return json(res, 403, { ok: false, fehler: 'Dieser Token darf nur den eigenen Kanal lesen.' });
       const kanal = angefragt || (wer.agent ? wer.agent.kanal : 'allgemein');
-      const seit = url.searchParams.get('seit') || 0;
-      const liste = nachrichten(db, { kanal, seit, limit: url.searchParams.get('limit') || 200 });
+      // Chat-Komfort (1.2): `juengste=1` / `vor=<id>` = Verlauf in Etappen (jüngste zuerst geholt, aufsteigend geliefert);
+      // bei Fenstern zählt nur, was nach `verlauf_ab` kam (Vorgänger gleichen Namens bleibt in der DB, aber unsichtbar).
+      const ab = verlaufAb(db, kanal);
+      const seit = Math.max(Number(url.searchParams.get('seit')) || 0, ab);
+      const etappe = url.searchParams.get('juengste') === '1' || Number(url.searchParams.get('vor')) > 0;
+      const liste = etappe
+        ? nachrichtenEtappe(db, { kanal, limit: url.searchParams.get('limit'), vor: url.searchParams.get('vor'), ab })
+        : nachrichten(db, { kanal, seit, limit: url.searchParams.get('limit') || 200 });
       if (wer.agent && liste.length) cursorSetzen(db, wer.agent.id, liste[liste.length - 1].id);
       return json(res, 200, { ok: true, messages: liste });
     }
@@ -389,7 +404,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/search' && req.method === 'GET') {
       const r = sucheNachrichten(db, { q: url.searchParams.get('q') || '', kanaele: sichtbareKanaele(), limit: url.searchParams.get('limit') || 50 });
-      return json(res, 200, { ok: true, woerter: r.woerter, treffer: r.treffer });
+      // Chat-Komfort (1.2): Treffer aus dem Verlauf eines geschlossenen Vorgängers gleichen Namens fallen weg.
+      const grenzen = Object.fromEntries(fensterAlle(db).map((f) => [f.name, Number(f.verlauf_ab) || 0]));
+      return json(res, 200, { ok: true, woerter: r.woerter, treffer: nurAktuellerVerlauf(r.treffer, grenzen) });
     }
 
     // ── Geräte ──
@@ -439,6 +456,17 @@ const server = http.createServer(async (req, res) => {
         const r = tastenSenden(f, tasten); return json(res, r.ok ? 200 : 400, r);
       }
     }
+    // === Chat-Komfort (1.2): Schwarm-Leiste — laufende Claude-Code-Workflows des Fensters (nur lokale Fenster) ===
+    const mSw = /^\/api\/fenster\/([a-z0-9_-]+)\/schwarm$/.exec(url.pathname);
+    if (mSw && req.method === 'GET') {
+      if (!admin) return json(res, 403, { ok: false });
+      const f = fensterHolen(db, mSw[1]);
+      if (!f) return json(res, 404, { ok: false, fehler: 'Fenster unbekannt.' });
+      let schwarm = [];
+      if (!istSsh(f)) { try { schwarm = schwarmFuerOrdner(protokollDir(f)); } catch { /* ohne Leiste */ } }
+      return json(res, 200, { ok: true, schwarm });
+    }
+    // === Ende Chat-Komfort (1.2) ===
     const mF = /^\/api\/fenster\/([a-z0-9_-]+)\/(start|neustart|stop|schliessen|loeschen|pane|tippen)$/.exec(url.pathname);
     if (mF && req.method === 'POST') {
       if (!admin) return json(res, 403, { ok: false });
