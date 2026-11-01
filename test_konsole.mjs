@@ -318,5 +318,106 @@ ok(m.typ === 'question' && JSON.parse(m.meta).dialog.optionen[0].label === 'A', 
 ok(JSON.parse(metaSetzen(db, m.id, { dialog: { zu: true } }).meta).dialog.zu === true, 'meta nachträglich setzen');
 rmSync(dir, { recursive: true, force: true });
 
+// ── 1.2 Spiegel: Erkennung (Nachzug aus dem Live-Betrieb) ──
+import { paneFingerabdruck as s12Fp, hintergrundAktiv as s12Hg, geheimMaske as s12Maske, nackteZahlOhneDialog as s12Zahl, frageIndex as s12FrageIndex, dialogFussSichtbar as s12Fuss, claudeEigenerDialog as s12Eigen, infoPanel as s12Info, textSchluessel as s12Schluessel, sitzungsIdAus as s12Sid } from './server/protokoll.mjs';
+{
+  const L = '─'.repeat(75);
+  const besch = (n) => Array.from({ length: n }, (_, i) => `     Zeile ${i + 1} einer langen Beschreibung, die im schmalen Fenster umbricht`).join('\n');
+  // Lange Options-Beschreibungen (3+ Zeilen) zerlegen den Dialog nicht.
+  const lang = `● Kurze Erklärung.\n\n${L}\n ☐ Weg\n\nWie gehen wir vor?\n\n❯ 1. Option A (Recommended)\n${besch(5)}\n  2. Option B\n${besch(4)}\n  3. Option C\n${besch(6)}\n  4. Type something.\n${L}\n  5. Chat about this\n\nEnter to select · ↑/↓ to navigate · Esc to cancel`;
+  const zl = paneZustand(lang);
+  ok(zl.dialog && zl.dialog.art === 'frage' && zl.dialog.optionen.length === 5 && zl.dialog.cursor === 1, 'lange Beschreibungen: Rückfrage mit 5 Optionen erkannt');
+  ok(zl.dialog && /Zeile 5/.test(zl.dialog.optionen[0].beschreibung || ''), 'lange Beschreibungen: Beschreibung vollständig');
+  const aufz = `● Plan:\n  1. erst\n  2. dann\n  3. zuletzt\n\n${L}\nFrage?\n\n❯ 1. Ja\n${besch(4)}\n  2. Nein\n\nEnter to select · ↑/↓ to navigate · Esc to cancel`;
+  eq(paneZustand(aufz).dialog && paneZustand(aufz).dialog.optionen.map((o) => o.label), ['Ja', 'Nein'], 'Aufzählung im Text darüber gehört nicht zum Dialog');
+
+  // Fingerabdruck: Reiterwechsel/Cursor ändern ihn, der Countdown nicht.
+  const r1 = `← ☒ Kunden 1  ☐ Kunden 2  ✔ Submit →\n\nErste Frage?\n❯ 1. A\n  2. B\nEnter to select · deny in 1:46`;
+  const r2 = r1.replace('☒ Kunden 1  ☐ Kunden 2', '☒ Kunden 1  ☒ Kunden 2').replace('Erste Frage?', 'Zweite Frage?');
+  ok(s12Fp(r1) !== s12Fp(r2), 'Fingerabdruck: Reiterwechsel ändert ihn');
+  ok(s12Fp(r1) === s12Fp(r1.replace('1:46', '1:45')), 'Fingerabdruck: Countdown ändert ihn nicht');
+  ok(s12Fp(r1) !== s12Fp(r1.replace('❯ 1. A\n  2. B', '  1. A\n❯ 2. B')), 'Fingerabdruck: Cursorwechsel ändert ihn');
+
+  // „Nou“-Umbruch bleibt Freigabe, Passwörter maskiert.
+  const nou = `● Ich lade das hoch.\n\n${L}\n Bash command\n\n   curl -u admin:x https://example.org/wp-json?pwd=Geheim123 --password 'S3cret!'\n\n Do you want to proceed?\n ❯ 1. Yes\n   2. Yes, and switch to auto mode so I don't ask again for yo\n   3. Nou, and tell Claude what to do differently (esc)\n`;
+  const zn = paneZustand(nou);
+  ok(zn.dialog && zn.dialog.art === 'freigabe' && /^No,/.test(zn.dialog.optionen[2].label), '„Nou“-Umbruch: trotzdem Freigabe, Label repariert');
+  const tn = dialogText(zn.dialog);
+  ok(/^🔐/.test(tn) && !/Geheim123|S3cret/.test(tn), 'Freigabe-Text ohne Passwörter');
+  ok(!/Geheim123|S3cret/.test(JSON.stringify(dialogMeta(zn.dialog))), 'Freigabe-Knöpfe/Titel ohne Passwörter');
+  eq(s12Maske('pwd=geheim'), 'pwd=***', 'Maske: pwd=');
+  eq(s12Maske('Authorization: Bearer abcdefghijkl'), 'Authorization: ***', 'Maske: Authorization');
+  eq(s12Maske('export API_KEY="sk-1234567890"'), 'export API_KEY="***"', 'Maske: API_KEY in Anführungszeichen');
+  eq(s12Maske('DB_PASSWORD=abc123 und Passwort: hunter22'), 'DB_PASSWORD=*** und Passwort: ***', 'Maske: Passwort-Varianten');
+  eq(s12Maske('Das passt: gut so. Master-Passwort steht im Tresor.'), 'Das passt: gut so. Master-Passwort steht im Tresor.', 'Maske: normaler Text bleibt');
+
+  // Neue Rückfrage bekommt nie den Titel der vorigen.
+  const dn = { art: 'frage', optionen: [{ nr: 1, label: 'Ja, bau es' }, { nr: 2, label: 'Reicht so' }, { nr: 3, label: 'Type something.' }] };
+  ok(s12FrageIndex(dn, { fragen: [{ frage: 'Alt?', optionen: [{ label: 'Mobil' }, { label: 'Desktop' }] }] }) === -1, 'alte Protokoll-Frage passt nicht zur neuen Rückfrage');
+  ok(s12FrageIndex(dn, { fragen: [{ frage: 'Neu?', optionen: [{ label: 'Ja, bau es' }, { label: 'Reicht so' }] }] }) === 0, 'passende Protokoll-Frage passt');
+  ok(s12FrageIndex({ art: 'frage', optionen: [{ nr: 1, label: 'Alles nacheinander bauen und danach' }, { nr: 2, label: 'Nein' }] }, { fragen: [{ frage: 'X?', optionen: [{ label: 'Alles nacheinander bauen und danach testen (Recommended)' }, { label: 'Nein' }] }] }) === 0, 'umgebrochenes Label passt über den Anfang');
+
+  // Nackte Zahl nach geschlossener Rückfrage.
+  ok(s12Zahl('1', { dialog: null }, 1000, 5000) === true, '„1“ kurz nach Rückfrage-Ende → nicht ins Fenster');
+  ok(s12Zahl('1', { dialog: { art: 'frage' } }, 1000, 5000) === false, 'Dialog offen → normale Wahl');
+  ok(s12Zahl('1 und noch was', { dialog: null }, 1000, 5000) === false && s12Zahl('1', { dialog: null }, 0, 5000) === false && s12Zahl('2', { dialog: null }, 1000, 1000 + 16 * 60_000) === false, 'Satz / nie eine Rückfrage / nach 15 min → geht durch');
+
+  // Vortext auch vor Freigaben (über dem Werkzeug-Aufruf) und vor langen Fragen.
+  const vf = `● Ich lade jetzt die Datei hoch, damit sie online ist.\n\n● Bash(scp a.pdf server:/x)\n\n${L}\n Bash command\n\n   scp a.pdf server:/x\n\n Do you want to proceed?\n ❯ 1. Yes\n   2. No, and tell Claude what to do differently (esc)\n`;
+  ok(/Ich lade jetzt die Datei hoch/.test(textVorDialog(vf)), 'Vortext vor einer Freigabe');
+  const vl = `● Erklärung vor der langen Frage.\n\n${L}\n ☐ Lang\n\n${Array.from({ length: 20 }, (_, i) => `Zeile ${i + 1} der langen Frage.`).join('\n')}\n\n❯ 1. A\n  2. B\n  3. Type something.\n${L}\n  4. Chat about this\n\nEnter to select · ↑/↓ to navigate · Esc to cancel`;
+  ok(/Erklärung vor der langen Frage/.test(textVorDialog(vl)), 'Vortext vor einer langen Frage (20 Titelzeilen)');
+
+  // Doppel-Schutz: Medien und Sprachnachrichten haben eigene Schlüssel.
+  eq(s12Schluessel('[Bild: /x/media/abc.png]'), 'medien:abc.png', 'Schlüssel: reiner Medien-Text');
+  const sa = s12Schluessel('[Sprachnachricht: /home/u/projekt/data/media/antwort-eins.webm ("Okay, kurz gesagt geht das so.")]');
+  const sb = s12Schluessel('[Sprachnachricht: /home/u/projekt/data/media/antwort-zwei.webm ("Okay, ich hab nachgeschaut.")]');
+  ok(sa !== sb && sa.startsWith('sprach:antwort-eins.webm:') && sb.startsWith('sprach:antwort-zwei.webm:'), 'Schlüssel: zwei Sprachnachrichten mit gleichem Pfad-Anfang sind kein Doppel');
+  eq(s12Schluessel('[Sprachnachricht: /a/b/x.webm]'), 'sprach:x.webm', 'Schlüssel: Sprachnachricht ohne Text');
+
+  // ▔-Systemdialoge: Rahmen (auch mit Effort-Anzeige) nicht im Titel.
+  const sys = `${'▔'.repeat(70)}\n Switch format?\n\n ❯ 1. Kurz\n   2. Lang\n\nEnter to confirm · Esc to exit`;
+  ok(paneZustand(sys).dialog && !/▔/.test(dialogText(paneZustand(sys).dialog)), '▔-Rahmen nicht im Kartentext');
+  const eff = ['▔'.repeat(70) + ' ◐ medium · /effort ▔', ' Welche Variante?', '', ' ❯ 1. A', '   2. B', '', ' Enter to confirm · Esc to cancel'].join('\n');
+  ok(paneZustand(eff).dialog && !/▔|effort/.test(paneZustand(eff).dialog.titel), '▔-Rahmen mit Effort-Anzeige nicht im Titel');
+
+  // /status- und /usage-Panel sind keine Rückfrage.
+  const status = ['● Fertig', '▔'.repeat(80), '   Settings  Status   Config   Usage   Stats', '', '   Version:           2.1.293', '   Model:             opus', '', '   Esc to cancel'].join('\n');
+  const usage = ['   Settings  Status   Config   Usage   Stats', '', '   Usage by model:', '', '   d to day · w to week   Esc to cancel'].join('\n');
+  ok(s12Info(status) && !dialogAbgeschnitten(status) && !s12Fuss(status), '/status-Panel: kein Dialog, kein Vergrößern');
+  ok(!dialogAbgeschnitten(usage) && !s12Fuss(usage), '/usage-Panel: kein Dialog, kein Vergrößern');
+  ok(!s12Info(frage) && !s12Info(freigabe), 'echte Dialoge sind kein Anzeige-Panel');
+  const leer = ['● Fertig.', '', '  ◐ medium · /effort', '─'.repeat(80), '❯ ', '─'.repeat(80), '  ⏵⏵ auto mode on (shift+tab to cycle)'].join('\n');
+  ok(!s12Fuss(leer), 'Leerlauf-Bild: kein Dialog-Fuß');
+
+  // Claude Codes eigene Dialoge (/model, /login, Rewind) — keine Karte. Bypass-Bestätigung bleibt ein Dialog.
+  const modell = [' Select model', ' Switch between Claude models.', '', ' ❯ 1. Default (recommended)', '   2. Sonnet', '   3. Haiku', '', ' Enter to confirm · Esc to cancel', ''].join('\n');
+  ok(s12Eigen(modell) && paneZustand(modell).dialog === null && !s12Fuss(modell), '/model-Wähler ist kein Fenster-Dialog');
+  const login = [' Select login method:', '', ' ❯ 1. Claude account with subscription', '   2. Anthropic Console account', '', ' Enter to select · Esc to cancel', ''].join('\n');
+  ok(s12Eigen(login) && paneZustand(login).dialog === null, '/login ist kein Fenster-Dialog');
+  const rewind = ['   Rewind', '', '   Restore the code and/or conversation to the point before…', '', '     Erste Nachricht', '     No code changes', '', '   ❯ (current)', '', '   Enter to continue · Esc to cancel', ''].join('\n');
+  ok(s12Eigen(rewind) && paneZustand(rewind).dialog === null && !s12Fuss(rewind), 'Rewind-Dialog (Esc Esc) ist kein Fenster-Dialog');
+  const bypass = ['  WARNING: Claude Code running in Bypass Permissions mode', '', '  By proceeding, you accept all responsibility.', '', '  ❯ No, exit', '    Yes, I accept', '', '  Enter to confirm · Esc to cancel', ...Array(25).fill('')].join('\n');
+  ok(!s12Eigen(bypass) && paneZustand(bypass).dialog && paneZustand(bypass).dialog.optionen.map((o) => o.label).join('|') === 'No, exit|Yes, I accept', 'Bypass-Bestätigung mit Leerzeilen darunter: Dialog ohne Nummern erkannt');
+  ok(!dialogAbgeschnitten(bypass), 'Bypass-Bestätigung gilt nicht als abgeschnitten');
+  const echt = ['● Welche Variante?', '', ' ❯ 1. Herzschlag', '   2. Flackern', '', ' Enter to confirm · Esc to cancel', ''].join('\n');
+  ok(!s12Eigen(echt) && !!paneZustand(echt).dialog && s12Fuss(echt), 'echte Rückfrage bleibt ein Dialog');
+
+  // Hintergrund-Agent/Schwarm zählt als aktiv (Lampe), auch ohne Klammer-Zeit.
+  const hgW = `● Workflow(drei Bauer)\n  ⎿  Running in background\n\n✻ Waiting for 1 dynamic workflow to finish\n\n╭────╮\n│ ❯  │\n╰────╯\n  ⏵⏵ auto mode on (shift+tab to cycle)\n  ◯ schwarm  ▱▱▱▱  3m35s · ↓ 467.1k\n`;
+  const zw = paneZustand(hgW);
+  ok(zw.busy === false && zw.hintergrund === true && !zw.dialog, 'Schwarm läuft: busy false, hintergrund true');
+  ok(paneZustand(prompt).hintergrund === false && s12Hg('✻ Waiting for 2 background agents to finish') && s12Hg('  ◯ bauer1  ▱▱▱  12s · ↓ 1.2k') && !s12Hg('◯ nur ein Punkt ohne Zeit'), 'hintergrundAktiv: Varianten');
+
+  // Mehrzeilige Rückfrage behält ihre Zeilen (Listen/Tabellen).
+  const zm = paneZustand(' ☐ Zahlungen\n Was sind die Zahlungen?\n\n ❯ 1. Privat\n   2. Geschäft\n   3. Type something.\n\n Enter to confirm\n');
+  const tm = dialogText(zm.dialog, { fragen: [{ frage: 'Offen:\n- Posten A   (08.06.)\n- Posten B\n\n\n| Datum | Betrag |\n|---|---|\n| 12.08. | 352,91 |\n\nWas sind die Zahlungen?', kopf: 'Zahlungen', optionen: [{ label: 'Privat' }, { label: 'Geschäft' }] }] });
+  ok(/^❓ Zahlungen: Offen:\n- Posten A \(08\.06\.\)\n- Posten B\n\n\| Datum \| Betrag \|\n\|---\|---\|\n\| 12\.08\. \| 352,91 \|\n\nWas sind die Zahlungen\?\n1\) /.test(tm), 'Rückfrage-Text behält Zeilen, Mehrfach-Leerzeilen weg');
+
+  // Protokoll exakt über sessions/<pid>.json.
+  eq(s12Sid('{"pid":4711,"sessionId":"0b6f2c1e-1234-4abc-9def-001122334455","cwd":"/x"}'), '0b6f2c1e-1234-4abc-9def-001122334455', 'sessionId aus sessions/<pid>.json');
+  ok(s12Sid('kaputt') === '' && s12Sid('{"sessionId":"../../etc/passwd"}') === '', 'sessionId: kaputt/unsicher → leer');
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

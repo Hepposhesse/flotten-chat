@@ -6,8 +6,9 @@
 //
 //   protokollNachrichten(zeilen)  JSONL-Zeilen → {rolle:'du'|'sitzung'|'frage'|'antwort'|'schritt'|'gesperrt'}
 //   spiegelBeitraege(nachrichten) → Chat-Beiträge {typ, text}
-//   paneZustand(terminalbild)     → {modus, dialog, busy}
-//   dialogText(dialog)            → Chat-Text mit Optionen
+//   paneZustand(terminalbild)     → {modus, dialog, busy, hintergrund}
+//   dialogText(dialog)            → Chat-Text mit Optionen (Geheimnisse maskiert)
+//   dialogFussSichtbar / dialogAbgeschnitten / claudeEigenerDialog / infoPanel → was ist ein Dialog fürs Fenster, was nicht
 //   chatBefehl(text, zustand)     → was eine Chat-Nachricht im Fenster auslöst (Text, Wahl, Esc, Modus, Mehrfach-Schritt)
 //   tastenFuerWahl(ziele, cursor) → tmux-Tasten für eine Dialog-Wahl
 //   mehrfachSchritte(dialog, befehl) → Tasten/Text für einen Mehrfachauswahl-Schritt (Häkchen, eigene Antwort, „Next“)
@@ -24,6 +25,11 @@ export const MODUS_NAME = { auto: 'Auto', accept: 'Bearbeiten frei', plan: 'Plan
 
 const nackt = (zeile) => String(zeile || '').replace(/^[\s│┃|]+/, '').replace(/[\s│┃|]+$/, '').trim();
 const kurz = (s, n) => { const t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
+/** Wie kurz(), aber Zeilenumbrüche bleiben: strukturierte Rückfragen (Listen, Tabellen) kommen sonst als ein Klumpen an. */
+const kurzZeilen = (s, n) => {
+  const t = String(s == null ? '' : s).replace(/\r/g, '').split('\n').map((z) => z.replace(/[ \t]+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+};
 
 /**
  * Was zeigt das Terminal gerade? PURE.
@@ -65,7 +71,10 @@ export function vorschauKasten(zeilen) {
 /** Optionen-Block ohne Nummern über einem Dialog-Fuß („Enter to confirm · Esc to cancel"). PURE. */
 function ohneNummern(zeilen) {
   let fuss = -1;
-  for (let i = zeilen.length - 1; i >= 0 && i >= zeilen.length - 8; i--) { if (/Enter to (?:confirm|select)|Esc to cancel/i.test(zeilen[i] || '')) { fuss = i; break; } }
+  // Fuß in den letzten 8 NICHT-leeren Zeilen: in einem frischen Fenster steht z. B. die Bypass-Bestätigung oben und
+  // darunter 25 Leerzeilen — mit festen 8 Zeilen fand der Parser den Fuß nicht.
+  let ende = zeilen.length - 1; while (ende >= 0 && !nackt(zeilen[ende])) ende--;
+  for (let i = ende, n = 0; i >= 0 && n < 8; i--) { if (!nackt(zeilen[i])) continue; n++; if (/Enter to (?:confirm|select)|Esc to cancel/i.test(zeilen[i] || '')) { fuss = i; break; } }
   if (fuss < 0) return [];
   let i = fuss - 1;
   while (i >= 0 && !nackt(zeilen[i])) i--;
@@ -84,6 +93,28 @@ function ohneNummern(zeilen) {
   return liste.map((o, k) => ({ nr: k + 1, label: o.label, cursor: o.cursor, idx: o.idx }));
 }
 
+/**
+ * Fingerabdruck eines (kleinen) Terminalbilds. PURE.
+ * Letzte 12 nicht-leere Zeilen + Reiter-Leiste, ohne Countdown. Ändert er sich, ist ein gemerkter Dialog aus dem
+ * vergrößerten Bild veraltet (z. B. Reiter 2 einer mehrteiligen Rückfrage, anderer Cursor).
+ */
+export function paneFingerabdruck(text) {
+  const z = String(text || '').split('\n').map(nackt).filter(Boolean);
+  const leiste = z.find((x) => /←/.test(x) && /Submit/.test(x)) || '';
+  return [leiste, ...z.slice(-12)].join('\n').replace(/\d+:\d{2}/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Läuft ein Hintergrund-Agent oder Schwarm (Workflow)? PURE.
+ * Das Bild zeigt dann keine Klammer-Zeit, sondern „✻ Waiting for 1 background agent“ und eine Agenten-Zeile
+ * „◯ name … 3m35s · ↓ 467k“ — Claude arbeitet trotzdem (Lampe bleibt grün).
+ */
+export function hintergrundAktiv(text) {
+  const zeilen = String(text || '').split('\n');
+  return zeilen.some((l) => /Waiting for \d+ (?:background agents?|dynamic workflows?|\S+ workflows?)/i.test(l))
+    || zeilen.some((l) => /^\s*◯\s+\S.*?(?:\d+m\s*)?\d+s\s*·/.test(l));
+}
+
 export function paneZustand(text) {
   const roh = String(text || '');
   const kasten = vorschauKasten(roh.split('\n'));
@@ -93,6 +124,7 @@ export function paneZustand(text) {
   const hatPrompt = zeilen.some((z) => /^\s*[❯>]\s*$/.test(z) || /^\s*❯\s+\S/.test(z) && !/^\s*❯\s+\d+\./.test(z));
   if (modus === 'unbekannt' && hatPrompt && zeilen.some((z) => /shift\+tab to cycle/.test(z))) modus = 'default';
   const busy = /\((?:\d+m\s+)?\d+s\s*·/.test(roh.split('\n').filter((l) => !/(⏵⏵|auto mode on|shift\+tab to cycle)/.test(l)).join('\n'));
+  const hintergrund = hintergrundAktiv(roh);
 
   // Nummerierte Optionen: nur ein zusammenhängender Block (Lücke von >2 Zeilen ohne Nummer = Ende).
   const optionen = [];
@@ -104,8 +136,14 @@ export function paneZustand(text) {
     if (w && block.length) { weiterIdx = idx; weiterCursor = !!w[1]; letzteIdx = idx; return; }
     const m = /^(❯\s*)?(\d{1,2})\.\s+(.+)$/.exec(n);
     if (!m) return;
-    if (letzteIdx >= 0 && idx - letzteIdx > 3) { block = []; }
-    block.push({ nr: Number(m[2]), label: m[3].trim(), cursor: !!m[1], idx });
+    // Lücke zur vorigen Option: lange Beschreibungen (eingerückt, schmales Fenster) zählen nicht — sonst fiel der Block
+    // ab 3 Zeilen Beschreibung auseinander und die Rückfrage galt als „kein Dialog“.
+    const nr = Number(m[2]);
+    const vorige = block[block.length - 1];
+    const folgt = vorige && nr === vorige.nr + 1 && idx - vorige.idx <= 20;
+    if (nr === 1) block = [];
+    else if (!folgt && letzteIdx >= 0 && idx - letzteIdx > 3) block = [];
+    block.push({ nr, label: m[3].trim(), cursor: !!m[1], idx });
     letzteIdx = idx;
   });
   // Nur ein Block, der mit 1 beginnt, lückenlos zählt und einen Cursor (❯) trägt, ist ein Dialog —
@@ -118,7 +156,8 @@ export function paneZustand(text) {
     block = ohneNummern(zeilen);
     gueltig = block.length >= 2;
   }
-  if (!gueltig) return { modus, dialog: null, busy };
+  // Claude Codes eigene Dialoge (/model, /login, Rewind) beantwortet der Mensch selbst im Terminal — keine Karte.
+  if (!gueltig || claudeEigenerDialog(roh)) return { modus, dialog: null, busy, hintergrund };
   // Rückfragen mit Vorschau zeichnen „Chat about this" OHNE Nummer unter einer Trennlinie — als letzte Option
   // mitzählen (per Pfeiltaste erreichbar), sonst kann der Chat sie nicht wählen (04.10.2026).
   if (block.length && !/^chat about this$/i.test(block[block.length - 1].label)) {
@@ -133,7 +172,7 @@ export function paneZustand(text) {
   block.forEach((o, k) => {
     const opt = { nr: o.nr, label: o.label, ...(o.ohneNr ? { ohneNr: true } : {}) };
     const bis = k + 1 < block.length ? block[k + 1].idx : o.idx + 1;
-    const besch = zeilen.slice(o.idx + 1, bis).map(nackt).filter((x) => x && !/^[─━┈═\s]+$/.test(x) && !/^Notes: press n\b/i.test(x) && !/^(?:❯\s*)?(?:Next|Submit)$/.test(x)).join(' ').trim();
+    const besch = zeilen.slice(o.idx + 1, bis).map(nackt).filter((x) => x && !/^[─━┈═▔▁\s]+$/.test(x) && !/^Notes: press n\b/i.test(x) && !/^(?:❯\s*)?(?:Next|Submit)$/.test(x)).join(' ').trim();
     if (besch) opt.beschreibung = besch;
     optionen.push(opt); if (o.cursor) cursor = o.nr;
   });
@@ -155,14 +194,18 @@ export function paneZustand(text) {
   // Freigabe-Dialoge erkennt man an ihren Optionen („Yes" / „No, and tell Claude …"); Rückfragen
   // (AskUserQuestion) tragen beliebige Labels plus „Type something." / „Chat about this".
   const labels = optionen.map((o) => o.label);
-  const freigabe = labels.some((l) => /^yes\b/i.test(l)) && labels.some((l) => /^no\b/i.test(l));
+  // „Nou“: das „you“ aus „Yes, and … for you“ bricht in die No-Zeile um — darum zusätzlich die Frage über den Optionen.
+  const nein = (l) => /^no(\b|u\b|,)/i.test(l);
+  const freigabeFrage = zeilen.slice(Math.max(0, block[0].idx - 12), block[0].idx).some((z) => /Do you want to (proceed|make this edit|create|allow|run)|requires approval/i.test(z));
+  const freigabe = (labels.some((l) => /^yes\b/i.test(l)) && labels.some(nein)) || (freigabeFrage && labels.some((l) => /^yes\b/i.test(l)));
+  if (freigabe) for (const o of optionen) if (/^nou\b/i.test(o.label)) o.label = o.label.replace(/^nou\b/i, 'No');
   // Titel: die Zeilen über dem Block bis zum Rahmen-Anfang bzw. zur Trennlinie, Leerzeilen weg.
   // Freigabe: die letzten 8 Zeilen (Befehl + „Do you want to proceed?"). Rückfrage: die GANZE Frage (max. 60
   // Zeilen) — mit 8 Zeilen fing eine lange Frage im Chat mitten im Satz an.
   const oben = [];
   for (let k = block[0].idx - 1; k >= 0 && oben.length < (freigabe ? 8 : 60); k--) {
     const roh = String(zeilen[k] || '');
-    if (/[╭╰]/.test(roh) || /^[\s─┈═]+$/.test(roh)) break;
+    if (/[╭╰]/.test(roh) || /^[\s─┈═▔▁]+$/.test(roh) || /▔{5,}/.test(roh)) break; // ▔-Rahmen der Systemdialoge, auch mit „◐ medium · /effort“ darin
     if (/^[\s╌]+$/.test(roh)) continue; // Trennlinien um Befehl/Diff (2.1.289) nicht in den Titel
     if (/^\s*[⏺●✻✽✢⎿]/.test(roh) || /Allowed by auto mode|auto mode classifier/.test(roh)) break; // Werkzeug-Ausgabe davor gehört nicht zum Dialog
     const n = nackt(roh);
@@ -203,7 +246,32 @@ export function paneZustand(text) {
     // Die Optionszahl nur ohne Titel: ein halb gezeichnetes Bild (ohne „Chat about this") zählte sonst als neuer Dialog.
     kennung: ((t) => (t ? t : `|${optionen.length}`))(kennungText.replace(/\b\d{1,2}:\d{2}\b/g, '').replace(/[☐☒☑]/g, '').replace(/\s+/g, ' ').trim()).slice(0, 400),
   };
-  return { modus, dialog, busy };
+  return { modus, dialog, busy, hintergrund };
+}
+
+/**
+ * Reine Anzeige-Panels von Claude Code (/status, /usage, /config — Reiterleiste „Settings  Status  Config  Usage“) haben
+ * auch „Esc to cancel“ unten, sind aber keine Frage an den Menschen. PURE.
+ */
+export function infoPanel(text) {
+  return String(text || '').split('\n').slice(-60).map(nackt).some((z) => /^\s*Settings\s+Status\s+Config\s+Usage\b/.test(z));
+}
+
+/**
+ * Claude Codes EIGENE Dialoge, die der Mensch selbst im Terminal auslöst und dort beantwortet: Modell-Wähler (/model),
+ * Anmeldung (/login), Rewind (Esc Esc). Sie zählen weder als Dialog noch als Dialog-Fuß. Die Bypass-Bestätigung und die
+ * Ordner-Vertrauensfrage bleiben Dialoge — die kommen in frischen Fenstern, auch ohne Menschen am Terminal. PURE.
+ */
+export function claudeEigenerDialog(text) {
+  const z = String(text || '').split('\n').slice(-40).map(nackt).join('\n');
+  return /Select model|Switch between Claude models|Kept model as|Select login method|Login successful|Use the url below to sign in|Restore the code and\/or conversation/i.test(z);
+}
+
+/** Zeigt das Terminal unten den Fuß eines Dialogs („Esc to cancel“ …), der kein Anzeige-Panel/eigener Dialog ist? PURE. */
+export function dialogFussSichtbar(text) {
+  const unten = String(text || '').split('\n').map(nackt).filter(Boolean).slice(-4).join('\n');
+  if (!/Esc to cancel|Enter to select|Enter to confirm/i.test(unten)) return false;
+  return !infoPanel(text) && !claudeEigenerDialog(text);
 }
 
 /**
@@ -215,8 +283,7 @@ export function paneZustand(text) {
  * eines Dialogs unten im Bild, aber kein gültiger Dialog.
  */
 export function dialogAbgeschnitten(text) {
-  const unten = String(text || '').split('\n').map(nackt).filter(Boolean).slice(-4).join('\n');
-  if (!/Esc to cancel|Enter to select|Enter to confirm/i.test(unten)) return false;
+  if (!dialogFussSichtbar(text)) return false;
   // Auch ein gekürzter Vorschau-Kasten („├─── ✂ ─── 4 lines hidden ───┤") braucht das größere Fenster.
   return !paneZustand(text).dialog || /✂\s*─+\s*\d+ lines? hidden/.test(String(text));
 }
@@ -383,7 +450,7 @@ const istHilfsOption = (l) => /^type something\.?$/i.test(l) || /^chat about thi
 /** Titel aus dem Terminalbild ohne Reiter-Leiste („← ☐ Art ☐ Preis ✔ Submit →") und Kästchen-Kopf. PURE. */
 function titelOhneReiter(titel) {
   return String(titel || '').split('\n')
-    .filter((z) => !/[☐☒☑]/.test(z) && !/✔\s*Submit/.test(z) && !/^[←→\s]*$/.test(z))
+    .filter((z) => !/[☐☒☑]/.test(z) && !/✔\s*Submit/.test(z) && !/^[←→\s]*$/.test(z) && !/^[\s▔▁─━]+$/.test(z)) // ▔-Rahmen der Systemdialoge
     .join('\n').trim();
 }
 
@@ -395,7 +462,10 @@ export function frageIndex(dialog, frage) {
   const fragen = frage && Array.isArray(frage.fragen) ? frage.fragen.filter((q) => q && q.frage) : [];
   if (!fragen.length || !dialog) return -1;
   const sichtbar = (dialog.optionen || []).map((o) => labelNackt(o.label)).filter((l) => !istHilfsOption(l));
-  if (fragen.length === 1) return 0;
+  // Auch bei EINER Frage muss ein sichtbares Label passen — sonst bekam eine neue Rückfrage den Titel der vorigen
+  // (abgelehnten). Lange Labels bricht das Terminal um: der Anfang (20 Zeichen) reicht.
+  const passt = (a, b) => a === b || (a.length >= 20 && b.length >= 20 && a.slice(0, 20) === b.slice(0, 20));
+  if (fragen.length === 1) return !sichtbar.length || !fragen[0].optionen.length || fragen[0].optionen.some((o) => sichtbar.some((v) => passt(labelNackt(o.label), v))) ? 0 : -1;
   let idx = fragen.findIndex((q) => q.optionen.length && q.optionen.length === sichtbar.length && q.optionen.every((o, k) => labelNackt(o.label) === sichtbar[k]));
   if (idx < 0) idx = fragen.findIndex((q) => q.optionen.some((o) => sichtbar.includes(labelNackt(o.label))));
   return idx;
@@ -411,6 +481,32 @@ export const fragePasst = (dialog, frage) => !!dialog && dialog.art === 'frage' 
  * this" stehen nicht als Knopf da — Freitext im Chat IST die Antwort.
  */
 export function dialogText(dialog, frage = null) {
+  return geheimMaske(dialogTextRoh(dialog, frage));
+}
+
+/**
+ * Geheimnisse unkenntlich machen: pwd=…, --password …, token: …, Bearer …, Authorization: … PURE.
+ * Freigabe-Dialoge zeigen den ganzen Befehl — samt Passwort, wenn eins darin steht. Das gehört nicht in den Chat.
+ */
+export function geheimMaske(text) {
+  return String(text || '')
+    .replace(/(\b[\w-]*(?:password|passwort|passwd|pwd|secret|token|api[_-]?key)\s*[=:]\s*)(["']?)[^\s"'&]{3,}\2/gi, '$1$2***$2')
+    .replace(/((?:^|\s)--?(?:password|passwort|pwd|pass|token|secret|api-key)(?:\s+|=))(["']?)[^\s"']{3,}\2/gi, '$1$2***$2') // nur als Schalter, nicht „Master-Passwort steht“
+    .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/g, '$1 ***')
+    .replace(/(Authorization:\s*)\S+(\s+\S+)?/gi, '$1***');
+}
+
+/**
+ * Nackte Zahl („1“) ohne offenen Dialog, kurz nachdem eine Rückfrage zuging? PURE.
+ * Dann war sie für die alte Karte gemeint und darf nicht als Text ins Fenster („was meinst du mit 1?“).
+ */
+export function nackteZahlOhneDialog(text, zustand, letzteFrageZuMs, jetztMs, fensterMs = 15 * 60_000) {
+  if (zustand && zustand.dialog) return false;
+  if (!/^\s*\d{1,2}\s*$/.test(String(text || ''))) return false;
+  return Number(letzteFrageZuMs) > 0 && jetztMs - letzteFrageZuMs < fensterMs;
+}
+
+function dialogTextRoh(dialog, frage = null) {
   if (!dialog) return '';
   const opts = (dialog.optionen || []).map((o) => `${o.nr}) ${o.label}`);
   if (dialog.art === 'freigabe') {
@@ -428,7 +524,7 @@ export function dialogText(dialog, frage = null) {
     const fragen = frage.fragen.filter((q) => q && q.frage);
     const q = fragen[idx];
     const stand = fragen.length > 1 ? ` (Frage ${idx + 1} von ${fragen.length})` : '';
-    const zeilen = [`❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 2500)}${stand}`];
+    const zeilen = [`❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurzZeilen(q.frage, 2500)}${stand}`];
     for (const o of dialog.optionen || []) {
       const l = labelNackt(o.label);
       if (istHilfsOption(l)) continue;
@@ -459,7 +555,7 @@ function mehrfachText(dialog, frage) {
   const q = idx >= 0 ? fragen[idx] : null;
   const reiter = dialog.reiter || [];
   const stand = q && fragen.length > 1 ? ` (Frage ${idx + 1} von ${fragen.length})` : (!q && reiter.length > 1 ? ` (${reiter.length} Fragen)` : '');
-  const kopf = q ? `❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 2500)}${stand}` : `❓ ${kurz(titelOhneReiter(dialog.titel), 2500) || 'Das Fenster hat eine Rückfrage.'}${stand}`;
+  const kopf = q ? `❓ ${q.kopf ? `${q.kopf}: ` : ''}${kurzZeilen(q.frage, 2500)}${stand}` : `❓ ${kurz(titelOhneReiter(dialog.titel), 2500) || 'Das Fenster hat eine Rückfrage.'}${stand}`;
   const zeilen = [kopf];
   const an = [];
   for (const o of dialog.optionen || []) {
@@ -501,6 +597,17 @@ function vorschauZeilen(dialog) {
  *   Absenden-Karte: `art: 'absenden'`, `antworten` (Übersicht) und die Knöpfe Absenden/Abbrechen.
  */
 export function dialogMeta(dialog, frage = null) {
+  const m = dialogMetaRoh(dialog, frage);
+  if (!m) return null;
+  // Wie dialogText(): keine Passwörter in Titel, Knöpfen, Vorschau.
+  const g = (o, k) => { if (o && typeof o[k] === 'string') o[k] = geheimMaske(o[k]); };
+  g(m, 'titel'); (m.optionen || []).forEach((o) => { g(o, 'label'); g(o, 'beschreibung'); });
+  if (Array.isArray(m.antworten)) m.antworten = m.antworten.map(geheimMaske);
+  if (m.vorschau) { m.vorschau = { ...m.vorschau }; g(m.vorschau, 'text'); }
+  return m;
+}
+
+function dialogMetaRoh(dialog, frage = null) {
   if (!dialog) return null;
   if (dialog.art === 'absenden') {
     return { art: 'absenden', titel: 'Alle Antworten stehen — bitte prüfen und absenden', antworten: absendenZeilen(dialog), optionen: [{ nr: 1, label: 'Absenden' }, { nr: 2, label: 'Abbrechen' }] };
@@ -514,7 +621,7 @@ export function dialogMeta(dialog, frage = null) {
     const beschreibung = (p && p.beschreibung) || o.beschreibung || '';
     return { nr: o.nr, label: p ? p.label : o.label, ...(beschreibung ? { beschreibung: kurz(beschreibung, 220) } : {}), ...(dialog.mehrfach ? { an: !!o.an } : {}) };
   });
-  const titel = q ? `${q.kopf ? `${q.kopf}: ` : ''}${kurz(q.frage, 2500)}` : kurz(titelOhneReiter(dialog.titel), 2500);
+  const titel = q ? `${q.kopf ? `${q.kopf}: ` : ''}${kurzZeilen(q.frage, 2500)}` : kurz(titelOhneReiter(dialog.titel), 2500);
   // `mehrfach` nur, wenn das Terminal Kästchen zeigt — dann versteht chatBefehl() „1, 3: Text" als ganzen Schritt.
   const fo = frei ? (dialog.optionen || []).find((o) => o.nr === frei) : null;
   const mehrfach = dialog.mehrfach ? { mehrfach: true, freitext: !!fo, ...(fo && !/^type something\.?$/i.test(fo.label) ? { freitextBisher: kurz(fo.label, 400) } : {}) } : {};
@@ -726,20 +833,27 @@ export function protokollOrdner(configDir, cwd) {
 export function textVorDialog(text) {
   const zeilen = String(text || '').split('\n');
   const z = paneZustand(text);
-  if (!z.dialog || z.dialog.art !== 'frage') return '';
+  // Auch vor Freigaben: der Text darüber (was das Fenster vorhat) käme sonst erst nach dem Klick aus dem Protokoll.
+  if (!z.dialog || (z.dialog.art !== 'frage' && z.dialog.art !== 'freigabe')) return '';
+  const freigabe = z.dialog.art === 'freigabe';
   let erste = -1;
   for (let i = zeilen.length - 1; i >= 0; i--) { if (/^(❯\s*)?1\.\s+/.test(nackt(zeilen[i]))) { erste = i; break; } }
   if (erste < 0) return '';
   let linie = -1;
-  for (let i = erste - 1; i >= Math.max(0, erste - 15); i--) { if (/^\s*[─━]{10,}\s*$/.test(zeilen[i])) { linie = i; break; } }
+  // Oberer Rand des Dialogs: Trennlinie oder Rahmen. Lange Fragen haben viele Titelzeilen — bis 80 Zeilen hoch suchen.
+  for (let i = erste - 1; i >= Math.max(0, erste - 80); i--) { if (/^\s*[─━▔]{10,}\s*$/.test(zeilen[i]) || /^\s*╭/.test(zeilen[i])) { linie = i; break; } }
   if (linie < 0) return '';
-  const block = [];
+  let block = [];
   for (let i = linie - 1; i >= 0 && linie - i < 400; i--) {
     const roh = String(zeilen[i] || '').replace(/\s+$/, '');
     if (/^\s*⎿/.test(roh) || /^\s{2}(Ran|Read|Listed|Searched|Wrote|Updated|Edited|Called)\b.*\d/.test(roh) || /^[✻✽✢✶·]\s/.test(roh)) return '';
     const m = /^[●⏺]\s?(.*)$/.exec(roh);
     if (m) {
-      if (/^[A-Z][A-Za-z]+\(/.test(m[1]) || /^Running\b/.test(m[1])) return '';
+      if (/^[A-Z][A-Za-z]+\(/.test(m[1]) || /^Running\b/.test(m[1])) {
+        // Freigabe: direkt über dem Dialog steht der Werkzeug-Aufruf selbst („● Bash(…)“) — der Text liegt darüber.
+        if (freigabe && !block.some((x) => /^[●⏺]/.test(x))) { block = []; continue; }
+        return '';
+      }
       block.unshift(m[1]);
       break;
     }
@@ -762,5 +876,24 @@ export function textVorDialog(text) {
 
 /** Vergleichs-Schlüssel eines Antwort-Texts (Terminal ohne Markdown ⇄ Protokoll mit Markdown). PURE. */
 export function textSchluessel(text) {
-  return String(text || '').toLowerCase().replace(/\[bild:[^\]]*\]/g, '').replace(/[^\p{L}\p{N}]+/gu, '').slice(0, 80);
+  // Sprachnachricht: „[Sprachnachricht: /…/media/<datei>.webm (…)]“ beginnt immer mit demselben Pfad — die ersten 80 Zeichen
+  // waren bei jeder zweiten gleich und sie galt als Doppel. Darum Dateiname + Anfang des übrigen Texts.
+  const sn = /\[Sprachnachricht:\s*([^\s\]("]+\.(?:webm|mp3|wav|ogg|oga|m4a))/i.exec(String(text || ''));
+  if (sn) {
+    const gesagt = String(text || '').replace(/\[Sprachnachricht:[^"\]]*"?/i, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').slice(0, 60);
+    return 'sprach:' + sn[1].split('/').pop().toLowerCase() + (gesagt ? ':' + gesagt : '');
+  }
+  const k = String(text || '').toLowerCase().replace(/\[bild:[^\]]*\]/g, '').replace(/[^\p{L}\p{N}]+/gu, '').slice(0, 80);
+  if (k) return k;
+  // Nur Medien („[Bild: …/x.png]“) → Dateinamen als Schlüssel, sonst kam derselbe Vortext doppelt.
+  const medien = [...String(text || '').matchAll(/([\w.-]+\.(?:png|jpe?g|gif|webp|mp4|webm|mov|pdf))/gi)].map((m) => m[1].toLowerCase());
+  return medien.length ? 'medien:' + medien.join('|').slice(0, 120) : '';
+}
+
+/**
+ * sessionId aus `<config>/sessions/<pid>.json` (Claude Code legt die Datei je laufendem Prozess an). PURE.
+ * Damit ist das Protokoll exakt zugeordnet — auch bei mehreren Fenstern im selben Ordner. '' = unbekannt.
+ */
+export function sitzungsIdAus(jsonText) {
+  try { const sid = String((JSON.parse(String(jsonText || '')) || {}).sessionId || ''); return /^[0-9a-fA-F-]{8,64}$/.test(sid) ? sid : ''; } catch { return ''; }
 }
