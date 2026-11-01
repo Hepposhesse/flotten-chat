@@ -47,6 +47,13 @@ heißt: eine laufende Klammer-Zeit im Terminalbild, nie „Falsch-Grün“), **A
 dauerhaft mit sprechenden Namen ablegen statt senden, Pfad + Link fürs Fenster, [docs/ablage.md](docs/ablage.md)),
 **Erinnerungs-Ordner** (Inbox schlank halten, Titel/Notiz bearbeiten, Erinnerung an ein laufendes Fenster übergeben).
 
+Neu in 1.2: **Aufgaben mit Zeit** — Kacheln oben in der Seitenleiste (überfällig rot, läuft grün, heute gelb, ziehbar),
+„▶ Starten“ öffnet ein frisches Fenster mit dem Auftrag als Start-Text (Standard: erst Lage + Empfehlung + Rückfrage),
+Uhr im Kanal-Kopf, gemessen wird nur echte Arbeit (du schreibst / Claude arbeitet / Warten auf dich). Stopp = zurück in
+die Liste mit Stand, Weiter im alten oder neuen Fenster, Kanal schließen = erledigt, Abschluss-Karte mit Dauer, Start zur
+Uhrzeit, Papierkorb, Auswertung je Tag. Erinnerungen und Board docken an (▶ Fenster an einer Erinnerung = Aufgabe; Karte
+als feste Stelle für den Stand) — siehe [docs/aufgaben.md](docs/aufgaben.md).
+
 ## Quickstart
 ```bash
 git clone https://github.com/Hepposhesse/flotten-chat && cd flotten-chat

@@ -50,6 +50,10 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
   mit Admin-Token, wenn es zu deinem Thema eine Karte gibt), Repo, CLAUDE.md, Memory.
 - **Karten nur auf Zuruf**: leg eine Karte nur an, wenn dein Mensch es sagt. Vorhandene Karten zu
   deinem Thema befüllst du selbständig (Meilensteine, Entscheidungen, Stand).
+- **Aufgaben-Fenster** (Start-Text beginnt mit „🎯 Aufgabe:“): genau diese eine Aufgabe, am Stück. Steht die Vorlage
+  drin, zuerst Lage + Empfehlung + AskUserQuestion, erst nach der Antwort bauen. Wenn die Aufgabe wirklich fertig ist,
+  als letzte Nachricht GENAU EINE Zeile `✅ Aufgabe fertig: <Ergebnis in einem Satz>` — damit stoppt die Zeitmessung.
+  Kommt „⏏ Aufgabe gestoppt“: Stand an die feste Stelle schreiben und aufhören. Details: `docs/aufgaben.md`.
 - **Rückfragen immer als AskUserQuestion** — sie erscheinen im Chat als Knöpfe. Freitext des Menschen
   kommt als Antwort ins Antwortfeld oder, ohne Feld, über „Chat about this“ mit dem Text danach.
   `multiSelect` und mehrere Fragen in einem Aufruf sind erlaubt: der Chat zeigt Häkchen, ein Feld
