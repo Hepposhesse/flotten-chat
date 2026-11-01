@@ -389,12 +389,101 @@ aside .kanal{-webkit-touch-callout:none}
   .av-fuss .rechts{margin-left:0}
 }
 /* === /Aufgaben (1.2) === */
+/* === Bereiche (1.3) === */
+/* Eigenes Dropdown: das <select> bleibt als Wertträger (versteckt), sichtbar ist ein Knopf im Feld-Design; die Liste öffnet
+   direkt darunter (oder darüber, wenn unten kein Platz ist) im selben Design, ✓ an der gewählten Option. */
+.fc-sel{position:relative;display:block;min-width:0}
+.fc-sel>select.fc-sel-nativ{position:absolute!important;inset:0;width:100%!important;height:100%!important;opacity:0!important;pointer-events:none!important;margin:0;padding:0;border:0}
+.fc-sel-knopf{display:flex;align-items:center;gap:8px;width:100%;min-height:38px;text-align:left;border:1px solid var(--n200);border-radius:9px;padding:.45rem .6rem;font:inherit;font-size:.92rem;background:var(--n50);color:var(--n900);cursor:pointer}
+.fc-sel-knopf:hover{border-color:var(--blau)}
+.fc-sel-knopf:focus-visible{outline:2px solid var(--blau);outline-offset:1px}
+.fc-sel-knopf[aria-expanded="true"]{border-color:var(--blau);box-shadow:0 0 0 1px var(--blau)}
+.fc-sel-knopf:disabled{opacity:.55;cursor:default}
+.fc-sel-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-sel-pfeil{flex:none;color:var(--n400);font-size:.8rem;transition:transform .15s}
+.fc-sel-knopf[aria-expanded="true"] .fc-sel-pfeil{transform:rotate(180deg)}
+.fc-sel-liste{position:fixed;z-index:200;overflow:auto;background:var(--card);color:var(--n900);border:1px solid var(--n200);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.35);padding:4px;font-size:.9rem;overscroll-behavior:contain}
+.fc-sel-opt{display:grid;grid-template-columns:18px 1fr;gap:6px;align-items:center;padding:8px 10px;border-radius:7px;cursor:pointer;min-height:36px;line-height:1.3}
+.fc-sel-opt::before{content:"";color:var(--blau);font-weight:700}
+.fc-sel-opt[aria-selected="true"]{color:var(--blau);font-weight:600}
+.fc-sel-opt[aria-selected="true"]::before{content:"✓"}
+.fc-sel-opt.aktiv{background:var(--blau-soft)}
+.fc-sel-opt[aria-disabled="true"]{opacity:.5;cursor:default}
+.fc-sel-grp{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n400);font-weight:700;padding:8px 10px 2px}
+dialog .fc-sel-knopf,.av-form .fc-sel-knopf{padding:.5rem .6rem}
+.fc-sel.kanal-mobil{display:none;padding:0;border:0;background:none}
+.fc-sel.kanal-mobil .fc-sel-knopf{min-height:44px;font-size:16px}
+#neuFensterMobil{display:none}
+@media(max-width:720px){
+  .fc-sel-knopf{font-size:16px;min-height:44px}
+  .fc-sel-opt{min-height:44px;font-size:1rem}
+  .fc-sel.kanal-mobil{display:block;flex:1 1 calc(100% - 54px)!important;min-width:0}
+  #neuFensterMobil{display:inline-flex;align-items:center;justify-content:center;order:10;min-width:44px;min-height:44px;font-size:1.1rem}
+}
+/* Kanalliste: Fenster unter Bereichs-Überschriften (zuklappbar, ＋ = neues Fenster in diesem Bereich) */
+.grp{display:flex;align-items:center;gap:6px;margin:.55rem .1rem .15rem .3rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n400);font-weight:700;cursor:pointer;user-select:none;border-radius:6px;min-height:26px}
+.grp:hover{color:var(--n900)}
+.grp:focus-visible{outline:2px solid var(--blau);outline-offset:1px}
+.grp .grp-pfeil{display:inline-block;width:10px;font-size:.7rem;transition:transform .15s;flex:none}
+.grp.zu .grp-pfeil{transform:rotate(-90deg)}
+.grp .grp-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grp .grp-zahl{margin-left:auto;font-variant-numeric:tabular-nums;letter-spacing:0;text-transform:none;font-weight:600}
+.grp .grp-zahl:empty{display:none}
+.grp.zu.hat-aktiv{color:var(--blau)}
+.grp .grp-plus{flex:none;margin-left:auto;border:1px solid var(--n200);background:var(--card);color:var(--n900);border-radius:7px;font:inherit;font-size:.8rem;line-height:1;padding:2px 6px;cursor:pointer;text-transform:none;letter-spacing:0}
+.grp .grp-zahl+.grp-plus{margin-left:4px}
+.grp .grp-plus:hover{border-color:var(--blau);color:var(--blau)}
+.grp-leer{font-size:.76rem;color:var(--n400);padding:.1rem .6rem .35rem 1.6rem}
+.kanal .art-ic{flex:none;font-size:.78rem;opacity:.8}
+/* ＋-Popover „Neues Fenster": am Knopf verankert (Pfeil zeigt hin), am Handy als Blatt von unten */
+.fp-scrim{position:fixed;inset:0;z-index:79;background:rgba(0,0,0,.35)}
+.fp{position:fixed;z-index:80;width:min(390px,94vw);background:var(--card);color:var(--n900);border:1px solid var(--n200);border-radius:14px;padding:14px 16px;box-shadow:0 18px 44px -12px rgba(0,0,0,.5);font-size:.88rem}
+.fp::before{content:"";position:absolute;left:-7px;top:var(--pfeil-top,18px);width:12px;height:12px;background:var(--card);border-left:1px solid var(--n200);border-bottom:1px solid var(--n200);transform:rotate(45deg)}
+.fp.lang{max-height:calc(100vh - 16px);overflow:auto}
+.fp.lang::before,.fp.ohne-pfeil::before{display:none}
+.fp h4{margin:0 0 .25rem;font-size:1rem}
+.fp .fp-hin{margin:0 0 .7rem;font-size:.8rem;color:var(--n500);line-height:1.4}
+.fp label{display:block;font-size:.76rem;color:var(--n500);margin:.6rem 0 .2rem}
+.fp label .hinweis{font-size:.72rem}
+.fp input,.fp textarea{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.45rem .6rem;font:inherit;background:var(--n50);color:var(--n900)}
+.fp textarea{min-height:56px;resize:vertical}
+.fp label.fp-check{display:flex;align-items:center;gap:8px;color:var(--n900);font-size:.84rem;margin-top:.7rem}
+.fp label.fp-check input{width:auto}
+.fp .reihe{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:.9rem}
+.fp .reihe .links{margin-right:auto}
+.fp-bereich+.fp-bereich{margin-top:.8rem;padding-top:.7rem;border-top:1px solid var(--n100)}
+.fp-bk{display:flex;align-items:baseline;gap:8px;margin-bottom:.4rem;min-width:0}
+.fp-bk b{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
+.fp-bk small{color:var(--n500);font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
+.fp-bk .fp-edit{flex:none;border:0;background:none;color:var(--n400);cursor:pointer;font:inherit;font-size:.95rem;border-radius:7px;padding:2px 6px}
+.fp-bk .fp-edit:hover,.fp-bk .fp-edit:focus-visible{color:var(--blau);background:var(--blau-soft);outline:none}
+.fp-wo{display:grid;gap:8px}
+.fp-wo button{display:grid;gap:2px;text-align:left;border:1px solid var(--n200);background:var(--n50);color:var(--n900);border-radius:12px;padding:.65rem .9rem;font:inherit;cursor:pointer;min-height:44px}
+.fp-wo button b{font-size:.95rem}
+.fp-wo button small{color:var(--n500);font-size:.76rem;line-height:1.35}
+.fp-wo button:hover,.fp-wo button:focus-visible,.fp-wo button.an{border-color:var(--blau);background:var(--blau-soft);outline:none}
+.fp-wo button:disabled{opacity:.55;cursor:default}
+.fp-neu{margin-top:.9rem;padding-top:.7rem;border-top:1px solid var(--n100);display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.fp-link{border:0;background:none;color:var(--n500);font:inherit;font-size:.8rem;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.fp-link:hover{color:var(--blau)}
+.fp .knopf{min-height:36px}
+@media(max-width:720px){
+  .fp{left:0!important;right:0;top:auto!important;bottom:0;width:100%;max-height:88vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+  .fp::before{display:none}
+  .fp input,.fp textarea{font-size:16px}
+  .fp .knopf{min-height:44px}
+}
+/* Suche: Treffer aus geschlossenen Fenstern */
+.s-treffer.archiv .s-kanal{color:var(--n500)}
+.s-text.voll{white-space:pre-wrap;max-height:40vh;overflow:auto;background:var(--n50);border-radius:8px;padding:6px 8px;margin-top:4px}
+/* === /Bereiche (1.3) === */
 </style>
 </head>
 <body>
 <header class="top">
   <b>⚡ Flotten-Chat</b><span class="muted" id="stand"></span>
   <select id="kanalMobil" class="kanal-mobil" aria-label="Kanal wählen"></select>
+  <button class="knopf" id="neuFensterMobil" title="Neues Fenster" aria-label="Neues Fenster" aria-haspopup="dialog">＋</button>
   <span style="margin-left:auto"></span>
   <span class="suche-box" id="sucheBox" hidden><input id="sucheFeld" class="suche-feld" type="search" placeholder="Suchen in allen Kanälen … (Esc schließt)" aria-label="Suche" autocomplete="off" hidden><button type="button" class="suche-x" id="sucheLeeren" title="Suche leeren" aria-label="Suche leeren" hidden>×</button></span>
   <button class="knopf" id="sucheBtn" title="Suche (Strg+K)" aria-expanded="false">🔍</button>
@@ -405,7 +494,7 @@ aside .kanal{-webkit-touch-callout:none}
 <div id="suchePanel" class="suche-panel" role="region" aria-label="Suchergebnisse" hidden></div>
 <div class="lay" id="lay" hidden>
   <aside>
-    <h4>Fenster <button class="knopf klein" id="neuFenster" title="Neues Fenster (Kanal) anlegen">＋</button></h4>
+    <h4>Fenster <button class="knopf klein" id="neuFenster" title="Neues Fenster" aria-haspopup="dialog">＋</button></h4>
     <div id="fensterListe"></div>
     <h4>Kanäle</h4>
     <div id="kanalListe"></div>
@@ -428,8 +517,8 @@ aside .kanal{-webkit-touch-callout:none}
 <div class="gate" id="gate" hidden><div class="box" id="gateBox"></div></div>
 
 <dialog id="dlgFenster">
-  <h3>Neues Fenster</h3>
-  <p class="hinweis">Ein Fenster ist ein Kanal hier im Chat und eine frische Claude-Code-Sitzung am gewählten Ort. Du schreibst hier, es arbeitet dort — und du siehst alles.</p>
+  <h3>Einzelnes Fenster</h3>
+  <p class="hinweis">Ein Fenster mit eigenen Angaben, ohne Bereich. Es läuft im Auto-Modus. Für Fenster, die du öfter brauchst, leg lieber einen Bereich an.</p>
   <label>Thema / Name</label><input id="fName" placeholder="z. B. Buchhaltung, Aron Gutschrift, Website-Relaunch">
   <label>Ort</label><select id="fOrt"><option value="lokal">Dieser Server (tmux)</option></select>
   <p class="hinweis" id="fOrtHinweis" hidden></p>
@@ -437,7 +526,6 @@ aside .kanal{-webkit-touch-callout:none}
   <label>Arbeitsordner <span class="hinweis">— oder ein Repo, dann bekommt das Fenster einen eigenen Worktree</span></label>
   <input id="fOrdner" placeholder="/pfad/zum/projekt">
   <label style="display:flex;align-items:center;gap:8px;margin-top:.5rem"><input type="checkbox" id="fWorktree" style="width:auto">Eigener git-Worktree im Repo anlegen (Hygiene: wird beim Schließen aufgeräumt)</label>
-  <label>Start-Modus</label><select id="fModus"><option value="auto">Auto (arbeitet, fragt bei heiklen Schritten)</option><option value="default">Manual (fragt bei jeder Änderung)</option><option value="plan">Planen (nur lesen und planen)</option><option value="acceptEdits">Bearbeiten frei</option></select>
   <label>Erster Satz ans Fenster (optional)</label><textarea id="fText" placeholder="z. B. Lies die CLAUDE.md und kümmere dich um …"></textarea>
   <div class="reihe"><button class="knopf" id="fAbbr">Abbrechen</button><button class="knopf pri" id="fOk">Fenster starten</button></div>
 </dialog>
@@ -518,7 +606,7 @@ async function gate(){
 // ── Kanäle + Fenster ──
 async function ladeKanaele(){
   const t0=Date.now();const r=await api('/api/channels');if(!r||!r.ok){gate();return false;}
-  KANAELE=r.channels.filter(k=>!k.archiviert);FENSTER=r.fenster||[];FENSTER_T=t0;
+  KANAELE=r.channels.filter(k=>!k.archiviert);FENSTER=r.fenster||[];FENSTER_T=t0;BEREICHE=r.bereiche||[];
   const fNamen=new Set(FENSTER.map(f=>f.name));
   // 1.2: Verschwindet der offene Kanal (Fenster geschlossen), springt der Chat nicht in den Nachbarkanal (das hätte dessen
   // Ungelesenes stumm gelesen) — es kommt die Auswahl mit den ungelesenen Kanälen. Nur ganz ohne Kanal: den ersten nehmen.
@@ -570,7 +658,7 @@ function kopfZeichnen(){
   const kopf=$('#kopf');const f=fensterVon(KANAL);
   if(ANSICHT!=='chat'||!f){kopf.hidden=true;return;}
   kopf.hidden=false;const z=f.zustand||{};
-  kopf.innerHTML=`<div class="l"><b class="${lampeKlasse(f)}" title="${lampeTitel(f)}">${esc(f.label||f.name)}</b>${uhrHtml(f)}<span>${f.laeuft?esc(seitText(f.gestartet_ms)):(lampeVon(f)==='tot'?'abgestürzt':'aus')}</span>${f.raeumt?`<span class="dlg raeumt"><span class="raeumt-tag">${raeumtText(f.raeumt)}</span></span>`:z.dialog?`<span class="dlg" id="dlgHin">${z.dialog.art==='freigabe'?'wartet auf deine Freigabe ↓':'wartet auf deine Antwort ↓'}</span>`:''}</div>
+  kopf.innerHTML=`<div class="l"><b class="${lampeKlasse(f)}" title="${lampeTitel(f)}">${esc(vollerName(f))}</b>${uhrHtml(f)}<span>${f.laeuft?esc(seitText(f.gestartet_ms)):(lampeVon(f)==='tot'?'abgestürzt':'aus')}</span>${f.raeumt?`<span class="dlg raeumt"><span class="raeumt-tag">${raeumtText(f.raeumt)}</span></span>`:z.dialog?`<span class="dlg" id="dlgHin">${z.dialog.art==='freigabe'?'wartet auf deine Freigabe ↓':'wartet auf deine Antwort ↓'}</span>`:''}</div>
     <div class="m"></div>
     <div class="r">${f.laeuft?'':'<button class="knopf klein pri" id="neuBtn">▶ Starten</button>'}<button class="knopf klein" id="kopfMenu" aria-haspopup="menu" aria-expanded="false" title="Fenster-Menü: Neu starten, Terminal, Modus, Schließen — auch Rechtsklick oder lange drücken auf den Kanal">⋯</button></div>`;
   // 1.2: Neu starten, Terminal, Modus und Schließen leben im Kanal-Menü — der Kopf bleibt ruhig.
@@ -705,17 +793,20 @@ $('#screen').onclick=async()=>{
 let GERAETE=[];
 async function ladeGeraete(){const r=await api('/api/geraete');GERAETE=r&&r.ok?r.geraete:[];return r;}
 function vorZeit(iso){const t=Date.parse(iso);if(!t)return '';const m=Math.round((Date.now()-t)/60000);return m<60?`vor ${m} min`:(m<2160?`vor ${Math.round(m/60)} h`:`vor ${Math.round(m/1440)} Tagen`);}
+// Ort-Auswahl (auch im Bereich-Formular): dieser Server, gekoppelte Geräte, SSH, „＋ Gerät koppeln …“.
+function ortOptionen(){const gek=GERAETE.filter(g=>g.status==='gekoppelt');
+  return '<option value="lokal">Dieser Server (tmux)</option>'+gek.map(g=>`<option value="geraet:${esc(g.id)}"${g.offen?'':' disabled'}>${g.offen?'🟢':'🔴'} ${esc(g.name)}${g.offen?'':' — nicht erreichbar'+(g.zuletzt_offen?' · zuletzt '+vorZeit(g.zuletzt_offen):'')}</option>`).join('')+'<option value="ssh">Anderer Rechner per SSH …</option><option value="koppeln">＋ Gerät koppeln …</option>';}
 async function ortListe(wahl){
   await ladeGeraete();const sel=$('#fOrt');const alt=wahl||sel.value;
-  const gek=GERAETE.filter(g=>g.status==='gekoppelt');
-  sel.innerHTML='<option value="lokal">Dieser Server (tmux)</option>'+gek.map(g=>`<option value="geraet:${esc(g.id)}"${g.offen?'':' disabled'}>${g.offen?'🟢':'🔴'} ${esc(g.name)}${g.offen?'':' — nicht erreichbar'+(g.zuletzt_offen?' · zuletzt '+vorZeit(g.zuletzt_offen):'')}</option>`).join('')+'<option value="ssh">Anderer Rechner per SSH …</option><option value="koppeln">＋ Gerät koppeln …</option>';
+  sel.innerHTML=ortOptionen();
   if([...sel.options].some(o=>o.value===alt&&!o.disabled))sel.value=alt;ortGeaendert();
 }
 function ortGeaendert(){const v=$('#fOrt').value;$('#fHost').hidden=v!=='ssh';const g=v.startsWith('geraet:');$('#fWorktree').closest('label').hidden=v!=='lokal';
   $('#fOrdner').placeholder=g?'Standard: ~/fleet-themen/<name> auf dem Gerät':'/pfad/zum/projekt';
   const h=$('#fOrtHinweis');const aus=GERAETE.filter(x=>x.status==='gekoppelt'&&!x.offen);h.hidden=!aus.length;h.textContent=aus.length?`Nicht erreichbar: ${aus.map(x=>x.name).join(', ')} — Gerät einschalten/aufwecken, dann neu öffnen.`:'';
   if(v==='koppeln'){$('#fOrt').value='lokal';ortGeaendert();geraetDialog();}}
-$('#neuFenster').onclick=()=>{$('#dlgFenster').showModal();$('#fName').focus();ortListe();};
+// 1.3: ＋ öffnet das Bereiche-Popover (unten, Block „Bereiche (1.3)“); der Dialog hier ist der Experten-Weg „Einzelnes Fenster“.
+function einzelFensterDialog(){const belegt=new Set([...FENSTER,...KANAELE].map(x=>x.name));let n=1;while(belegt.has('fenster-'+n))n++;$('#fName').value='fenster-'+n;$('#dlgFenster').showModal();$('#fName').focus();$('#fName').select();ortListe();}
 $('#fOrt').onchange=ortGeaendert;
 // ── Gerät koppeln: Name → Einmal-Code + Text für Claude Code am Gerät → warten, bis der Tunnel offen ist ──
 let gTimer=null;
@@ -745,7 +836,7 @@ $('#fAbbr').onclick=()=>$('#dlgFenster').close();
 $('#fOk').onclick=async()=>{
   const name=$('#fName').value.trim();if(!name){$('#fName').focus();return;}
   const ov=$('#fOrt').value;const ort=ov==='ssh'?('ssh:'+$('#fHost').value.trim()):(ov.startsWith('geraet:')?ov:'lokal');
-  const ordner=$('#fOrdner').value.trim();const b={name,label:name,ort,start_modus:$('#fModus').value,start_text:$('#fText').value.trim()};
+  const ordner=$('#fOrdner').value.trim();const b={name,label:name,ort,start_text:$('#fText').value.trim()};
   if(ort==='lokal'&&$('#fWorktree').checked&&ordner)b.repo=ordner;else if(ordner)b.ordner=ordner;
   $('#fOk').disabled=true;$('#fOk').textContent='startet …';
   const r=await api('/api/fenster',{method:'POST',body:JSON.stringify(b)});
@@ -813,17 +904,23 @@ function sortiert(liste){const pos=new Map(EINST.reihenfolge.map((k,i)=>[k,i]));
 // 1.2: die Zahl im Tab-Titel zählt nur Fenster-Kanäle (keine Alarme, Erinnerungen, Agenten-Kanäle).
 function titelZeichnen(){const fN=fNamenSet();const n=Object.entries(UNREAD).reduce((a,[k,v])=>a+(fN.has(k)?v:0),0);document.title=(n?`(${n>99?'99+':n}) `:'')+'Flotten-Chat';}
 function zeile(x,fenster,archiv){const z=x.zustand||{};const n=UNREAD[x.name]||0;
-  return `<div class="kanal${x.name===KANAL?' an':''}${x.stumm?' stumm':''}" role="button" tabindex="0" data-k="${esc(x.name)}" data-sek="${archiv?'a':(fenster?'f':'k')}"${archiv?'':' draggable="true"'} title="${esc(x.name)}">${fenster?`<span class="dot ${lampeKlasse(x)}" title="${lampeTitel(x)}"></span>`:''}<span class="kn">${esc(x.anzeige)}</span>${fenster?uhrHtml(x):''}${fenster&&x.raeumt?`<span class="raeumt-tag" title="${raeumtText(x.raeumt)}">räumt auf</span>`:''}${x.stumm?'<span class="stumm-ic" title="stumm">🔕</span>':''}${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}${n?`<span class="badge n" title="${n} ungelesen">${n>99?'99+':n}</span>`:''}<button type="button" class="kmenu" title="Kanal verwalten" aria-label="Kanal verwalten">⋯</button></div>`;}
+  return `<div class="kanal${x.name===KANAL?' an':''}${x.stumm?' stumm':''}" role="button" tabindex="0" data-k="${esc(x.name)}" data-sek="${archiv?'a':(fenster?'f'+grpVon(x):'k')}"${archiv?'':' draggable="true"'} title="${esc(x.name)}">${fenster?`<span class="dot ${lampeKlasse(x)}" title="${lampeTitel(x)}"></span>`:''}<span class="kn">${esc(x.anzeige)}</span>${fenster&&x.art==='wissen'?'<span class="art-ic" title="Wissensfenster — baut nichts">💬</span>':''}${fenster?uhrHtml(x):''}${fenster&&x.raeumt?`<span class="raeumt-tag" title="${raeumtText(x.raeumt)}">räumt auf</span>`:''}${x.stumm?'<span class="stumm-ic" title="stumm">🔕</span>':''}${z.dialog?'<span class="badge" title="wartet auf dich">?</span>':''}${n?`<span class="badge n" title="${n} ungelesen">${n>99?'99+':n}</span>`:''}<button type="button" class="kmenu" title="Kanal verwalten" aria-label="Kanal verwalten">⋯</button></div>`;}
 function seitenleisteZeichnen(fNamen){
   const fs=sortiert(FENSTER),ks=sortiert(KANAELE.filter(k=>!fNamen.has(k.name)));
-  $('#fensterListe').innerHTML=fs.filter(x=>!x.archiviert).map(x=>zeile(x,true)).join('')||'<div class="muted" style="padding:.3rem .6rem">Noch kein Fenster — oben ＋</div>';
+  $('#fensterListe').innerHTML=fensterGruppenHtml(fs.filter(x=>!x.archiviert));
   $('#kanalListe').innerHTML=ks.filter(x=>!x.archiviert).map(x=>zeile(x,false)).join('');
   const arch=[...fs.filter(x=>x.archiviert).map(x=>zeile(x,true,true)),...ks.filter(x=>x.archiviert).map(x=>zeile(x,false,true))];
   $('#archivH').hidden=!arch.length;$('#archivAuf').textContent=`Archiv (${arch.length}) ${ARCHIV_AUF?'▾':'▸'}`;$('#archivAuf').setAttribute('aria-expanded',ARCHIV_AUF?'true':'false');
   $('#archivListe').hidden=!ARCHIV_AUF||!arch.length;$('#archivListe').innerHTML=arch.join('');
   titelZeichnen();
 }
-function mobilOptionen(fNamen){return (KANAL?'':'<option value="" selected disabled>Kanal wählen …</option>')+[...sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,label:lampeEmoji(f)+' '+f.anzeige})),...sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}))].map(x=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`).join('');}
+// 1.3: am Handy dieselbe Gruppierung — je Bereich eine Überschrift (optgroup), dann „Kanäle“.
+function mobilOptionen(fNamen){const opt=(x)=>`<option value="${esc(x.name)}"${x.name===KANAL?' selected':''}${x.knopf?` data-knopf="${esc(x.knopf)}"`:''}>${esc(x.label)}${UNREAD[x.name]?` (${UNREAD[x.name]})`:''}</option>`;
+  const fs=sortiert(FENSTER).filter(x=>!x.archiviert).map(f=>({name:f.name,g:grpVon(f),label:lampeEmoji(f)+' '+f.anzeige+(f.art==='wissen'?' 💬':''),knopf:lampeEmoji(f)+' '+vollerName(f)}));
+  const ks=sortiert(KANAELE.filter(k=>!fNamen.has(k.name))).filter(x=>!x.archiviert).map(k=>({name:k.name,label:k.anzeige}));
+  const grp=(t,l)=>l.length?`<optgroup label="${esc(t)}">${l.map(opt).join('')}</optgroup>`:'';
+  const fenster=BEREICHE.length?[...BEREICHE.map(b=>grp(b.name,fs.filter(f=>f.g===b.id))),grp('Weitere Fenster',fs.filter(f=>!f.g))].join(''):grp('Fenster',fs);
+  return (KANAL?'':'<option value="" selected disabled>Kanal wählen …</option>')+fenster+grp('Kanäle',ks);}
 // Seitenleiste: Klick = Kanal öffnen, ⋯ = verwalten, Archiv auf/zu; Tastatur Enter/Leertaste.
 const ASIDE=document.querySelector('aside');
 ASIDE.addEventListener('click',e=>{const m=e.target.closest('.kmenu');if(m){e.stopPropagation();const b=m.getBoundingClientRect();kanalMenuAuf(m.closest('.kanal').dataset.k,b.right,b.bottom+4,m);return;}
@@ -839,7 +936,9 @@ ASIDE.addEventListener('dragleave',e=>{const r=e.target.closest&&e.target.closes
 ASIDE.addEventListener('drop',e=>{if(!DRAG)return;const r=e.target.closest&&e.target.closest('.kanal[data-k]');if(!r||r.dataset.sek!==DRAG.sek||r.dataset.k===DRAG.k)return;e.preventDefault();
   const oben=r.classList.contains('ziel-oben');const {l,rest}=sektionNamen(DRAG.k);const o=l.filter(k=>k!==DRAG.k);const i=o.indexOf(r.dataset.k);o.splice(oben?i:i+1,0,DRAG.k);einstSpeichern({reihenfolge:[...o,...rest]});});
 // Reihenfolge: sichtbare Namen der eigenen Sektion (l) + alles andere (rest), damit nichts verloren geht.
-function sektionNamen(name){const fN=fNamenSet();const inF=fN.has(name);const eig=sortiert(inF?FENSTER:KANAELE.filter(k=>!fN.has(k.name))),and=sortiert(inF?KANAELE.filter(k=>!fN.has(k.name)):FENSTER);
+// 1.3: Fenster ordnen sich nur innerhalb ihres Bereichs (die Gruppe ist die Sektion).
+function sektionNamen(name){const fN=fNamenSet();const inF=fN.has(name);let eig=sortiert(inF?FENSTER:KANAELE.filter(k=>!fN.has(k.name))),and=sortiert(inF?KANAELE.filter(k=>!fN.has(k.name)):FENSTER);
+  if(inF){const g=grpVon(fensterVon(name)||{});and=[...eig.filter(x=>grpVon(x)!==g),...and];eig=eig.filter(x=>grpVon(x)===g);}
   return {l:eig.filter(x=>!x.archiviert).map(x=>x.name),rest:[...eig.filter(x=>x.archiviert),...and].map(x=>x.name)};}
 function verschieben(name,richtung){const {l,rest}=sektionNamen(name);const i=l.indexOf(name),j=i+richtung;if(i<0||j<0||j>=l.length){toast(richtung<0?'Steht schon ganz oben.':'Steht schon ganz unten.');return;}[l[i],l[j]]=[l[j],l[i]];einstSpeichern({reihenfolge:[...l,...rest]});}
 async function einstSpeichern(patch){const r=await api('/api/kanal-einstellungen',{method:'POST',body:JSON.stringify(patch)});if(!r||!r.ok){fcStatus('⚠️ '+((r&&r.fehler)||'Konnte nicht speichern'));return false;}EINST=r.einstellungen;EINST_JSON=JSON.stringify(EINST);ladeKanaele();return true;}
@@ -863,12 +962,14 @@ function sucheZu(){sFeld.hidden=true;$('#sucheBox').hidden=true;sPanel.hidden=tr
 $('#sucheBtn').onclick=()=>sFeld.hidden?sucheAuf():sucheZu();
 const escRe=(w)=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 function markiere(t,ws){if(!ws.length)return esc(t);const re=new RegExp('('+ws.map(escRe).join('|')+')','gi');return String(t||'').split(re).map((p,i)=>i%2?'<mark>'+esc(p)+'</mark>':esc(p)).join('');}
-function sucheZeichnen(r,q){const t=r.treffer||[],ws=r.woerter||[];const label=(k)=>{const x=[...FENSTER,...KANAELE].find(y=>y.name===k);return x?anzeigeName(x):k;};
+function sucheZeichnen(r,q){const t=r.treffer||[],ws=r.woerter||[];const label=(k)=>{const f=fensterVon(k);if(f)return vollerName(f);const x=KANAELE.find(y=>y.name===k);return x?anzeigeName(x):k;};
   sPanel.innerHTML=`<div class="s-kopf"><b>${t.length?t.length+(t.length>=50?'+':'')+' Treffer':'Keine Treffer'}</b> für „${esc(q)}“<button type="button" class="knopf klein" id="sucheSchliessen" title="Schließen (Esc)">✕</button></div>`
-    +(t.length?t.map(m=>`<div class="s-treffer" data-k="${esc(m.kanal)}" data-id="${m.id}" role="button" tabindex="0" title="Zur Nachricht springen"><div class="s-meta"><span class="s-kanal">${esc(label(m.kanal))}</span><b>${esc(m.von)}</b><span>${esc(new Date(m.erstellt_am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}))}</span></div><div class="s-text">${markiere(m.ausschnitt,ws)}</div></div>`).join('')
+    +(t.length?t.map((m,i)=>`<div class="s-treffer${m.archiviert?' archiv':''}" data-k="${esc(m.kanal)}" data-id="${m.id}" data-i="${i}" role="button" tabindex="0" title="${m.archiviert?'Ganzen Text zeigen (der Kanal ist geschlossen)':'Zur Nachricht springen'}"${m.archiviert?' aria-expanded="false"':''}><div class="s-meta"><span class="s-kanal">${esc(m.archiviert?(m.kanal_label||m.kanal):label(m.kanal))}</span>${m.archiviert?'<span class="chip">archiviert</span>':''}<b>${esc(m.von)}</b><span>${esc(new Date(m.erstellt_am).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}))}</span></div><div class="s-text">${markiere(m.ausschnitt,ws)}</div></div>`).join('')
     :'<div class="muted" style="padding:.6rem .7rem">Nichts gefunden. Alle Wörter müssen vorkommen — ein kürzeres Wort probieren.</div>');
   sPanel.hidden=false;$('#sucheSchliessen').onclick=sucheZu;
-  sPanel.querySelectorAll('.s-treffer').forEach(el=>{const go=()=>springeZu(el.dataset.k,Number(el.dataset.id),el.querySelector('.s-text').textContent);el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};});}
+  sPanel.querySelectorAll('.s-treffer').forEach(el=>{const m=t[Number(el.dataset.i)]||{};
+    // 1.3: archivierte Treffer (Fenster geschlossen) klappen den ganzen Text hier im Panel auf — es gibt keinen Kanal zum Hinspringen.
+    const go=m.archiviert?()=>{const tx=el.querySelector('.s-text'),auf=!tx.classList.contains('voll');tx.classList.toggle('voll',auf);tx.innerHTML=markiere(auf?(m.text||m.ausschnitt):m.ausschnitt,ws);el.setAttribute('aria-expanded',String(auf));}:()=>springeZu(el.dataset.k,Number(el.dataset.id),el.querySelector('.s-text').textContent);el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go();}};});}
 async function suchen(q){sLetzte=q;const r=await api('/api/search?q='+encodeURIComponent(q));if(q!==sLetzte||!r||!r.ok)return;sucheZeichnen(r,q);}
 sFeld.addEventListener('input',()=>{sucheX();const q=sFeld.value.trim();clearTimeout(sTimer);if(q.length<2){sLetzte='';sPanel.hidden=true;return;}sTimer=setTimeout(()=>suchen(q),300);});
 sFeld.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();sucheZu();}else if(e.key==='Enter'){const q=sFeld.value.trim();if(q.length>=2)suchen(q);}});
@@ -1319,13 +1420,15 @@ function aufgFormZeigen(a){
     <label for="avBesch">Was dahinter steckt <span class="hinweis">— geht als Auftrag ins Fenster</span></label><textarea id="avBesch" name="beschreibung" maxlength="4000" placeholder="Ziel, Unterlagen, Links, Grenzen …">${esc(a.beschreibung)}</textarea>
     <div class="av-2"><div><label for="avLabel">Label <span class="hinweis">(frei, optional)</span></label><input id="avLabel" name="label" maxlength="24" value="${esc(a.label||'')}" placeholder="z. B. Website"></div><div><label for="avFaellig">Fällig <span class="hinweis">(optional)</span></label><input id="avFaellig" type="datetime-local" name="faellig_am" value="${aufgLokal(a.faellig_am)}"></div></div>
     <div class="av-2"><div><label for="avStartUm">Selbst starten um <span class="hinweis">(optional)</span></label><input id="avStartUm" type="datetime-local" name="start_um" value="${aufgLokal(a.start_um)}"></div><div><label for="avKarte">Board-Karte <span class="hinweis">(Stand + Abschluss landen im Verlauf)</span></label><select id="avKarte" name="karte_id"><option value="">— keine —</option>${kOpt}</select></div></div>
-    <label for="avOrdner">Arbeitsordner <span class="hinweis">— leer = Standard des Servers</span></label><input id="avOrdner" name="ordner" value="${esc(a.repo||a.ordner||'')}" placeholder="/pfad/zum/projekt">
+    ${BEREICHE.length?`<label for="avBereich">Bereich <span class="hinweis">— Ort, Ordner und Worktree kommen von dort, das Fenster startet als Baufenster</span></label><select id="avBereich" name="bereich_id"><option value="">— ohne Bereich (Standard des Servers) —</option>${BEREICHE.map(b=>`<option value="${b.id}"${Number(a.bereich_id??(neu?BEREICHE[0].id:0))===b.id?' selected':''}>${esc(b.name)}</option>`).join('')}</select>`:''}
+    <label for="avOrdner">Arbeitsordner <span class="hinweis">— leer = ${BEREICHE.length?'aus dem Bereich':'Standard des Servers'}</span></label><input id="avOrdner" name="ordner" value="${esc(a.repo||a.ordner||'')}" placeholder="/pfad/zum/projekt">
     <label class="av-check"><input type="checkbox" name="worktree"${a.repo?' checked':''}>Eigener git-Worktree (der Ordner ist ein Repo)</label>
     <label class="av-check"><input type="checkbox" name="erst_fragen"${a.erst_fragen!==0?' checked':''}>Erst Lage + Empfehlung + Rückfrage, dann bauen <span class="hinweis">(Vorlage im Start-Text)</span></label>
   </div><div class="av-fuss">${neu?'<button class="knopf pri gross" data-av="anlegen-start">▶ Anlegen &amp; starten</button><button class="knopf" data-av="anlegen">Nur anlegen</button>':'<button class="knopf pri" data-av="speichern">Speichern</button>'}<button class="knopf" data-av="${neu?'zu':'edit-zu'}">Abbrechen</button></div></div>`;
 }
 function aufgFormDaten(){const f=(n)=>AV.querySelector(`[name="${n}"]`);const ordner=f('ordner').value.trim(),wt=f('worktree').checked;
-  return {titel:f('titel').value.trim(),beschreibung:f('beschreibung').value,label:f('label').value.trim(),faellig_am:aufgIso(f('faellig_am').value),start_um:aufgIso(f('start_um').value),karte_id:f('karte_id').value||null,ordner:wt?'':ordner,repo:wt?ordner:'',erst_fragen:f('erst_fragen').checked};}
+  const bs=f('bereich_id');
+  return {bereich_id:bs?(Number(bs.value)||null):undefined,titel:f('titel').value.trim(),beschreibung:f('beschreibung').value,label:f('label').value.trim(),faellig_am:aufgIso(f('faellig_am').value),start_um:aufgIso(f('start_um').value),karte_id:f('karte_id').value||null,ordner:wt?'':ordner,repo:wt?ordner:'',erst_fragen:f('erst_fragen').checked};}
 // Alle: Offen (ziehbar, ▲/▼ fürs Handy) · Erledigt · Papierkorb · Auswertung
 function aufgZeile(a,i,mitPfeilen){return `<div class="av-zeile ${aufgKlasse(a)}" data-auf="${a.id}"${mitPfeilen?' draggable="true"':''} role="button" tabindex="0"><span class="av-nr">${mitPfeilen?i+1:''}</span><span class="av-zt"><b>${esc(a.titel)}</b><small>${a.label?esc(a.label)+' · ':''}${aufgMeta(a)}</small></span><span class="av-akt">${mitPfeilen?`<button class="knopf klein" data-av="hoch" title="Nach oben" aria-label="Nach oben">▲</button><button class="knopf klein" data-av="runter" title="Nach unten" aria-label="Nach unten">▼</button>`:''}${a.status==='geplant'?'<button class="knopf klein pri" data-av="start" title="Starten" aria-label="Starten">▶</button>':''}${a.status==='abgebrochen'?'<button class="knopf klein" data-av="zurueck" title="Zurückholen">↻</button>':''}</span></div>`;}
 function aufgAlle(){
@@ -1410,6 +1513,194 @@ const _aufgKarteOeffnen=karteOeffnen;karteOeffnen=function(id){_aufgKarteOeffnen
   span.innerHTML='<button class="knopf" id="kAufgabe" title="Aufgabe mit Zeitmessung zu dieser Karte — Stand und Abschluss landen im Verlauf">🎯 Als Aufgabe</button>';
   $('#kAufgabe').onclick=async()=>{const r=await aufgPost('/api/aufgaben',{titel:k.titel,beschreibung:k.beschreibung,karte_id:k.id});if(r&&r.ok){$('#dlgKarte').close();await aufgLaden();aufgViewAuf('aufgabe',r.aufgabe.id);}else fcStatus(aufgFehler(r));};};
 /* === /Aufgaben (1.2) === */
+/* === Bereiche (1.3) === */
+// ── Eigenes Dropdown: verbessert jedes <select> im Kit. Das Select bleibt (versteckt) der Wertträger — value, change-
+// Events und das Befüllen per innerHTML laufen wie bisher; Knopf + Liste ziehen per MutationObserver und value-Setter mit.
+const SEL_V=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value'),SEL_I=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'selectedIndex');
+let SEL_AUF=null; // {sel, liste, aktiv}
+function auswahlVerbessern(sel){
+  if(!sel||sel.dataset.fcSel||sel.multiple)return;sel.dataset.fcSel='1';
+  const w=document.createElement('span');w.className=('fc-sel '+sel.className).trim();if(sel.getAttribute('style')){w.setAttribute('style',sel.getAttribute('style'));sel.removeAttribute('style');}
+  sel.className='fc-sel-nativ';sel.before(w);w.append(sel);
+  const k=document.createElement('button');k.type='button';k.className='fc-sel-knopf';k.setAttribute('aria-haspopup','listbox');k.setAttribute('aria-expanded','false');
+  k.innerHTML='<span class="fc-sel-text"></span><span class="fc-sel-pfeil" aria-hidden="true">▾</span>';w.append(k);
+  const lb=sel.getAttribute('aria-label')||(sel.id&&document.querySelector(`label[for="${sel.id}"]`)||{}).textContent||'';
+  if(sel.id)k.id=sel.id+'Knopf';
+  sel.tabIndex=-1;sel.setAttribute('aria-hidden','true');sel._fcKnopf=k;
+  const neu=()=>{const o=sel.options[SEL_I.get.call(sel)];k.querySelector('.fc-sel-text').textContent=o?(o.dataset.knopf||o.textContent):'';k.disabled=sel.disabled;w.hidden=sel.hidden;
+    if(lb)k.setAttribute('aria-label',lb.trim().replace(/\s+/g,' ')+': '+(o?o.textContent:''));};
+  sel._fcNeu=neu;
+  Object.defineProperty(sel,'value',{configurable:true,get(){return SEL_V.get.call(this);},set(v){SEL_V.set.call(this,v);neu();}});
+  Object.defineProperty(sel,'selectedIndex',{configurable:true,get(){return SEL_I.get.call(this);},set(v){SEL_I.set.call(this,v);neu();}});
+  new MutationObserver(()=>{neu();if(SEL_AUF&&SEL_AUF.sel===sel)listeZeichnen();}).observe(sel,{childList:true,subtree:true,attributes:true,characterData:true});
+  sel.addEventListener('change',neu);sel.addEventListener('focus',()=>k.focus());
+  k.addEventListener('click',(e)=>{e.stopPropagation();SEL_AUF&&SEL_AUF.sel===sel?auswahlZu():auswahlAuf(sel);});
+  k.addEventListener('keydown',(e)=>{const auf=SEL_AUF&&SEL_AUF.sel===sel;if(!auf&&['ArrowDown','ArrowUp','Enter',' '].includes(e.key)){e.preventDefault();auswahlAuf(sel);return;}if(auf)auswahlTaste(e);});
+  neu();
+}
+const selWaehlbar=(o)=>o&&!o.disabled&&!(o.parentElement&&o.parentElement.disabled);
+function listeZeichnen(){
+  const {sel,liste}=SEL_AUF;const cur=SEL_I.get.call(sel);let html='';
+  const opt=(o)=>{if(o.disabled&&o.value===''&&o.index===cur&&o.parentElement===sel)return '';return `<div class="fc-sel-opt${o.index===SEL_AUF.aktiv?' aktiv':''}" role="option" id="fcSelO${o.index}" data-i="${o.index}" aria-selected="${o.index===cur}"${selWaehlbar(o)?'':' aria-disabled="true"'}>${esc(o.textContent)}</div>`;};
+  for(const c of sel.children){if(c.tagName==='OPTGROUP'){if(c.children.length)html+=`<div class="fc-sel-grp" role="presentation">${esc(c.label)}</div>`+[...c.children].map(opt).join('');}else if(c.tagName==='OPTION')html+=opt(c);}
+  liste.innerHTML=html||'<div class="fc-sel-grp">Keine Auswahl</div>';
+  if(SEL_AUF.aktiv>=0)sel._fcKnopf.setAttribute('aria-activedescendant','fcSelO'+SEL_AUF.aktiv);
+}
+function listePlatzieren(){
+  const {sel,liste}=SEL_AUF;const r=sel._fcKnopf.getBoundingClientRect();const vw=window.innerWidth,vh=window.innerHeight;
+  const breite=Math.min(Math.max(r.width,200),vw-16);liste.style.width=breite+'px';liste.style.left=Math.max(8,Math.min(r.left,vw-breite-8))+'px';
+  const unten=vh-r.bottom-12,oben=r.top-12,hoch=Math.min(liste.scrollHeight+2,340);
+  if(unten<Math.min(hoch,200)&&oben>unten){liste.style.top='';liste.style.bottom=(vh-r.top+4)+'px';liste.style.maxHeight=Math.min(340,oben)+'px';}
+  else{liste.style.bottom='';liste.style.top=(r.bottom+4)+'px';liste.style.maxHeight=Math.max(120,Math.min(340,unten))+'px';}
+}
+function auswahlAuf(sel){
+  auswahlZu();const k=sel._fcKnopf;if(k.disabled)return;
+  const liste=document.createElement('div');liste.className='fc-sel-liste';liste.setAttribute('role','listbox');liste.id='fcSelListe';liste.tabIndex=-1;
+  (sel.closest('dialog[open]')||document.body).append(liste); // im offenen Dialog bleiben (Top-Layer), sonst am body
+  SEL_AUF={sel,liste,aktiv:SEL_I.get.call(sel)};listeZeichnen();listePlatzieren();
+  k.setAttribute('aria-expanded','true');k.setAttribute('aria-controls','fcSelListe');
+  const a=liste.querySelector('.fc-sel-opt[aria-selected="true"]');if(a)a.scrollIntoView({block:'nearest'});
+  liste.addEventListener('mousedown',e=>e.preventDefault()); // Fokus bleibt am Knopf
+  liste.addEventListener('click',e=>{const o=e.target.closest('.fc-sel-opt');if(!o||o.getAttribute('aria-disabled')==='true')return;auswahlWaehlen(Number(o.dataset.i));});
+  liste.addEventListener('mousemove',e=>{const o=e.target.closest('.fc-sel-opt:not([aria-disabled="true"])');if(o&&Number(o.dataset.i)!==SEL_AUF.aktiv){SEL_AUF.aktiv=Number(o.dataset.i);liste.querySelectorAll('.aktiv').forEach(x=>x.classList.remove('aktiv'));o.classList.add('aktiv');}});
+}
+function auswahlZu(fokus){if(!SEL_AUF)return;const {sel,liste}=SEL_AUF;SEL_AUF=null;liste.remove();const k=sel._fcKnopf;k.setAttribute('aria-expanded','false');k.removeAttribute('aria-activedescendant');if(fokus)k.focus();}
+function auswahlWaehlen(i){const {sel}=SEL_AUF;const alt=SEL_I.get.call(sel);auswahlZu(true);if(i===alt)return;sel.selectedIndex=i;sel.dispatchEvent(new Event('input',{bubbles:true}));sel.dispatchEvent(new Event('change',{bubbles:true}));}
+function auswahlTaste(e){
+  const {sel,liste}=SEL_AUF;const opts=[...sel.options].filter(selWaehlbar);const pos=opts.findIndex(o=>o.index===SEL_AUF.aktiv);
+  const geh=(j)=>{const o=opts[Math.max(0,Math.min(opts.length-1,j))];if(!o)return;SEL_AUF.aktiv=o.index;listeZeichnen();const el=liste.querySelector('.aktiv');if(el)el.scrollIntoView({block:'nearest'});};
+  if(e.key==='ArrowDown'){e.preventDefault();geh(pos+1);}else if(e.key==='ArrowUp'){e.preventDefault();geh(pos<0?opts.length-1:pos-1);}
+  else if(e.key==='Home'){e.preventDefault();geh(0);}else if(e.key==='End'){e.preventDefault();geh(opts.length-1);}
+  else if(e.key==='Enter'||e.key===' '){e.preventDefault();if(SEL_AUF.aktiv>=0&&selWaehlbar(sel.options[SEL_AUF.aktiv]))auswahlWaehlen(SEL_AUF.aktiv);}
+  else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();auswahlZu(true);}
+  else if(e.key==='Tab')auswahlZu();
+  else if(e.key.length===1){const t=e.key.toLowerCase(),start=pos+1;const j=[...opts.slice(start),...opts.slice(0,start)].find(o=>o.textContent.replace(/^\W+/u,'').toLowerCase().startsWith(t));if(j)geh(opts.indexOf(j));}
+}
+document.addEventListener('pointerdown',e=>{if(SEL_AUF&&!SEL_AUF.liste.contains(e.target)&&!SEL_AUF.sel._fcKnopf.contains(e.target))auswahlZu();},true);
+window.addEventListener('resize',()=>auswahlZu());
+document.addEventListener('scroll',e=>{if(SEL_AUF&&!SEL_AUF.liste.contains(e.target))auswahlZu();},true);
+document.addEventListener('close',e=>{if(SEL_AUF&&e.target.contains&&e.target.contains(SEL_AUF.liste))auswahlZu();},true);
+// Alle vorhandenen und alle später gezeichneten Selects verbessern (Aufgaben-Formular, Karten-Dialog, …).
+document.querySelectorAll('select').forEach(auswahlVerbessern);
+new MutationObserver((ms)=>{for(const m of ms)for(const n of m.addedNodes){if(n.nodeType!==1)continue;if(n.tagName==='SELECT')auswahlVerbessern(n);else if(n.querySelectorAll)n.querySelectorAll('select').forEach(auswahlVerbessern);}}).observe(document.body,{childList:true,subtree:true});
+
+// ── Bereiche: Vorlage für Fenster (Ort, Ordner/Repo + Worktree). Je Bereich zwei Knöpfe: 🔨 Bau und 💬 Wissen. ──
+var BEREICHE=[],BEREICH_STD=null;
+let BZU={};try{BZU=JSON.parse(localStorage.getItem('fc_bereiche_zu')||'{}')||{};}catch{BZU={};}
+const bereichVon=(id)=>BEREICHE.find(b=>b.id===Number(id))||null;
+function grpVon(f){return f&&f.bereich_id&&bereichVon(f.bereich_id)?Number(f.bereich_id):0;}
+function vollerName(f){const n=anzeigeName(f);const b=f&&f.bereich_id?bereichVon(f.bereich_id):null;return b&&!EINST.namen[f.name]?`${b.name} · ${n}`:n;}
+function bereichKurz(b){const o=String(b.ort||'lokal');const ort=o==='lokal'?'Dieser Server':o.startsWith('ssh:')?o.slice(4):((GERAETE.find(g=>'geraet:'+g.id===o)||{}).name||'Gerät');
+  const ord=b.ordner?String(b.ordner).replace(/\/+$/,'').split('/').pop()||b.ordner:'Standard-Ordner';return `${ort} · ${ord}${b.worktree?' · Worktree':''}`;}
+function fensterGruppenHtml(fs){
+  if(!BEREICHE.length)return fs.map(x=>zeile(x,true)).join('')||'<div class="muted" style="padding:.3rem .6rem">Noch kein Fenster — oben ＋ legt den ersten Bereich an.</div>';
+  const kopf=(id,name,rows,plus)=>{const zu=!!BZU[id];const n=rows.reduce((a,x)=>a+(UNREAD[x.name]||0),0);
+    return `<div class="grp${zu?' zu':''}${zu&&rows.some(x=>x.name===KANAL)?' hat-aktiv':''}" data-grp="${id}" role="button" tabindex="0" aria-expanded="${!zu}" title="${zu?'Bereich aufklappen':'Bereich zuklappen'}"><span class="grp-pfeil" aria-hidden="true">▾</span><span class="grp-n">${esc(name)}</span><span class="grp-zahl">${zu?(n?n+' neu · ':'')+rows.length:''}</span>${plus?`<button type="button" class="grp-plus" data-grp-plus="${id}" title="Neues Fenster in ${esc(name)}" aria-label="Neues Fenster in ${esc(name)}">＋</button>`:''}</div>`
+      +(zu?'':rows.map(x=>zeile(x,true)).join('')||(plus?'<div class="grp-leer">noch kein Fenster — ＋</div>':''));};
+  const rest=fs.filter(x=>!grpVon(x));
+  return BEREICHE.map(b=>kopf(b.id,b.name,fs.filter(x=>grpVon(x)===b.id),true)).join('')+(rest.length?kopf('weitere','Weitere Fenster',rest,false):'');
+}
+function grpSchalten(id){BZU[id]=!BZU[id];try{localStorage.setItem('fc_bereiche_zu',JSON.stringify(BZU));}catch{/* geht auch ohne */}seitenleisteZeichnen(fNamenSet());}
+ASIDE.addEventListener('click',e=>{const p=e.target.closest('.grp-plus');if(p){e.stopPropagation();fpAuf(p,{nur:Number(p.dataset.grpPlus)});return;}const g=e.target.closest('.grp[data-grp]');if(g)grpSchalten(g.dataset.grp);});
+ASIDE.addEventListener('keydown',e=>{const g=e.target.closest&&e.target.closest('.grp[data-grp]');if(g&&e.target===g&&(e.key==='Enter'||e.key===' ')){e.preventDefault();grpSchalten(g.dataset.grp);}});
+
+// ── ＋-Popover „Neues Fenster“ (Stil wie intern): ohne Bereich direkt „Ersten Bereich anlegen“, sonst je Bereich Bau/Wissen ──
+const FP=document.createElement('div');FP.className='fp';FP.hidden=true;FP.setAttribute('role','dialog');FP.setAttribute('aria-modal','true');FP.setAttribute('aria-label','Neues Fenster');document.body.append(FP);
+const FP_SCRIM=document.createElement('div');FP_SCRIM.className='fp-scrim';FP_SCRIM.hidden=true;document.body.append(FP_SCRIM);
+let FP_ANKER=null,FP_ANSICHT={};
+function kuerzelVon(name){const s=String(name||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,16).replace(/-+$/,'');return s.replace(/[-0-9]+$/,'')||s||'fenster';}
+async function bereicheLaden(){const r=await api('/api/bereiche');if(r&&r.ok){BEREICHE=r.bereiche;BEREICH_STD=r.standard||null;}return r;}
+async function fpAuf(anker,ansicht){FP_ANKER=anker||null;FP_ANSICHT=ansicht||{};auswahlZu();await Promise.all([bereicheLaden(),ladeGeraete()]);FP_SCRIM.hidden=false;FP.hidden=false;fpZeichnen();}
+function fpZu(){FP.hidden=true;FP_SCRIM.hidden=true;FP.innerHTML='';const a=FP_ANKER;FP_ANKER=null;if(a&&a.focus&&document.contains(a))a.focus();}
+FP_SCRIM.onclick=fpZu;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!FP.hidden&&!SEL_AUF){e.preventDefault();fpZu();}});
+function fpPlatzieren(){
+  if(FP.hidden)return;FP.classList.remove('lang','ohne-pfeil');FP.style.left=FP.style.top='';
+  if(window.innerWidth<=720)return; // Blatt von unten (CSS)
+  const r=FP_ANKER&&document.contains(FP_ANKER)?FP_ANKER.getBoundingClientRect():null;
+  const w=FP.offsetWidth,h=Math.min(FP.scrollHeight,window.innerHeight-16);FP.classList.toggle('lang',FP.scrollHeight>window.innerHeight-16);
+  if(!r||!r.width){FP.classList.add('ohne-pfeil');FP.style.left=Math.max(8,(window.innerWidth-w)/2)+'px';FP.style.top=Math.max(8,window.innerHeight*.12)+'px';return;}
+  let links=r.right+12,oben=Math.max(8,Math.min(r.top-10,window.innerHeight-h-8));
+  if(links+w>window.innerWidth-8){links=Math.max(8,Math.min(r.left,window.innerWidth-w-8));oben=Math.min(r.bottom+10,window.innerHeight-h-8);FP.classList.add('ohne-pfeil');}
+  FP.style.left=links+'px';FP.style.top=oben+'px';FP.style.setProperty('--pfeil-top',Math.max(12,Math.min(h-24,r.top-oben+4))+'px');
+}
+window.addEventListener('resize',()=>{if(!FP.hidden)fpPlatzieren();});
+function fpZeichnen(){
+  if(!BEREICHE.length||FP_ANSICHT.form)fpFormZeichnen(FP_ANSICHT.form&&FP_ANSICHT.form.id?bereichVon(FP_ANSICHT.form.id):null);
+  else{
+    const liste=FP_ANSICHT.nur?BEREICHE.filter(b=>b.id===FP_ANSICHT.nur):BEREICHE;
+    FP.setAttribute('aria-label','Neues Fenster');
+    FP.innerHTML=`<h4>Neues Fenster</h4><p class="fp-hin">Wähl Bereich und Art — Name und Auto-Modus kommen von selbst.</p>`
+      +liste.map(b=>`<div class="fp-bereich"><div class="fp-bk"><b>${esc(b.name)}</b><small title="${esc(b.ordner||'')}">${esc(bereichKurz(b))}</small><button type="button" class="fp-edit" data-fp-edit="${b.id}" title="Bereich bearbeiten" aria-label="Bereich ${esc(b.name)} bearbeiten">✎</button></div>
+        <div class="fp-wo"><button type="button" data-fp-start="${b.id}" data-art="bau"><b>🔨 Bau</b><small>Baufenster — darf alles${b.worktree&&b.ort==='lokal'?', eigener Worktree':''}</small></button>
+        <button type="button" data-fp-start="${b.id}" data-art="wissen"><b>💬 Wissen</b><small>beantwortet Fragen, liest und erklärt — baut nichts</small></button></div></div>`).join('')
+      +`<div class="fp-neu">${FP_ANSICHT.nur?'<button type="button" class="fp-link" data-fp="alle">Alle Bereiche …</button>':'<button type="button" class="knopf" data-fp="neu">＋ Bereich anlegen</button>'}<button type="button" class="fp-link" data-fp="einzeln">Einzelnes Fenster mit eigenen Angaben …</button><button type="button" class="fp-link" data-fp="geraete">Gerät koppeln …</button></div>`;
+    const erster=FP.querySelector('[data-fp-start]');fpPlatzieren();if(erster)erster.focus();
+  }
+}
+function fpFormZeichnen(b){
+  const neu=!b,erster=!BEREICHE.length,std=BEREICH_STD||{};
+  const name=neu?(erster?(std.name||'Projekt'):''):b.name;
+  FP.setAttribute('aria-label',neu?(erster?'Ersten Bereich anlegen':'Bereich anlegen'):'Bereich bearbeiten');
+  FP.innerHTML=`<h4>${neu?(erster?'Ersten Bereich anlegen':'Bereich anlegen'):'Bereich bearbeiten'}</h4>
+    <p class="fp-hin">Ein Bereich merkt sich Ort, Ordner und Arbeitsweise. Danach startet ＋ → Bereich ein Fenster mit einem Klick — 🔨 Bau oder 💬 Wissen.</p>
+    <label for="fpName">Name</label><input id="fpName" maxlength="40" value="${esc(name)}" placeholder="z. B. Website, Buchhaltung">
+    <label for="fpKuerzel">Kürzel <span class="hinweis">— für die Fensternamen, z. B. <span id="fpBsp"></span></span></label><input id="fpKuerzel" maxlength="16" value="${esc(neu?kuerzelVon(name):b.kuerzel)}">
+    <label for="fpOrt">Ort</label><select id="fpOrt">${ortOptionen()}</select>
+    <input id="fpHost" placeholder="user@rechner (SSH-Schlüssel muss eingerichtet sein)" hidden style="margin-top:.35rem">
+    <label for="fpOrdner">Arbeitsordner oder Repo</label><input id="fpOrdner" value="${esc(neu?(erster?std.ordner||'':''):b.ordner)}" placeholder="${esc(std.ordner||'/pfad/zum/projekt')} (leer = Standard)">
+    <label class="fp-check"><input type="checkbox" id="fpWt"${(neu?(erster?!!std.repo:false):!!b.worktree)?' checked':''}>Eigener git-Worktree je Baufenster <span class="hinweis">(Ordner ist ein Repo)</span></label>
+    <label for="fpText">Erster Satz ans Baufenster <span class="hinweis">(optional)</span></label><textarea id="fpText" maxlength="3900" placeholder="z. B. Lies die CLAUDE.md und melde dich startklar.">${esc(neu?'':b.start_text||'')}</textarea>
+    <div class="reihe">${neu?`${erster?'':'<button type="button" class="knopf links" data-fp="liste">Zurück</button>'}<button type="button" class="knopf" data-fp="speichern">Nur anlegen</button><button type="button" class="knopf pri" data-fp="speichern-start">Anlegen &amp; erstes Fenster starten</button>`
+      :`<button type="button" class="knopf rot links" data-fp="loeschen">Bereich löschen</button><button type="button" class="knopf" data-fp="liste">Abbrechen</button><button type="button" class="knopf pri" data-fp="speichern">Speichern</button>`}</div>`;
+  const ortSel=$('#fpOrt'),host=$('#fpHost'),kz=$('#fpKuerzel');
+  let kzEigen=!neu;
+  const bsp=()=>{$('#fpBsp').textContent=(kuerzelVon(kz.value)||'fenster')+'-bau-1';};
+  if(!neu){const o=String(b.ort||'lokal');if(o.startsWith('ssh:')){ortSel.value='ssh';host.value=o.slice(4);}else if([...ortSel.options].some(x=>x.value===o))ortSel.value=o;}
+  const ortNeu=()=>{const v=ortSel.value;host.hidden=v!=='ssh';$('#fpWt').closest('label').hidden=v!=='lokal';if(v==='koppeln'){ortSel.value='lokal';fpZu();geraetDialog();}fpPlatzieren();};
+  ortSel.addEventListener('change',ortNeu);ortNeu();
+  $('#fpName').addEventListener('input',()=>{if(!kzEigen)kz.value=kuerzelVon($('#fpName').value);bsp();});
+  kz.addEventListener('input',()=>{kzEigen=!!kz.value.trim();bsp();});bsp();
+  fpPlatzieren();const n=$('#fpName');n.focus();n.select();
+}
+function fpFormDaten(){const v=$('#fpOrt').value;const ort=v==='ssh'?'ssh:'+$('#fpHost').value.trim():(v.startsWith('geraet:')?v:'lokal');
+  return {name:$('#fpName').value.trim(),kuerzel:$('#fpKuerzel').value.trim(),ort,ordner:$('#fpOrdner').value.trim(),worktree:ort==='lokal'&&$('#fpWt').checked,start_text:$('#fpText').value.trim()};}
+async function bereichFenster(id,art,knopf){
+  const alle=FP.querySelectorAll('[data-fp-start]');alle.forEach(x=>x.disabled=true);if(knopf){knopf.classList.add('an');const s=knopf.querySelector('small');if(s)s.textContent='startet …';}
+  const r=await api(`/api/bereiche/${id}/fenster`,{method:'POST',body:JSON.stringify({art})});
+  if(!r||!r.ok){alle.forEach(x=>x.disabled=false);fpZeichnen();fcStatus('⚠️ '+((r&&r.fehler)||'Fenster ging nicht'));return;}
+  fensterGestartet(r);
+}
+function fensterGestartet(r){fpZu();toast(r.start&&r.start.ok===false?'Fenster angelegt — Start: '+(r.start.fehler||'ging nicht'):`${r.fenster.art==='wissen'?'💬':'🔨'} ${r.fenster.label} läuft an — es meldet sich gleich hier.`);
+  ladeKanaele().then(()=>kanalWechseln(r.fenster.name));}
+FP.addEventListener('click',async e=>{
+  const st=e.target.closest('[data-fp-start]');if(st){bereichFenster(Number(st.dataset.fpStart),st.dataset.art,st);return;}
+  const ed=e.target.closest('[data-fp-edit]');if(ed){FP_ANSICHT={...FP_ANSICHT,form:{id:Number(ed.dataset.fpEdit)}};fpZeichnen();return;}
+  const b=e.target.closest('[data-fp]');if(!b)return;const a=b.dataset.fp;
+  if(a==='neu'){FP_ANSICHT={form:{}};fpZeichnen();return;}
+  if(a==='liste'){FP_ANSICHT={nur:FP_ANSICHT.nur};fpZeichnen();return;}
+  if(a==='alle'){FP_ANSICHT={};fpZeichnen();return;}
+  if(a==='einzeln'){fpZu();einzelFensterDialog();return;}
+  if(a==='geraete'){fpZu();geraetDialog();return;}
+  const id=FP_ANSICHT.form&&FP_ANSICHT.form.id;
+  if(a==='loeschen'){if(b.dataset.frag!=='1'){b.dataset.frag='1';b.textContent='Wirklich löschen?';setTimeout(()=>{if(document.contains(b)){b.dataset.frag='';b.textContent='Bereich löschen';}},6000);return;}
+    b.disabled=true;const r=await api(`/api/bereiche/${id}/loeschen`,{method:'POST',body:'{}'});b.disabled=false;
+    if(!r||!r.ok){fcStatus('⚠️ '+((r&&r.fehler)||'Löschen ging nicht'));return;}
+    toast('Bereich gelöscht.'+(r.geloest&&r.geloest.length?' Seine Fenster stehen jetzt unter „Weitere Fenster“.':''));await bereicheLaden();ladeKanaele();FP_ANSICHT={};if(BEREICHE.length)fpZeichnen();else fpZu();return;}
+  if(a==='speichern'||a==='speichern-start'){
+    const d=fpFormDaten();if(!d.name){$('#fpName').focus();fcStatus('⚠️ Der Bereich braucht einen Namen.');return;}
+    if(d.ort==='ssh:'){$('#fpHost').focus();fcStatus('⚠️ SSH-Ziel fehlt (user@rechner).');return;}
+    b.disabled=true;const alt=b.textContent;b.textContent='…';
+    const r=await api(id?`/api/bereiche/${id}`:'/api/bereiche',{method:'POST',body:JSON.stringify({...d,...(a==='speichern-start'?{starten:'bau'}:{})})});
+    b.disabled=false;b.textContent=alt;
+    if(!r||!r.ok){fcStatus('⚠️ '+((r&&r.fehler)||'Speichern ging nicht'));if(r&&r.bereich){await bereicheLaden();ladeKanaele();}return;}
+    await bereicheLaden();
+    if(r.fenster){fensterGestartet(r);return;}
+    toast(id?'Bereich gespeichert.':`Bereich „${r.bereich.name}“ angelegt — ＋ startet jetzt Fenster darin.`);ladeKanaele();FP_ANSICHT={};fpZeichnen();}
+});
+$('#neuFenster').onclick=(e)=>{e.stopPropagation();FP.hidden?fpAuf(e.currentTarget):fpZu();};
+$('#neuFensterMobil').onclick=(e)=>{e.stopPropagation();FP.hidden?fpAuf(e.currentTarget):fpZu();};
+/* === /Bereiche (1.3) === */
 gate();
 </script>
 </body>

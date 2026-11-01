@@ -345,7 +345,7 @@ const server = http.createServer(async (req, res) => {
     const admin = wer.rolle === 'admin';
 
     if (url.pathname === '/api/channels' && req.method === 'GET') {
-      return json(res, 200, { ok: true, channels: kanaele(db), fenster: fensterAlle(db).map(fensterMitZustand) });
+      return json(res, 200, { ok: true, channels: kanaele(db), fenster: fensterAlle(db).map(fensterMitZustand), bereiche: admin ? bereiche.alle() : [] }); // 1.3: Bereiche für die Gruppierung
     }
     if (url.pathname === '/api/channels' && req.method === 'POST') {
       const b = await koerper(req); const k = kanalAnlegen(db, b);

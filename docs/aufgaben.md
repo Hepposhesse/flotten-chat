@@ -18,6 +18,9 @@ Auftrag ist der Start-Text, die Zeit läuft mit. Am Ende steht eine Abschluss-Ka
   länger als 6 Stunden aus, wird nicht nachgeholt — die Meldung steht im Kanal „Erinnerungen“.
 - **Fällig**: färbt die Kachel und meldet sich einmal je Termin im Kanal „Erinnerungen“.
 - **Label**: ein freies Wort je Aufgabe (z. B. „Website“), optional.
+- **Bereich** (1.3, Standard: der erste): ▶ Starten nimmt Ort, Ordner bzw. Repo und Worktree aus dem Bereich, wenn die
+  Aufgabe keinen eigenen Ordner hat, und startet ein Baufenster (Auto-Modus) unter diesem Bereich. Benannt wird das
+  Fenster weiter nach dem Titel.
 
 ## Wie gemessen wird
 Der Server-Takt (alle 20 s) ordnet jeden Takt einer laufenden Aufgabe zu:

@@ -54,13 +54,22 @@ die Liste mit Stand, Weiter im alten oder neuen Fenster, Kanal schließen = erle
 Uhrzeit, Papierkorb, Auswertung je Tag. Erinnerungen und Board docken an (▶ Fenster an einer Erinnerung = Aufgabe; Karte
 als feste Stelle für den Stand) — siehe [docs/aufgaben.md](docs/aufgaben.md).
 
+Neu in 1.3: **Bereiche** — „＋“ an „Fenster“ fragt nicht mehr jedes Mal Ort, Ordner und Modus ab. Ein Bereich merkt
+sich Ort, Ordner bzw. Repo (eigener Worktree je Baufenster) und einen ersten Satz; danach startet ein Klick ein
+**🔨 Baufenster** („Bau 1“, „Bau 2“ …) oder ein **💬 Wissensfenster** („Wissen 1“ …: liest, erklärt, beantwortet Fragen,
+baut nichts — Schreib-Werkzeuge sind gesperrt). Alle Fenster laufen im Auto-Modus. Die Kanalliste gruppiert die Fenster
+unter ihrem Bereich (zuklappbar, ＋ an der Überschrift), Aufgaben starten als Baufenster ihres Bereichs. Dazu ein
+**eigenes Dropdown** in allen Formularen (öffnet direkt unter dem Feld, im Design des Chats, Tastatur ↑/↓/Enter/Esc)
+und die **Suche findet auch geschlossene Fenster** (gekennzeichnet „archiviert“, Klick zeigt den ganzen Text).
+
 ## Quickstart
 ```bash
 git clone https://github.com/Hepposhesse/flotten-chat && cd flotten-chat
 claude            # Claude Code im Repo öffnen
 > let's go        # Claude richtet den Ort ein (Server, Dienst, erstes Fenster)
 ```
-Oder von Hand: `node bin/flottenchat.mjs up` → `http://127.0.0.1:3900/` → Zugang anlegen → „＋ Fenster“.
+Oder von Hand: `node bin/flottenchat.mjs up` → `http://127.0.0.1:3900/` → Zugang anlegen → „＋“ an „Fenster“ →
+ersten Bereich anlegen → „Anlegen & erstes Fenster starten“.
 
 ## Betrieb (dauerhaft)
 **Linux (systemd):**
@@ -106,7 +115,9 @@ Worktrees listet `GET /api/worktrees?repo=…`; entfernt wird nur, was sauber is
 Fenster besitzt.
 
 ## API (Auszug, Bearer Admin-Token oder Login-Cookie)
-`GET /api/fenster` · `POST /api/fenster {name, ordner|repo, ort, start_modus, start_text}` ·
+`GET/POST /api/bereiche {name, kuerzel?, ort?, ordner|repo, worktree?, start_text?}` · `POST /api/bereiche/<id>` (ändern) ·
+`POST /api/bereiche/<id>/fenster {art: bau|wissen, start_text?}` · `POST /api/bereiche/<id>/loeschen` (409, solange Fenster laufen) ·
+`GET /api/fenster` · `POST /api/fenster {name, ordner|repo, ort, start_text}` (immer Auto-Modus) ·
 `POST /api/fenster/<name>/(start|neustart|stop|schliessen|loeschen|tippen)` · `GET /api/fenster/<name>/terminal`, `POST …/tasten` ·
 `GET/POST /api/karten`, `POST /api/karten/<id>/verlauf` ·
 `GET/POST /api/reminders`, `POST /api/reminders/<id>/(erledigt|verschieben|session|ordner|titel|notiz|uebergeben)`, `GET/POST /api/reminders/ordner`, `POST /api/reminders/ordner/<id>/(umbenennen|loeschen)` ·
@@ -114,7 +125,7 @@ Fenster besitzt.
 `POST /api/send {kanal, inhalt, media?, client_id?}` · `GET /api/messages?kanal=&seit=` · `GET /api/events` (SSE) ·
 `POST /api/alarm` (Header `x-fc-alarm-token`) · `POST /api/hilfe/antwort` (Header `x-fc-hilfe-token`) ·
 `GET/POST /api/kanal-einstellungen {reihenfolge, archiviert, stumm, namen}` · `GET /api/unread` · `GET/POST /api/gelesen {kanal, bis, force?}` ·
-`GET /api/search?q=` (max. 50 Treffer, nur sichtbare Kanäle).
+`GET /api/search?q=` (max. 50 Treffer; Treffer aus geschlossenen Fenstern mit `archiviert: true` und vollem `text`).
 
 ## Regeln, die wir gelernt haben (und die das Produkt prägen)
 - **Chat ist Absicht, Code ist Zustand.** Ein Fenster liest nie den Verlauf nach; sein Stand lebt an

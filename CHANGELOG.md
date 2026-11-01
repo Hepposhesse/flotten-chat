@@ -3,6 +3,39 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [1.3.0] — 2026-11-01
+
+### Bereiche
+- **Bereiche** (`server/bereiche.mjs`): eine Vorlage für Fenster — Name, Kürzel, Ort (dieser Server, SSH, gekoppeltes
+  Gerät), Ordner oder Repo mit eigenem Worktree je Baufenster (bei einem Repo Standard an), optional ein erster Satz.
+  Schema additiv: Tabelle `bereiche`, Spalten `fenster.bereich_id`, `fenster.art`, `aufgaben.bereich_id`.
+- Je Bereich zwei Fensterarten mit einem Klick: **🔨 Bau** („Bau 1“, Name `<kürzel>-bau-1`) und **💬 Wissen**
+  („Wissen 1“, `<kürzel>-wissen-1`) — kleinste freie Zahl je Bereich und Art, nie eine Kollision mit bestehenden Namen.
+- **Wissensfenster** bauen nichts: Regel im Start-Text und hart über `claude --disallowedTools` (Edit/Write/NotebookEdit,
+  git commit/push/reset/checkout, rm, mv, npm publish). Kein eigener Worktree.
+- **Fenster laufen immer im Auto-Modus**; der Start-Modus ist nirgends mehr einstellbar.
+- API: `GET/POST /api/bereiche`, `POST /api/bereiche/<id>` (ändern), `…/loeschen` (409 mit Text, solange ein Fenster
+  des Bereichs läuft), `…/fenster {art, start_text?}`; `POST /api/bereiche {…, starten: "bau"}` legt an und startet.
+- **Aufgaben** bekommen das Feld Bereich (Standard: der erste); ▶ Starten nimmt Ort/Ordner/Worktree aus dem Bereich und
+  startet ein Baufenster darunter. Der Fenstername kommt weiter aus dem Titel.
+- **Suche** findet auch Nachrichten geschlossener Fenster und den Verlauf eines geschlossenen Vorgängers gleichen
+  Namens — gekennzeichnet „archiviert“, Klick klappt den ganzen Text im Suchfeld auf.
+
+### Oberfläche
+- **＋ an „Fenster“** öffnet ein am Knopf verankertes Popover: ohne Bereich direkt „Ersten Bereich anlegen“ (Name aus
+  dem Standard-Ordner, Kürzel automatisch, „Dieser Server“, Worktree an, wenn der Ordner ein Repo ist), mit
+  „Anlegen & erstes Fenster starten“. Mit Bereichen: je Bereich 🔨 Bau und 💬 Wissen als große Knöpfe, ✎ zum Bearbeiten
+  oder Löschen, darunter „＋ Bereich anlegen“, „Einzelnes Fenster mit eigenen Angaben …“ (Name vorbelegt, `fenster-<n>`)
+  und „Gerät koppeln …“. Am Handy als Blatt von unten, erreichbar über ＋ neben der Kanalwahl.
+- **Kanalliste gruppiert**: Fenster stehen unter ihrem Bereich (Reihenfolge = Rang), Überschrift zuklappbar (gemerkt im
+  Browser; zugeklappt mit Zahl und Ungelesenem, farbig, wenn der offene Kanal drin steckt), ＋ an der Überschrift öffnet
+  Bau/Wissen für diesen Bereich. Fenster ohne Bereich unter „Weitere Fenster“. Ziehen ordnet innerhalb des Bereichs.
+  💬 an Wissensfenstern; Kanal-Kopf und Kanalwahl am Handy zeigen „<Bereich> · Bau 1“.
+- **Eigenes Dropdown statt nativer Auswahl** in allen Formularen und in der Kanalwahl am Handy: Knopf im Feld-Design,
+  Liste direkt darunter (oder darüber, wenn unten kein Platz ist), ✓ an der gewählten Option, Gruppen-Überschriften,
+  Tastatur ↑/↓/Pos1/Ende/Enter/Esc/Anfangsbuchstabe, Klick außerhalb schließt, ARIA listbox/option. Das `<select>` bleibt
+  versteckt als Wertträger — `change`-Events und nachträglich befüllte Optionen laufen wie bisher.
+
 ## [1.2.0] — 2026-11-01
 
 ### Spiegel

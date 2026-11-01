@@ -23,8 +23,13 @@ Antwortet er, **nie einen zweiten starten** — weiter bei „Dich einbringen“
    für Skripte und Agenten ohne tmux.)
 4. **Konto für die Fenster**: Fenster starten als `claude` mit dem Standard-Konfigurationsordner
    (`~/.claude`). Soll ein anderes Konto laufen: `FC_CLAUDE_CONFIG_DIR=/pfad` beim Serverstart.
-5. **Erstes Fenster**: in der UI „＋“ → Thema, Ordner (oder Repo + Worktree), Start-Modus. Oder per
-   API: `POST /api/fenster {name, ordner|repo, start_modus, start_text}` (Bearer Admin-Token).
+5. **Erst einen Bereich, dann das erste Fenster** (seit 1.3). Ein Bereich merkt sich Ort, Ordner (oder Repo mit
+   eigenem Worktree je Baufenster) und optional einen ersten Satz; danach startet „＋ → Bereich → 🔨 Bau / 💬 Wissen“
+   ein Fenster mit einem Klick (Name `<kürzel>-bau-<n>` bzw. `<kürzel>-wissen-<n>`, immer Auto-Modus).
+   In der UI: „＋“ an „Fenster“ → „Ersten Bereich anlegen“ → „Anlegen & erstes Fenster starten“.
+   Per API (Bearer Admin-Token): `POST /api/bereiche {name, ordner|repo, ort?, kuerzel?, start_text?}` → id, dann
+   `POST /api/bereiche/<id>/fenster {art: "bau"|"wissen"}`. Frag deinen Menschen nach dem Projektordner; nimm sonst
+   `FC_DEFAULT_ORDNER`. Ein einzelnes Fenster ohne Bereich geht weiter: `POST /api/fenster {name, ordner|repo, start_text}`.
    Claude Code fragt beim ersten Start je Ordner nach Vertrauen — der Chat bestätigt das automatisch.
 6. **Selbsttest**: schreib dem neuen Fenster im Chat „Melde dich startklar“ — die Antwort erscheint
    im Kanal. Dann bist du fertig. Melde deinem Menschen kurz: URL, Login angelegt, erstes Fenster läuft.
@@ -50,6 +55,9 @@ Cron-Watcher bauen, Bus-Skripte schreiben. Das ist genau die Schicht, die 1.0 ab
   mit Admin-Token, wenn es zu deinem Thema eine Karte gibt), Repo, CLAUDE.md, Memory.
 - **Karten nur auf Zuruf**: leg eine Karte nur an, wenn dein Mensch es sagt. Vorhandene Karten zu
   deinem Thema befüllst du selbständig (Meilensteine, Entscheidungen, Stand).
+- **Wissensfenster** (Start-Text beginnt mit „Du bist ein Wissensfenster“): du baust nichts — keine Dateien ändern, nichts
+  committen, nichts deployen, keine Befehle mit Wirkung. Schreib-Werkzeuge sind dir gesperrt. Lesen, erklären, Fragen
+  beantworten; soll gebaut werden, sag, dass ein Baufenster das übernimmt.
 - **Aufgaben-Fenster** (Start-Text beginnt mit „🎯 Aufgabe:“): genau diese eine Aufgabe, am Stück. Steht die Vorlage
   drin, zuerst Lage + Empfehlung + AskUserQuestion, erst nach der Antwort bauen. Wenn die Aufgabe wirklich fertig ist,
   als letzte Nachricht GENAU EINE Zeile `✅ Aufgabe fertig: <Ergebnis in einem Satz>` — damit stoppt die Zeitmessung.

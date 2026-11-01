@@ -110,6 +110,20 @@ Text oder Befehle vom Client. Für alles, was der Spiegel (noch) nicht kennt. Nu
 Wird automatisch mit „Yes“ beantwortet und im Kanal gesagt — der Mensch hat das Fenster bewusst in
 diesem Ordner angelegt.
 
+## Bereiche, Bau- und Wissensfenster (1.3) — `server/bereiche.mjs`
+Ein Bereich ist eine Vorlage: Name, Kürzel, Ort, Ordner oder Repo (+ eigener Worktree je Baufenster), optional ein erster
+Satz. `POST /api/bereiche/<id>/fenster {art}` legt über denselben Weg wie „＋ Fenster“ (`fensterBauen`) ein Fenster an:
+- **Bau** — `<kürzel>-bau-<n>`, Anzeige „Bau <n>“, Worktree wie im Bereich, Start-Text = erster Satz des Bereichs.
+- **Wissen** — `<kürzel>-wissen-<n>`, Anzeige „Wissen <n>“, kein Worktree (liest im Ordner bzw. Repo selbst). Start-Text
+  ist die Regel „du darfst nichts bauen …“; zusätzlich startet Claude Code mit `--disallowedTools` (Edit, MultiEdit,
+  Write, NotebookEdit, `git commit/push/reset/checkout`, `rm`, `mv`, `npm publish`) — die Sperre gilt auch im Auto-Modus.
+  Andere Shell-Befehle mit Wirkung verhindert nur die Regel im Start-Text.
+`<n>` ist die kleinste freie Zahl je Bereich und Art; belegt sind Namen in der Fenster-Registry und aktive Kanäle. Alle
+Fenster laufen im Auto-Modus (ein Start-Modus ist nicht mehr wählbar; „manual“/„auto“ im Chat schaltet weiter um).
+Die Kanalliste gruppiert nach `fenster.bereich_id` (Reihenfolge = Rang des Bereichs), Fenster ohne Bereich stehen unter
+„Weitere Fenster“. Ein Bereich lässt sich nur löschen, wenn keines seiner Fenster läuft (sonst 409); übrige Fenster
+verlieren nur die Zuordnung. Die Kanal-Anzeige (für Suche und Archiv) lautet „<Bereich> · Bau <n>“.
+
 ## Orte
 `lokal`: tmux-Socket `flottenchat` (Env `FC_TMUX_SOCKET`), Claude-Binary `claude` (`FC_CLAUDE_BIN`).
 `ssh:user@host`: dieselben Befehle über `ssh -o BatchMode=yes`; Protokolle werden per `tail -c +N`

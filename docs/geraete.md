@@ -2,7 +2,7 @@
 
 Fenster laufen nicht nur auf dem Chat-Server: jeder Mac, Linux-Server oder Laptop kann ein **Gerät** werden.
 Das Gerät öffnet einen Rückkanal zum Chat-Server — kein offener Port am Gerät, keine VPN-Pflicht, kein
-Schlüssel-Hin-und-her von Hand. Danach wählst du es unter **＋ Fenster → Ort** wie „Dieser Server“.
+Schlüssel-Hin-und-her von Hand. Danach wählst du es im Bereich (**＋ → Bereich anlegen/✎ → Ort**) oder im einzelnen Fenster wie „Dieser Server“.
 
 ## Einmal auf dem Chat-Server (root)
 
@@ -26,7 +26,7 @@ Hinter einem Reverse-Proxy muss `/geraet/` mit durchgereicht werden.
 
 ## Ein Gerät koppeln
 
-1. **＋ Fenster → Ort → „＋ Gerät koppeln …“**, Namen eingeben → Einmal-Code (30 Minuten) und ein Textblock.
+1. **＋ → „Gerät koppeln …“** (oder im Ort-Feld „＋ Gerät koppeln …“), Namen eingeben → Einmal-Code (30 Minuten) und ein Textblock.
 2. Den Textblock **am Gerät in Claude Code einfügen**. Claude lädt das Einrichtungs-Skript, erklärt es, führt
    es aus und führt dich durch fehlende Schritte (macOS: „Entfernte Anmeldung“ einschalten; Linux: sshd).
 3. Das Skript prüft tmux/Claude Code/sshd, erzeugt einen Schlüssel, meldet ihn per Code an, trägt den
