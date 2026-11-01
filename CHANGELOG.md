@@ -3,6 +3,38 @@
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
+## [1.2.0] — 2026-11-01
+
+### Aufgaben mit Zeit
+- **Aufgaben-Store** (`server/aufgaben.mjs`, Tabelle `aufgaben` + Spalte `fenster.aufgabe_id`, additiv/idempotent): Titel,
+  Beschreibung, freies Label, Fälligkeit, Startzeit, optional Board-Karte, Ordner/Repo/Ort fürs Fenster. Reine Logik mit
+  Zeit als Parameter, Dienst mit injizierten Abhängigkeiten (ohne tmux testbar).
+- **▶ Starten** legt über die normale Fenster-Anlage ein frisches Fenster an (Name aus dem Titel, Kanal heißt wie die
+  Aufgabe), der Auftrag ist der Start-Text. Eine Aufgabe, ein Fenster (409 beim zweiten Start).
+- **Start-Text-Vorlage**: erst Lage + Ist → Soll → Weg + Lücken, dann EINE AskUserQuestion mit Empfehlung — kein Alleingang.
+  Je Aufgabe abschaltbar, als Standard per `FC_AUFGABEN_ERST_FRAGEN=0`.
+- **Zeitmessung im Server-Takt** (20 s): du (eigene Nachricht < 60 s) · Claude (laufende Klammer-Zeit, wie die Lampe) ·
+  Warten auf dich (Rückfrage/Freigabe offen) · Leerlauf · Pause; Takte gedeckelt, totes Fenster wird nicht gemessen und
+  pausiert nach 90 s. Tages-Töpfe in `FC_TZ` für die Auswertung.
+- **Abschluss**: Fertig-Satz `✅ Aufgabe fertig: …` des Fensters, Knopf ⏹ (Ergebnis optional) oder **Kanal schließen =
+  erledigt** → Abschluss-Karte mit Dauer und Anteilen im Kanal.
+- **Stopp** = zurück in die Liste, Zeit + Stand (letzte Nachrichten) bleiben; **Weiter** im alten Fenster (läuft es noch)
+  oder in einem neuen mit dem Stand im Start-Text. Fenster löschen = Stopp.
+- **Start zur Uhrzeit** im Server-Takt (kein externes Skript); verpasste Starts (> 6 h) werden gemeldet, nicht nachgeholt.
+- **Seitenleiste**: bis zu fünf kompakte Kacheln (überfällig rot pulsierend, läuft grün, Pause/heute gelb), ziehbar,
+  ▶/↗ direkt an der Kachel; **„Alle“** (auch 📋 im Kopf, am Handy) mit Offen (▲/▼), Erledigt, Papierkorb, Auswertung
+  (Zeit je Tag und je Aufgabe). Klick öffnet die Aufgabe im Chatbereich.
+- **Uhr im Kanal-Kopf** mit ⏸/⏏/⏹ — nur für die eigene Sitzung des Fensters (gleicher Name, frühere Sitzung = keine Uhr).
+- **Papierkorb** mit Rückfrage, Zurückholen, endgültig löschen.
+- **Erinnerungen**: bleiben der Wecker, unverändert. „▶ Fenster“ an einer Erinnerung startet jetzt eine Aufgabe mit
+  Zeitmessung (Route `/api/reminders/<id>/session` antwortet wie bisher, plus `aufgabe`), 🎯 macht ohne Start eine daraus;
+  die Erinnerung gilt als übergeben, die Fälligkeit der Aufgabe meldet sich im Kanal „Erinnerungen“.
+- **Board**: „🎯 Als Aufgabe“ an der Karte; Stopp und Abschluss schreiben einen Verlaufs-Eintrag an die verknüpfte Karte.
+- Routen `GET/POST /api/aufgaben`, `POST /api/aufgaben/<id>[/(start|pause|weiter|stopp|fertig|verwerfen|zurueck|loeschen)]`,
+  `POST /api/aufgaben/reihenfolge`, `GET /api/aufgaben/auswertung`, `POST /api/reminders/<id>/aufgabe`. Doku `docs/aufgaben.md`.
+- Tests: neue `test_aufgaben.mjs` (172 Checks: Logik, Datenbank, Start/Stopp/Weiter/Fertig/Takt/Autostart/Fälligkeit,
+  Erinnerung → Aufgabe, Routen), in `npm test`.
+
 ## [1.1.0] — 2026-10-06
 
 Schwerpunkt: **Mehrstufige Rückfragen.** Alles, was eine `AskUserQuestion` kann, geht jetzt auch im Chat —

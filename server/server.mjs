@@ -28,6 +28,9 @@ import { einstellungenLaden, einstellungenSpeichern, gelesenLaden, gelesenSetzen
 import { sucheNachrichten } from './suche.mjs';
 import { ablegen as ablageAblegen, liste as ablageListe, loeschen as ablageLoeschen, streamen as ablageStreamen } from './ablage.mjs';
 import { erinnerungenSchema, ordnerAlle, ordnerAnlegen, ordnerUmbenennen, ordnerLoeschen, reminderInOrdner, reminderTitel, reminderNotiz, reminderUebergeben, uebergabeText } from './erinnerungen.mjs';
+// === Aufgaben (1.2) ===
+import { createAufgabenDienst, TAKT_S as AUFGABEN_TAKT_S } from './aufgaben.mjs';
+// === /Aufgaben (1.2) ===
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DATA = process.env.FC_DATA_DIR || join(process.cwd(), 'data');
@@ -148,6 +151,15 @@ function fensterBauen(b) {
   if (b.starten !== false) { start = sessionStarten(f); if (start.ok) fensterAendern(db, f.name, { status: 'laeuft', gestartet_am: nowIso() }); }
   return { ok: true, fenster: fensterHolen(db, f.name), start };
 }
+
+// === Aufgaben (1.2) ===
+// Aufgaben mit Zeit (server/aufgaben.mjs): ▶ Starten legt über fensterBauen ein Fenster mit dem Auftrag als Start-Text an.
+// Der Takt (alle 20 s) misst die Zeit an der Konsole (busy/Dialog) und an den Nachrichten des Menschen, erkennt den
+// Fertig-Satz, startet Aufgaben zur Uhrzeit und meldet Fälligkeiten im Kanal „Erinnerungen“. FC_AUFGABEN_ERST_FRAGEN=0
+// schaltet die Start-Text-Vorlage „erst Lage + Empfehlung + Rückfrage“ als Standard ab.
+const aufgaben = createAufgabenDienst({ db, konsole, fensterBauen, broadcast, zone: ZONE, erstFragen: process.env.FC_AUFGABEN_ERST_FRAGEN !== '0', reminderUebergeben });
+setInterval(() => { try { aufgaben.takt(Date.now()); } catch { /* fail-safe */ } }, AUFGABEN_TAKT_S * 1000).unref();
+// === /Aufgaben (1.2) ===
 
 // ── Server ──────────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
@@ -375,6 +387,15 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, gekappt: k.beendet || 0 });
     }
 
+    // === Aufgaben (1.2) === Routen /api/aufgaben…, Brücke /api/reminders/<id>/(session|aufgabe); Kanal schließen = Aufgabe
+    // erledigt, Fenster löschen = Stopp (danach laufen die Fenster-Routen unten wie gehabt weiter).
+    if (url.pathname.startsWith('/api/aufgaben') || /^\/api\/reminders\/\d+\/(session|aufgabe)$/.test(url.pathname)) {
+      if (await aufgaben.route({ req, res, url, wer, json, koerper })) return;
+    }
+    const mFA = /^\/api\/fenster\/([a-z0-9_-]+)\/(schliessen|loeschen)$/.exec(url.pathname);
+    if (mFA && req.method === 'POST' && admin && fensterHolen(db, mFA[1])) { if (mFA[2] === 'schliessen') aufgaben.fensterGeschlossen(mFA[1]); else aufgaben.fensterGeloescht(mFA[1]); }
+    // === /Aufgaben (1.2) ===
+
     // ── Fenster (v1.0): Registry + Steuerung ──
     if (url.pathname === '/api/fenster' && req.method === 'GET') return json(res, 200, { ok: true, fenster: fensterAlle(db).map(fensterMitZustand) });
     if (url.pathname === '/api/fenster' && req.method === 'POST') {
@@ -477,17 +498,8 @@ const server = http.createServer(async (req, res) => {
     if (mErl && req.method === 'POST') return json(res, 200, { ok: true, reminder: reminderErledigt(db, mErl[1]) });
     const mVer = /^\/api\/reminders\/(\d+)\/verschieben$/.exec(url.pathname);
     if (mVer && req.method === 'POST') { const b = await koerper(req); const r = reminderVerschieben(db, mVer[1], b.faellig_am); return r ? json(res, 200, { ok: true, reminder: r }) : json(res, 400, { ok: false, fehler: 'faellig_am ist Pflicht.' }); }
-    // Erinnerung → Fenster (v1.0): Klick startet eine Session mit der Erinnerung als Thema.
-    const mRS = /^\/api\/reminders\/(\d+)\/session$/.exec(url.pathname);
-    if (mRS && req.method === 'POST') {
-      if (!admin) return json(res, 403, { ok: false });
-      const r = db.prepare('SELECT * FROM reminders WHERE id = ?').get(Number(mRS[1])); if (!r) return json(res, 404, { ok: false });
-      const b = await koerper(req);
-      const basis = slug(r.titel).slice(0, 28); let name = basis, n = 2; while (fensterHolen(db, name)) name = `${basis}-${n++}`;
-      const erg = fensterBauen({ ...b, name, label: r.titel, start_text: `Erinnerung aus dem Flotten-Chat: „${r.titel}"${r.notiz ? ' — ' + r.notiz : ''}. Lies zuerst die CLAUDE.md, dann kümmere dich darum.` });
-      if (erg.ok) broadcast('presence', { fenster: erg.fenster.name, neu: true });
-      return json(res, erg.ok ? 200 : 400, erg);
-    }
+    // Erinnerung → Fenster: seit 1.2 wird daraus eine Aufgabe mit Zeitmessung (Route im Block „Aufgaben (1.2)“ oben,
+    // Antwort wie bisher {ok, fenster, start} + aufgabe).
 
     // ── 1.1: Ablage-Tresor 🔗 — ablegen (Chat-Medium → data/ablage mit sprechendem Namen), Liste, Löschen, Ausliefern (Range) ──
     if (url.pathname === '/api/ablage' && req.method === 'GET') return json(res, 200, ablageListe({ ablageDir: ABLAGE_DIR, max: Math.min(Number(url.searchParams.get('limit')) || 200, 1000) }));

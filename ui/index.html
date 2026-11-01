@@ -200,6 +200,100 @@ dialog .reihe{display:flex;gap:8px;justify-content:flex-end;margin-top:.9rem}
 .remrow .titel{cursor:pointer}.remrow .titel:hover{color:var(--blau)}
 .remrow .notiz{display:block;color:var(--n500);font-size:.78rem;white-space:pre-wrap}
 @media(max-width:720px){.ablage-bar{padding:6px 10px}.abl-reihe{grid-template-columns:auto 1fr}.abl-reihe .akt{grid-column:1/-1;justify-content:flex-start}}
+/* === Aufgaben (1.2) === */
+/* Kacheln oben in der Seitenleiste: linkes Band = Stand (überfällig rot pulsierend · läuft grün · Pause/heute gelb). */
+#aufgabenLeiste{margin-bottom:2px}
+#aufgabenLeiste h4 .ak-z{margin-left:4px;color:var(--n500);letter-spacing:0}
+#aufgabenLeiste h4 .knopf+.knopf{margin-left:4px}
+.ak{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:6px;align-items:center;border:1px solid var(--n100);border-left:3px solid var(--n200);border-radius:9px;padding:5px 4px 5px 9px;margin:0 0 5px;background:var(--n50);cursor:pointer;min-height:44px}
+.ak:hover,.ak:focus-visible{box-shadow:0 0 0 1px var(--blau);outline:none}
+.ak.gewaehlt{box-shadow:0 0 0 1px var(--blau)}
+.ak-t{grid-column:1;font-weight:650;font-size:.82rem;color:var(--n900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ak-m{grid-column:1;font-size:.7rem;color:var(--n500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.ak-l{font-style:normal;color:var(--n900);background:var(--n100);border-radius:5px;padding:0 5px;margin-right:2px}
+.ak-go{grid-column:2;grid-row:1/3;border:0;background:none;color:var(--blau);font-weight:800;font-size:.9rem;min-width:32px;min-height:32px;border-radius:8px;cursor:pointer}
+.ak-go:hover{background:var(--blau-soft)}
+.ak.ueber{border-left-color:var(--bad);background:var(--bad-soft);animation:akPuls 2.2s ease-in-out infinite}.ak.ueber .ak-m{color:var(--bad);font-weight:600}
+.ak.laeuft{border-left-color:var(--ok)}.ak.laeuft .ak-m,.ak.laeuft .ak-go{color:var(--ok)}
+.ak.pausiert,.ak.heute{border-left-color:var(--warn)}.ak.pausiert .ak-m,.ak.heute .ak-m{color:var(--warn)}
+@keyframes akPuls{50%{box-shadow:0 0 0 3px var(--bad-soft)}}
+@media (prefers-reduced-motion:reduce){.ak.ueber{animation:none}}
+.ak.zieht,.av-zeile.zieht{opacity:.4}
+.ak.ziel-oben,.av-zeile.ziel-oben{box-shadow:0 -2px 0 0 var(--blau)}.ak.ziel-unten,.av-zeile.ziel-unten{box-shadow:0 2px 0 0 var(--blau)}
+.ak-mehr{display:block;width:100%;border:1px dashed var(--n200);background:none;color:var(--n500);border-radius:8px;padding:.35rem .6rem;font-size:.76rem;text-align:left;cursor:pointer;margin-bottom:4px}
+.ak-mehr:hover{border-color:var(--blau);color:var(--n900)}
+#aufgabenBtn{position:relative}
+#aufgabenBtn .zahl{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:999px;background:var(--bad);color:#fff;font-size:.68rem;font-weight:700;display:grid;place-items:center;padding:0 4px}
+#aufgabenBtn[aria-expanded="true"]{border-color:var(--blau);color:var(--blau)}
+/* Uhr im Kanal-Kopf (Mitte) — nur im Fenster, dessen Sitzung die Aufgabe gerade bearbeitet. */
+.au-uhr{display:inline-flex;align-items:center;gap:4px;max-width:100%;min-width:0;padding:1px 2px 1px 10px;border:1px solid var(--ok);border-radius:999px;background:var(--card);font-size:.78rem;color:var(--n900)}
+.au-uhr.pause{border-color:var(--warn);background:var(--warn-soft)}
+.au-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650;cursor:pointer;max-width:26ch}
+.au-t:hover{color:var(--blau)}
+.au-zeit{font-variant-numeric:tabular-nums;color:var(--ok);font-weight:600;white-space:nowrap;margin:0 2px}
+.au-uhr.pause .au-zeit{color:var(--warn)}
+.au-uhr button{border:0;background:none;color:var(--n900);cursor:pointer;font-size:.85rem;min-width:30px;min-height:30px;border-radius:999px;padding:0}
+.au-uhr button:hover{background:var(--blau-soft)}
+/* Ansicht im Chatbereich: Aufgabe groß, „Alle“ mit Reitern, Auswertung. */
+.aufg-view{flex:1;overflow:auto;padding:22px 16px}
+.av-box{max-width:700px;margin:0 auto;background:var(--card);border:1px solid var(--n100);border-radius:14px;padding:22px 24px}
+.av-oben{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.av-oben .zu{margin-left:auto}
+.av-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.76rem;color:var(--n500);margin-bottom:8px}
+.chip{border:1px solid var(--n200);border-radius:999px;padding:1px 9px;white-space:nowrap}
+.chip.ok{border-color:var(--ok);color:var(--ok)}.chip.warn{border-color:var(--warn);color:var(--warn)}.chip.bad{border-color:var(--bad);color:var(--bad)}.chip.blau{border-color:var(--blau);color:var(--blau)}
+.av-titel{font-size:1.35rem;font-weight:700;line-height:1.25;margin:0 0 18px;overflow-wrap:anywhere}
+.av-ab{margin:0 0 16px}
+.av-ab h5{margin:0 0 4px;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--n400)}
+.av-text{white-space:pre-wrap;line-height:1.5;font-size:.93rem;overflow-wrap:anywhere}
+.av-text.stand{font-size:.82rem;color:var(--n500);background:var(--n50);border-radius:10px;padding:8px 10px;max-height:220px;overflow:auto}
+.av-text.ergebnis{background:var(--blau-soft);border-radius:10px;padding:8px 10px}
+.av-zeiten{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.av-zeiten div{background:var(--n50);border-radius:10px;padding:8px 10px;font-size:.74rem;color:var(--n500)}
+.av-zeiten b{display:block;font-size:1.02rem;color:var(--n900);font-variant-numeric:tabular-nums}
+.av-fuss{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:22px}
+.av-fuss .rechts{margin-left:auto}
+.knopf.gross{font-size:1rem;min-height:46px;padding:0 20px;border-radius:10px}
+.av-fuss .knopf{min-height:40px}
+.av-pk{margin-top:16px;padding:12px 14px;border:1px solid var(--bad);border-radius:12px;background:var(--bad-soft)}
+.av-pk p{margin:.2rem 0 .7rem;font-size:.86rem;color:var(--n500)}
+.av-form label{display:block;font-size:.78rem;color:var(--n500);margin:.65rem 0 .2rem}
+.av-form input,.av-form select,.av-form textarea{width:100%;border:1px solid var(--n200);border-radius:9px;padding:.5rem .6rem;font:inherit;background:var(--n50);color:var(--n900)}
+.av-form textarea{min-height:96px;resize:vertical}
+.av-form .av-2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.av-form label.av-check{display:flex;align-items:center;gap:8px;color:var(--n900);font-size:.84rem;margin-top:.7rem}
+.av-form label.av-check input{width:auto}
+.av-reiter{display:flex;gap:3px;background:var(--n50);border:1px solid var(--n100);border-radius:10px;padding:3px;margin:0 0 14px;overflow-x:auto}
+.av-reiter button{flex:1;border:0;background:none;color:var(--n500);font:inherit;font-size:.82rem;font-weight:600;padding:7px 8px;border-radius:8px;cursor:pointer;white-space:nowrap;min-height:36px}
+.av-reiter button[aria-selected="true"]{background:var(--card);color:var(--n900);box-shadow:0 0 0 1px var(--n100)}
+.av-zeile{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:.45rem .5rem .45rem .6rem;border:1px solid var(--n100);border-left:3px solid var(--n200);border-radius:10px;margin-bottom:6px;background:var(--n50);cursor:pointer}
+.av-zeile:hover{box-shadow:0 0 0 1px var(--blau)}
+.av-zeile.ueber{border-left-color:var(--bad)}.av-zeile.laeuft{border-left-color:var(--ok)}.av-zeile.pausiert,.av-zeile.heute{border-left-color:var(--warn)}
+.av-nr{font-size:.74rem;color:var(--n400);min-width:1.4em;text-align:right;font-variant-numeric:tabular-nums}
+.av-zt{min-width:0}.av-zt b{display:block;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av-zt small{display:block;color:var(--n500);font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av-akt{display:flex;gap:4px;align-items:center}
+.av-akt button{min-width:36px;min-height:36px}
+.av-leer{color:var(--n500);font-size:.88rem;padding:.6rem 0}
+.aw-summe{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.aw-summe div{background:var(--n50);border-radius:10px;padding:8px 10px;font-size:.74rem;color:var(--n500)}.aw-summe b{display:block;font-size:1.1rem;color:var(--n900)}
+.aw-reihe{display:grid;grid-template-columns:minmax(76px,auto) minmax(0,1fr) auto;gap:10px;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--n100);font-size:.84rem}
+.aw-reihe small{color:var(--n500)}
+.aw-balken{height:8px;background:var(--n100);border-radius:4px;overflow:hidden;display:flex}
+.aw-balken i{display:block;height:100%}.aw-balken .du{background:var(--blau)}.aw-balken .cl{background:var(--ok)}
+.aw-zeit{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.aw-legende{display:flex;gap:12px;font-size:.74rem;color:var(--n500);margin:.2rem 0 .6rem}.aw-legende i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+@media(max-width:720px){
+  .aufg-view{padding:10px}
+  .av-box{padding:16px 14px;border-radius:12px}
+  .av-titel{font-size:1.18rem}
+  .av-form .av-2{grid-template-columns:1fr}
+  .av-form input,.av-form select,.av-form textarea{font-size:16px}
+  .au-t{max-width:14ch}
+  .av-reiter button{flex:1 0 auto;font-size:.78rem;padding:6px 7px}
+  .av-fuss .rechts{margin-left:0}
+}
+/* === /Aufgaben (1.2) === */
 </style>
 </head>
 <body>
@@ -775,6 +869,245 @@ function remBearbeiten(id){
   $('#reUeber').onclick=async()=>{const f=$('#reFenster').value;if(!f)return;$('#reUeber').disabled=true;const r2=await api('/api/reminders/'+id+'/uebergeben',{method:'POST',body:JSON.stringify({fenster:f})});$('#reUeber').disabled=false;
     if(r2&&r2.ok){dlg.close();toast(`📨 Übergeben — das Fenster „${(FENSTER.find(y=>y.name===f)||{}).label||f}“ hat den Auftrag.`);remNeuLaden();}else fcStatus('⚠️ '+((r2&&r2.fehler)||'Ging nicht'));};
 }
+/* === Aufgaben (1.2) === */
+// Aufgaben mit Zeit (server/aufgaben.mjs): Kacheln oben in der Seitenleiste, „Alle“ und die Aufgabe selbst im Chatbereich
+// (am Handy über 📋 im Kopf), Uhr im Kanal-Kopf des Aufgaben-Fensters. Die Reihenfolge kommt vom Server (offen[]),
+// Seitenleiste und „Alle“ teilen sich Sortierung, Status-Farben und Aktionen. Bestehende Funktionen werden nur umhüllt
+// (kopfZeichnen, kanalWechseln, boardZeigen, zeige, remListeZeigen, karteOeffnen) — ihr Code bleibt unverändert.
+let AUFG={aufgaben:[],offen:[],je_fenster:{},jetzt:'',heute:''},AUFG_OFF=0,AUFG_VIEW=null,AUFG_KEY='',AUFG_DRAG=null,AUFG_REITER='offen',AUFG_AW=7;
+const AUFG_OFFEN=['geplant','laeuft','pausiert'];
+const aufgVon=(id)=>AUFG.aufgaben.find(a=>a.id===Number(id))||null;
+const aufgJetzt=()=>Date.now()+AUFG_OFF;
+const aufgPost=(pfad,body)=>api(pfad,{method:'POST',body:JSON.stringify(body||{})});
+function aufgMin(s){const m=Math.round((Number(s)||0)/60);return m<60?`${m} Min`:`${Math.floor(m/60)} Std ${m%60} Min`;}
+function aufgSumme(z){z=z||{};const n=(k)=>Number(z[k])||0;return {du:n('mensch_aktiv_s'),cl:n('claude_aktiv_s'),warten:n('warten_mensch_s'),leer:n('leerlauf_s'),pause:n('pause_s'),aktiv:n('mensch_aktiv_s')+n('claude_aktiv_s'),gesamt:n('mensch_aktiv_s')+n('claude_aktiv_s')+n('warten_mensch_s')+n('leerlauf_s')+n('pause_s')};}
+function aufgZeitText(iso){const t=Date.parse(iso);if(!t)return '';const d=new Date(t),h=new Date(aufgJetzt());const hm=d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});const um=(n)=>{const x=new Date(h);x.setDate(x.getDate()+n);return x.toDateString();};
+  if(d.toDateString()===um(0))return 'heute '+hm;if(d.toDateString()===um(1))return 'morgen '+hm;if(d.toDateString()===um(-1))return 'gestern '+hm;return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+' '+hm;}
+const aufgLokal=(iso)=>{const t=Date.parse(iso||'');if(!t)return '';return new Date(t-new Date(t).getTimezoneOffset()*60000).toISOString().slice(0,16);};
+const aufgIso=(v)=>v?new Date(v).toISOString():'';
+const AUFG_FEHLER={schon_gestartet:'Die Aufgabe läuft schon — ihr Kanal ist offen.',schon_beendet:'Die Aufgabe ist schon beendet.',falscher_status:'Das passt gerade nicht zum Stand der Aufgabe.',unbekannt:'Die Aufgabe gibt es nicht mehr.',titel_fehlt:'Ein Titel fehlt noch.'};
+const aufgFehler=(r)=>'⚠️ '+((r&&AUFG_FEHLER[r.fehler])||(r&&r.fehler)||'Ging nicht — keine Verbindung?');
+// Stand-Klasse für Band/Farbe: ueber · laeuft · pausiert · heute
+function aufgKlasse(a){if(!AUFG_OFFEN.includes(a.status))return '';if(a.stufe==='ueberfaellig')return 'ueber';if(a.status==='laeuft'||a.status==='pausiert')return a.status;return a.stufe==='heute'?'heute':'';}
+function aufgSeitHtml(a){const t=Date.parse(a.gestartet);return t?`<span data-auf-seit="${t}">${uhrText((aufgJetzt()-t)/1000)}</span>`:'';}
+function aufgMeta(a){
+  const s=aufgSumme(a.zeiten);
+  if(a.status==='laeuft')return 'läuft · '+aufgSeitHtml(a);
+  if(a.status==='pausiert')return '⏸\uFE0F Pause · '+aufgMin(s.aktiv)+' aktiv';
+  if(a.status==='fertig')return '✓ '+aufgZeitText(a.beendet)+' · '+aufgMin(s.aktiv)+' aktiv'+(a.ergebnis?' · '+esc(a.ergebnis):'');
+  if(a.status==='abgebrochen')return '🗑 '+aufgZeitText(a.beendet);
+  if(a.stufe==='ueberfaellig')return 'überfällig · '+aufgZeitText(a.faellig_am);
+  if(a.faellig_am)return 'fällig '+aufgZeitText(a.faellig_am);
+  if(a.start_um&&!a.autostart)return '⏰ startet '+aufgZeitText(a.start_um);
+  if((a.laeufe||[]).length)return '⏏\uFE0F gestoppt · '+aufgMin(s.aktiv)+' aktiv';
+  return 'geplant';
+}
+function aufgKachel(a){
+  const go=a.status==='geplant'?'<button type="button" class="ak-go" data-ak="start" title="Starten — neues Fenster mit Zeitmessung" aria-label="Aufgabe starten">▶</button>':(a.fenster?'<button type="button" class="ak-go" data-ak="kanal" title="Zum Kanal der Aufgabe" aria-label="Zum Kanal">↗</button>':'');
+  return `<div class="ak ${aufgKlasse(a)}${AUFG_VIEW&&AUFG_VIEW.id===a.id?' gewaehlt':''}" data-auf="${a.id}" draggable="true" role="button" tabindex="0" title="${esc(a.titel)}"><span class="ak-t">${esc(a.titel)}</span><span class="ak-m">${a.label?`<i class="ak-l">${esc(a.label)}</i>`:''}${aufgMeta(a)}</span>${go}</div>`;
+}
+// ── Seitenleiste: höchstens fünf Kacheln, Rest unter „Alle“ ──
+document.querySelector('aside').insertAdjacentHTML('afterbegin','<div id="aufgabenLeiste" role="region" aria-label="Aufgaben"></div>');
+function aufgLeiste(){
+  const box=$('#aufgabenLeiste');if(!box)return;const offen=AUFG.offen.map(aufgVon).filter(Boolean),zeig=offen.slice(0,5);
+  box.innerHTML=`<h4>Aufgaben<span class="ak-z">${offen.length||''}</span><button class="knopf klein" data-ak="alle" title="Alle Aufgaben, Erledigtes, Papierkorb, Auswertung">Alle</button><button class="knopf klein" data-ak="neu" title="Neue Aufgabe" aria-label="Neue Aufgabe">＋</button></h4>`
+    +(zeig.map(aufgKachel).join('')||'<div class="muted" style="padding:.1rem .6rem .4rem">Nichts offen — ＋ legt eine Aufgabe an.</div>')
+    +(offen.length>5?`<button type="button" class="ak-mehr" data-ak="alle">+ ${offen.length-5} weitere …</button>`:'');
+}
+// Aktionen an Kacheln/Zeilen — Seitenleiste und „Alle“ nutzen dieselben Wege.
+async function aufgStarten(id,opt,knopf){
+  if(knopf)knopf.disabled=true;fcStatus('▶ Fenster wird angelegt …');
+  const r=await aufgPost(`/api/aufgaben/${id}/start`,opt||{});if(knopf)knopf.disabled=false;
+  if(!r||!r.ok){fcStatus(aufgFehler(r));if(r&&r.fehler==='schon_gestartet'&&r.fenster)kanalWechseln(r.fenster);aufgLaden();return null;}
+  toast(r.weiter_im_alten_fenster?'▶ Es geht im alten Fenster weiter — die Zeit läuft.':'▶ Fenster läuft an — es meldet sich gleich hier, die Zeit läuft.');
+  await ladeKanaele();await aufgLaden();kanalWechseln(r.fenster.name);return r;
+}
+async function aufgAktion(id,aktion,body){
+  const r=await aufgPost(`/api/aufgaben/${id}/${aktion}`,body);
+  if(!r||!r.ok){fcStatus(aufgFehler(r));return null;}
+  const T={stopp:'⏏ Gestoppt — zurück in der Liste, Zeit und Stand sind gemerkt.',fertig:'🏁 Aufgabe fertig — die Zeit steht in der Abschluss-Karte.',verwerfen:'🗑 Im Papierkorb — unter „Alle“ holst du sie zurück.',zurueck:'↻ Wieder in der Liste.',loeschen:'Endgültig gelöscht.',pause:'⏸ Pause — die Zeit zählt als Pause.',weiter:'▶ Die Zeit läuft wieder.'};
+  if(T[aktion])toast(T[aktion]);if(['stopp','fertig','verwerfen'].includes(aktion))await ladeKanaele();await aufgLaden();return r;
+}
+const LEISTE=$('#aufgabenLeiste');
+LEISTE.addEventListener('click',e=>{const b=e.target.closest('[data-ak]'),k=e.target.closest('.ak[data-auf]');const id=k?Number(k.dataset.auf):0,was=b?b.dataset.ak:'';
+  if(was==='alle'){aufgOeffnenAlle();return;}if(was==='neu'){aufgViewAuf('neu',0);return;}
+  if(was==='start'){e.stopPropagation();aufgStarten(id,{},b);return;}
+  if(was==='kanal'){e.stopPropagation();const a=aufgVon(id);if(a&&a.fenster)kanalWechseln(a.fenster);return;}
+  if(id)aufgViewAuf('aufgabe',id);});
+LEISTE.addEventListener('keydown',e=>{const k=e.target.closest&&e.target.closest('.ak[data-auf]');if(k&&e.target===k&&(e.key==='Enter'||e.key===' ')){e.preventDefault();aufgViewAuf('aufgabe',Number(k.dataset.auf));}});
+// Ziehen (Seitenleiste + „Alle“): neue Reihenfolge der offenen Aufgaben → Server. Überfälliges und Laufendes bleiben oben.
+function aufgZiehenAn(box,sel){
+  box.addEventListener('dragstart',e=>{const r=e.target.closest&&e.target.closest(sel);if(!r)return;AUFG_DRAG=Number(r.dataset.auf);r.classList.add('zieht');try{e.dataTransfer.setData('text/plain',String(AUFG_DRAG));e.dataTransfer.effectAllowed='move';}catch{}});
+  box.addEventListener('dragend',()=>{AUFG_DRAG=null;box.querySelectorAll('.zieht,.ziel-oben,.ziel-unten').forEach(x=>x.classList.remove('zieht','ziel-oben','ziel-unten'));});
+  box.addEventListener('dragover',e=>{if(!AUFG_DRAG)return;const r=e.target.closest&&e.target.closest(sel);if(!r||Number(r.dataset.auf)===AUFG_DRAG)return;e.preventDefault();const b=r.getBoundingClientRect(),oben=e.clientY<b.top+b.height/2;box.querySelectorAll('.ziel-oben,.ziel-unten').forEach(x=>x.classList.remove('ziel-oben','ziel-unten'));r.classList.add(oben?'ziel-oben':'ziel-unten');});
+  box.addEventListener('drop',e=>{if(!AUFG_DRAG)return;const r=e.target.closest&&e.target.closest(sel);if(!r||Number(r.dataset.auf)===AUFG_DRAG)return;e.preventDefault();const oben=r.classList.contains('ziel-oben');const ids=AUFG.offen.filter(x=>x!==AUFG_DRAG);const i=ids.indexOf(Number(r.dataset.auf));ids.splice(oben?i:i+1,0,AUFG_DRAG);aufgReihenfolge(ids);});
+}
+async function aufgReihenfolge(ids){AUFG.offen=ids;aufgLeiste();const r=await aufgPost('/api/aufgaben/reihenfolge',{ids});if(!r||!r.ok)fcStatus(aufgFehler(r));await aufgLaden();if(AUFG_VIEW&&AUFG_VIEW.modus==='alle')aufgViewZeichnen(true);}
+aufgZiehenAn(LEISTE,'.ak[data-auf]');
+// ── Knopf im Kopf (auch am Handy): Zahl = überfällige Aufgaben ──
+$('#boardBtn').insertAdjacentHTML('beforebegin','<button class="knopf" id="aufgabenBtn" title="Aufgaben" aria-expanded="false">📋<span class="zahl" id="aufgabenZahl" hidden></span></button>');
+function aufgKopfBtn(){const n=AUFG.aufgaben.filter(a=>a.stufe==='ueberfaellig'&&AUFG_OFFEN.includes(a.status)).length;const z=$('#aufgabenZahl');z.hidden=!n;z.textContent=n>9?'9+':String(n);$('#aufgabenBtn').title=n?`Aufgaben — ${n} überfällig`:'Aufgaben';$('#aufgabenBtn').setAttribute('aria-expanded',AUFG_VIEW?'true':'false');}
+$('#aufgabenBtn').onclick=()=>{if(AUFG_VIEW&&AUFG_VIEW.modus==='alle')aufgViewZu();else aufgOeffnenAlle();};
+// ── Uhr im Kanal-Kopf: nur die Aufgabe, die DIESE Fenster-Sitzung bearbeitet (Server: je_fenster) ──
+function aufgFuerKanal(){const id=AUFG.je_fenster[KANAL];const a=id?aufgVon(id):null;return a&&(a.status==='laeuft'||a.status==='pausiert')?a:null;}
+function aufgKopfUhr(){
+  const kopf=$('#kopf'),m=kopf&&kopf.querySelector('.m');if(!m||kopf.hidden)return;const a=aufgFuerKanal();
+  if(!a){if(m.querySelector('.au-uhr'))m.innerHTML='';return;}
+  const p=a.status==='pausiert',s=aufgSumme(a.zeiten);
+  const tip=`Bisher: du ${aufgMin(s.du)} · Claude ${aufgMin(s.cl)} · Warten ${aufgMin(s.warten+s.leer)}${s.pause?' · Pause '+aufgMin(s.pause):''}`;
+  const f=fensterVon(KANAL),gleich=f&&(anzeigeName(f)===a.titel||(f.label||'').replace(/…$/,'')===a.titel.slice(0,(f.label||'').replace(/…$/,'').length));
+  m.innerHTML=`<span class="au-uhr${p?' pause':''}" data-auf="${a.id}" title="${esc(tip)}"><span class="au-t" data-au="auf" title="Aufgabe ansehen: ${esc(a.titel)}">🎯 ${gleich?'Aufgabe':esc(a.titel)}</span><span class="au-zeit">${p?'Pause':aufgSeitHtml(a)}</span><button type="button" data-au="${p?'weiter':'pause'}" title="${p?'Weiter — die Zeit läuft wieder':'Pause — die Zeit zählt als Pause'}" aria-label="${p?'Weiter':'Pause'}">${p?'▶\uFE0F':'⏸\uFE0F'}</button><button type="button" data-au="stopp" title="Stopp — zurück in die Liste, Zeit und Stand bleiben" aria-label="Stopp">⏏\uFE0F</button><button type="button" data-au="fertig" title="Fertig — Ergebnis eintragen, Zeit einfrieren" aria-label="Fertig">⏹\uFE0F</button></span>`;
+}
+$('#kopf').addEventListener('click',e=>{const b=e.target.closest('[data-au]'),u=e.target.closest('.au-uhr');if(!b||!u)return;const id=Number(u.dataset.auf),was=b.dataset.au;
+  if(was==='auf')aufgViewAuf('aufgabe',id);else if(was==='fertig')aufgFertigDialog(id);else{b.disabled=true;aufgAktion(id,was).then(()=>{b.disabled=false;});}});
+setInterval(()=>{document.querySelectorAll('[data-auf-seit]').forEach(el=>{el.textContent=uhrText((aufgJetzt()-Number(el.dataset.aufSeit))/1000);});},1000);
+// Fertig: ein Satz Ergebnis (optional), dann Abschluss-Karte im Kanal.
+document.body.insertAdjacentHTML('beforeend','<dialog id="dlgAufgFertig"><h3>⏹\uFE0F Aufgabe fertig</h3><p class="hinweis" id="afTitel"></p><label>Ergebnis in einem Satz <span class="hinweis">(optional)</span></label><input id="afErg" maxlength="300" placeholder="z. B. Seite ist live, Link im Kanal"><div class="reihe"><button class="knopf" id="afAbbr">Doch nicht</button><button class="knopf pri" id="afOk">Abschließen</button></div></dialog>');
+function aufgFertigDialog(id){const a=aufgVon(id);if(!a)return;$('#afTitel').textContent=a.titel+' — die Zeit wird eingefroren, die Abschluss-Karte kommt in den Kanal.';$('#afErg').value='';$('#dlgAufgFertig').showModal();$('#afErg').focus();
+  $('#afOk').onclick=async()=>{$('#afOk').disabled=true;const r=await aufgAktion(id,'fertig',{ergebnis:$('#afErg').value.trim()});$('#afOk').disabled=false;if(r){$('#dlgAufgFertig').close();if(AUFG_VIEW)aufgViewZeichnen(true);}};}
+$('#afAbbr').onclick=()=>$('#dlgAufgFertig').close();
+$('#afErg').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#afOk').click();}});
+// ── Ansicht im Chatbereich ──
+$('#msgs').insertAdjacentHTML('beforebegin','<div id="aufgView" class="aufg-view" role="region" aria-label="Aufgaben" hidden></div>');
+const AV=$('#aufgView');
+function aufgViewAuf(modus,id){termZu();ANSICHT='aufgabe';$('#msgs').hidden=true;$('#composer').hidden=true;$('#kopf').hidden=true;$('#board').hidden=true;AV.hidden=false;AUFG_VIEW={modus,id:Number(id)||0,pk:false,edit:modus==='neu'};aufgViewZeichnen(true);AV.scrollTop=0;aufgLeiste();aufgKopfBtn();
+  const f=AV.querySelector('input[name="titel"]');if(f)f.focus();}
+function aufgViewZu(nurVerstecken){if(!AUFG_VIEW&&AV.hidden)return;AUFG_VIEW=null;AUFG_KEY='';AV.hidden=true;AV.innerHTML='';if(!nurVerstecken){ANSICHT='chat';$('#msgs').hidden=false;$('#composer').hidden=false;kopfZeichnen();ladeMsgs();}aufgLeiste();aufgKopfBtn();}
+function aufgOeffnenAlle(){aufgViewAuf('alle',0);}
+window.aufgOeffnen=(id)=>aufgViewAuf('aufgabe',id);
+// Neu zeichnen nur, wenn sich die Daten der Ansicht geändert haben (Formulare/Scroll bleiben beim Poll stehen).
+function aufgViewZeichnen(immer){
+  const v=AUFG_VIEW;if(!v)return;if(v.edit&&!immer)return;
+  const key=v.modus==='alle'?JSON.stringify([AUFG_REITER,AUFG.offen,AUFG.aufgaben.map(a=>[a.id,a.status,a.titel,a.stufe,a.label,a.faellig_am])]):JSON.stringify([v,aufgVon(v.id),FENSTER.map(f=>[f.name,f.laeuft,f.aufgabe_id])]);
+  if(!immer&&key===AUFG_KEY)return;AUFG_KEY=key;
+  if(v.modus==='alle')return aufgAlle();
+  if(v.modus==='neu')return aufgFormZeigen(null);
+  const a=aufgVon(v.id);if(!a){AV.innerHTML='<div class="av-box"><p class="av-leer">Diese Aufgabe gibt es nicht mehr.</p><div class="av-fuss"><button class="knopf" data-av="alle">Alle Aufgaben</button></div></div>';return;}
+  if(v.edit)return aufgFormZeigen(a);
+  aufgDetail(a);
+}
+const AUFG_ST={geplant:['geplant',''],laeuft:['läuft','ok'],pausiert:['Pause','warn'],fertig:['fertig','blau'],abgebrochen:['im Papierkorb','bad']};
+function aufgDetail(a){
+  const offen=AUFG_OFFEN.includes(a.status),laeuft=a.status==='laeuft'||a.status==='pausiert',s=aufgSumme(a.zeiten),st=AUFG_ST[a.status]||[a.status,''];
+  const k=a.karte_id?KARTEN.find(x=>x.id===a.karte_id):null;
+  const lf=(a.laeufe||[]).slice(-1)[0],altF=lf&&a.status==='geplant'?FENSTER.find(f=>f.name===lf.fenster&&f.laeuft&&(!f.aufgabe_id||Number(f.aufgabe_id)===a.id)):null;
+  const chips=[`<span class="chip ${st[1]}">${st[0]}</span>`,a.label?`<span class="chip">${esc(a.label)}</span>`:'',a.faellig_am?`<span class="chip ${a.stufe==='ueberfaellig'&&offen?'bad':a.stufe==='heute'&&offen?'warn':''}">fällig ${esc(aufgZeitText(a.faellig_am))}</span>`:'',a.start_um?`<span class="chip">⏰ ${a.autostart?esc(a.autostart.startsWith('fehler')?'Autostart: '+a.autostart:'Autostart '+a.autostart):'startet '+esc(aufgZeitText(a.start_um))}</span>`:'',k?`<span class="chip">🗂 ${esc(k.titel)}</span>`:'',(a.laeufe||[]).length?`<span class="chip">${a.laeufe.length+(laeuft?1:0)} Läufe</span>`:'',a.erst_fragen===0?'<span class="chip" title="Start-Text ohne „erst Lage + Empfehlung“">ohne Rückfrage-Vorlage</span>':''].join('');
+  let fuss='';
+  if(a.status==='geplant')fuss=altF?`<button class="knopf pri gross" data-av="weiter-alt">▶ Weiter im Fenster „${esc(altF.label||altF.name)}“</button><button class="knopf" data-av="weiter-neu" title="Frisches Fenster, der gemerkte Stand steht im Start-Text">Neues Fenster mit Stand</button>`:`<button class="knopf pri gross" data-av="start">${(a.laeufe||[]).length?'▶ Weitermachen (neues Fenster mit Stand)':'▶ Starten'}</button>`;
+  if(laeuft)fuss=`<button class="knopf pri gross" data-av="kanal">Zum Kanal</button><button class="knopf" data-av="${a.status==='pausiert'?'weiter':'pause'}">${a.status==='pausiert'?'▶\uFE0F Weiter':'⏸\uFE0F Pause'}</button><button class="knopf" data-av="stopp" title="Zurück in die Liste — Zeit und Stand bleiben">⏏\uFE0F Stopp</button><button class="knopf" data-av="fertig">⏹\uFE0F Fertig</button>`;
+  if(a.status==='fertig')fuss=`${a.fenster&&FENSTER.some(f=>f.name===a.fenster)?'<button class="knopf" data-av="kanal">Zum Kanal</button>':''}<button class="knopf" data-av="zurueck" title="Nacharbeit: wieder in die Liste, die Zeit bleibt">↻ Zurück in die Liste</button>`;
+  if(a.status==='abgebrochen')fuss=`<button class="knopf pri" data-av="zurueck">↻ Zurückholen</button><button class="knopf rot" data-av="loeschen-frage">Endgültig löschen</button>`;
+  if(!laeuft)fuss+='<button class="knopf" data-av="bearbeiten">✏️ Bearbeiten</button>';
+  if(offen)fuss+='<button class="knopf rot rechts" data-av="verwerfen-frage" title="In den Papierkorb legen">🗑 Verwerfen</button>';
+  const zeit=s.gesamt?`<div class="av-ab"><h5>Zeit${laeuft?' bisher':''}</h5><div class="av-zeiten"><div><b>${aufgMin(s.aktiv)}</b>aktiv</div><div><b>${aufgMin(s.du)}</b>du</div><div><b>${aufgMin(s.cl)}</b>Claude</div><div><b>${aufgMin(s.warten)}</b>Warten auf dich</div><div><b>${aufgMin(s.leer)}</b>Leerlauf</div>${s.pause?`<div><b>${aufgMin(s.pause)}</b>Pause</div>`:''}</div></div>`:'';
+  const pk=AUFG_VIEW.pk==='verwerfen'?`<div class="av-pk" role="alertdialog" aria-label="Verwerfen bestätigen"><b>Aufgabe in den Papierkorb legen?</b><p>Sie verschwindet aus der Liste${laeuft?', die Zeitmessung stoppt, das Fenster bleibt offen':''}. Unter „Alle → Papierkorb“ holst du sie zurück.</p><button class="knopf rot" data-av="verwerfen">🗑 In den Papierkorb</button> <button class="knopf" data-av="pk-zu">Behalten</button></div>`
+    :AUFG_VIEW.pk==='loeschen'?'<div class="av-pk" role="alertdialog" aria-label="Löschen bestätigen"><b>Endgültig löschen?</b><p>Aufgabe und gemessene Zeit sind dann weg — das lässt sich nicht zurückholen.</p><button class="knopf rot" data-av="loeschen">Endgültig löschen</button> <button class="knopf" data-av="pk-zu">Behalten</button></div>':'';
+  AV.innerHTML=`<div class="av-box"><div class="av-oben"><button class="knopf klein" data-av="alle">‹ Alle Aufgaben</button><button class="knopf klein zu" data-av="zu" title="Zurück zum Chat (Esc)" aria-label="Schließen">✕</button></div><div class="av-meta">${chips}</div><h2 class="av-titel">${esc(a.titel)}</h2>`
+    +(a.beschreibung?`<div class="av-ab"><h5>Was dahinter steckt</h5><div class="av-text">${linkify(a.beschreibung)}</div></div>`:'')
+    +(a.status==='geplant'&&a.stand_text?`<div class="av-ab"><h5>Stand beim letzten Stopp</h5><div class="av-text stand">${esc(a.stand_text)}</div></div>`:'')
+    +(a.status==='fertig'?`<div class="av-ab"><h5>Ergebnis</h5><div class="av-text ergebnis">${a.ergebnis?linkify(a.ergebnis):'<span class="muted">ohne Ergebnis-Satz</span>'}</div></div>`:'')
+    +(a.status==='laeuft'?`<div class="av-ab"><h5>Lauf</h5><div class="av-text">Fenster „${esc((FENSTER.find(f=>f.name===a.fenster)||{}).label||a.fenster)}“ · seit ${aufgSeitHtml(a)}</div></div>`:'')
+    +zeit+`<div class="av-fuss">${fuss}</div>${pk}</div>`;
+}
+function aufgFormZeigen(a){
+  const neu=!a;a=a||{titel:'',beschreibung:'',label:'',erst_fragen:1};
+  const kOpt=KARTEN.map(k=>`<option value="${k.id}"${a.karte_id===k.id?' selected':''}>${esc(k.titel)}</option>`).join('');
+  AV.innerHTML=`<div class="av-box"><div class="av-oben"><b>${neu?'Neue Aufgabe':'Aufgabe bearbeiten'}</b><button class="knopf klein zu" data-av="${neu?'zu':'edit-zu'}" aria-label="Abbrechen">✕</button></div><div class="av-form">
+    <label for="avTitel">Was ist die Aufgabe?</label><input id="avTitel" name="titel" maxlength="160" value="${esc(a.titel)}" placeholder="z. B. Landingpage für das Angebot bauen" required>
+    <label for="avBesch">Was dahinter steckt <span class="hinweis">— geht als Auftrag ins Fenster</span></label><textarea id="avBesch" name="beschreibung" maxlength="4000" placeholder="Ziel, Unterlagen, Links, Grenzen …">${esc(a.beschreibung)}</textarea>
+    <div class="av-2"><div><label for="avLabel">Label <span class="hinweis">(frei, optional)</span></label><input id="avLabel" name="label" maxlength="24" value="${esc(a.label||'')}" placeholder="z. B. Website"></div><div><label for="avFaellig">Fällig <span class="hinweis">(optional)</span></label><input id="avFaellig" type="datetime-local" name="faellig_am" value="${aufgLokal(a.faellig_am)}"></div></div>
+    <div class="av-2"><div><label for="avStartUm">Selbst starten um <span class="hinweis">(optional)</span></label><input id="avStartUm" type="datetime-local" name="start_um" value="${aufgLokal(a.start_um)}"></div><div><label for="avKarte">Board-Karte <span class="hinweis">(Stand + Abschluss landen im Verlauf)</span></label><select id="avKarte" name="karte_id"><option value="">— keine —</option>${kOpt}</select></div></div>
+    <label for="avOrdner">Arbeitsordner <span class="hinweis">— leer = Standard des Servers</span></label><input id="avOrdner" name="ordner" value="${esc(a.repo||a.ordner||'')}" placeholder="/pfad/zum/projekt">
+    <label class="av-check"><input type="checkbox" name="worktree"${a.repo?' checked':''}>Eigener git-Worktree (der Ordner ist ein Repo)</label>
+    <label class="av-check"><input type="checkbox" name="erst_fragen"${a.erst_fragen!==0?' checked':''}>Erst Lage + Empfehlung + Rückfrage, dann bauen <span class="hinweis">(Vorlage im Start-Text)</span></label>
+  </div><div class="av-fuss">${neu?'<button class="knopf pri gross" data-av="anlegen-start">▶ Anlegen &amp; starten</button><button class="knopf" data-av="anlegen">Nur anlegen</button>':'<button class="knopf pri" data-av="speichern">Speichern</button>'}<button class="knopf" data-av="${neu?'zu':'edit-zu'}">Abbrechen</button></div></div>`;
+}
+function aufgFormDaten(){const f=(n)=>AV.querySelector(`[name="${n}"]`);const ordner=f('ordner').value.trim(),wt=f('worktree').checked;
+  return {titel:f('titel').value.trim(),beschreibung:f('beschreibung').value,label:f('label').value.trim(),faellig_am:aufgIso(f('faellig_am').value),start_um:aufgIso(f('start_um').value),karte_id:f('karte_id').value||null,ordner:wt?'':ordner,repo:wt?ordner:'',erst_fragen:f('erst_fragen').checked};}
+// Alle: Offen (ziehbar, ▲/▼ fürs Handy) · Erledigt · Papierkorb · Auswertung
+function aufgZeile(a,i,mitPfeilen){return `<div class="av-zeile ${aufgKlasse(a)}" data-auf="${a.id}"${mitPfeilen?' draggable="true"':''} role="button" tabindex="0"><span class="av-nr">${mitPfeilen?i+1:''}</span><span class="av-zt"><b>${esc(a.titel)}</b><small>${a.label?esc(a.label)+' · ':''}${aufgMeta(a)}</small></span><span class="av-akt">${mitPfeilen?`<button class="knopf klein" data-av="hoch" title="Nach oben" aria-label="Nach oben">▲</button><button class="knopf klein" data-av="runter" title="Nach unten" aria-label="Nach unten">▼</button>`:''}${a.status==='geplant'?'<button class="knopf klein pri" data-av="start" title="Starten" aria-label="Starten">▶</button>':''}${a.status==='abgebrochen'?'<button class="knopf klein" data-av="zurueck" title="Zurückholen">↻</button>':''}</span></div>`;}
+function aufgAlle(){
+  const offen=AUFG.offen.map(aufgVon).filter(Boolean),fertig=AUFG.aufgaben.filter(a=>a.status==='fertig'),pk=AUFG.aufgaben.filter(a=>a.status==='abgebrochen');
+  const R=[['offen',`Offen (${offen.length})`],['fertig','Erledigt'],['papierkorb',`Papierkorb${pk.length?' ('+pk.length+')':''}`],['auswertung','Auswertung']];
+  let inhalt='';
+  if(AUFG_REITER==='offen')inhalt=offen.length?'<p class="hinweis" style="margin:0 0 8px">Ziehen oder ▲/▼ ordnet. Überfälliges und Laufendes stehen immer oben.</p>'+offen.map((a,i)=>aufgZeile(a,i,true)).join(''):'<p class="av-leer">Nichts offen. Leg eine Aufgabe an — sie startet ein Fenster mit Zeitmessung.</p>';
+  if(AUFG_REITER==='fertig')inhalt=fertig.length?fertig.map(a=>aufgZeile(a,0,false)).join(''):'<p class="av-leer">Noch nichts erledigt.</p>';
+  if(AUFG_REITER==='papierkorb')inhalt=pk.length?pk.map(a=>aufgZeile(a,0,false)).join(''):'<p class="av-leer">Der Papierkorb ist leer.</p>';
+  if(AUFG_REITER==='auswertung')inhalt='<div id="aufgAw"><p class="av-leer">Lade …</p></div>';
+  AV.innerHTML=`<div class="av-box"><div class="av-oben"><b>📋 Aufgaben</b><button class="knopf klein pri" data-av="neu">＋ Neue Aufgabe</button><button class="knopf klein zu" data-av="zu" title="Zurück zum Chat (Esc)" aria-label="Schließen">✕</button></div><div class="av-reiter" role="tablist">${R.map(([k,t])=>`<button type="button" role="tab" data-reiter="${k}" aria-selected="${AUFG_REITER===k}">${t}</button>`).join('')}</div><div id="aufgListe">${inhalt}</div></div>`;
+  if(AUFG_REITER==='auswertung')aufgAuswertung();
+}
+async function aufgAuswertung(){
+  const box=$('#aufgAw');if(!box)return;const d=new Date((AUFG.heute||new Date().toISOString().slice(0,10))+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-(AUFG_AW-1));
+  const r=await api(`/api/aufgaben/auswertung?von=${d.toISOString().slice(0,10)}&bis=${AUFG.heute||''}`);if(!$('#aufgAw'))return;
+  if(!r||!r.ok){box.innerHTML='<p class="av-leer">Auswertung gerade nicht erreichbar.</p>';return;}
+  const max=Math.max(1,...r.tage.map(t=>t.aktiv_s)),tagText=(t)=>new Date(t+'T12:00:00Z').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
+  const balken=(x)=>`<div class="aw-balken" title="du ${aufgMin(x.mensch_aktiv_s)} · Claude ${aufgMin(x.claude_aktiv_s)}"><i class="du" style="width:${100*x.mensch_aktiv_s/max}%"></i><i class="cl" style="width:${100*x.claude_aktiv_s/max}%"></i></div>`;
+  box.innerHTML=`<div class="av-reiter" style="max-width:260px">${[7,30].map(n=>`<button type="button" data-aw="${n}" aria-selected="${AUFG_AW===n}">${n} Tage</button>`).join('')}</div>`
+    +`<div class="aw-summe"><div><b>${aufgMin(r.summe.aktiv_s)}</b>aktiv</div><div><b>${aufgMin(r.summe.mensch_aktiv_s)}</b>du</div><div><b>${aufgMin(r.summe.claude_aktiv_s)}</b>Claude</div><div><b>${aufgMin(r.summe.warten_s)}</b>Warten + Leerlauf</div></div>`
+    +'<div class="aw-legende"><span><i style="background:var(--blau)"></i>du</span><span><i style="background:var(--ok)"></i>Claude</span><span>(beide zugleich zählen in beide)</span></div>'
+    +'<div class="av-ab"><h5>Je Tag</h5>'+(r.tage.map(t=>`<div class="aw-reihe"><span>${esc(tagText(t.tag))}<br><small>${t.aufgaben} Aufgabe${t.aufgaben===1?'':'n'}</small></span>${balken(t)}<span class="aw-zeit">${aufgMin(t.aktiv_s)}</span></div>`).join('')||'<p class="av-leer">In diesem Zeitraum wurde nichts gemessen.</p>')+'</div>'
+    +'<div class="av-ab"><h5>Je Aufgabe</h5>'+(r.aufgaben.map(a=>`<div class="aw-reihe" data-auf="${a.id}" style="cursor:pointer"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.titel)}<br><small>${esc((AUFG_ST[a.status]||[a.status])[0])}${a.label?' · '+esc(a.label):''}</small></span>${balken({...a,mensch_aktiv_s:a.mensch_aktiv_s*max/Math.max(1,r.aufgaben[0].aktiv_s),claude_aktiv_s:a.claude_aktiv_s*max/Math.max(1,r.aufgaben[0].aktiv_s)})}<span class="aw-zeit">${aufgMin(a.aktiv_s)}</span></div>`).join('')||'<p class="av-leer">—</p>')+'</div>';
+}
+AV.addEventListener('click',async e=>{
+  const rt=e.target.closest('[data-reiter]');if(rt){AUFG_REITER=rt.dataset.reiter;aufgViewZeichnen(true);return;}
+  const aw=e.target.closest('[data-aw]');if(aw){AUFG_AW=Number(aw.dataset.aw);aufgAuswertung();return;}
+  const b=e.target.closest('[data-av]'),z=e.target.closest('[data-auf]');const was=b?b.dataset.av:'',v=AUFG_VIEW;
+  const id=z?Number(z.dataset.auf):(v?v.id:0);
+  if(!b){if(z)aufgViewAuf('aufgabe',id);return;}
+  if(was==='zu')return aufgViewZu();
+  if(was==='alle'){AUFG_REITER=AUFG_REITER==='auswertung'?'offen':AUFG_REITER;return aufgViewAuf('alle',0);}
+  if(was==='neu')return aufgViewAuf('neu',0);
+  if(was==='edit-zu'){v.edit=false;return aufgViewZeichnen(true);}
+  if(was==='bearbeiten'){v.edit=true;v.pk=false;return aufgViewZeichnen(true);}
+  if(was==='verwerfen-frage'||was==='loeschen-frage'){v.pk=was==='verwerfen-frage'?'verwerfen':'loeschen';aufgViewZeichnen(true);const k=AV.querySelector('.av-pk .knopf');if(k)k.focus();return;}
+  if(was==='pk-zu'){v.pk=false;return aufgViewZeichnen(true);}
+  if(was==='hoch'||was==='runter'){e.stopPropagation();const ids=[...AUFG.offen],i=ids.indexOf(id),j=i+(was==='hoch'?-1:1);if(i<0||j<0||j>=ids.length){toast(was==='hoch'?'Steht schon ganz oben.':'Steht schon ganz unten.');return;}[ids[i],ids[j]]=[ids[j],ids[i]];return aufgReihenfolge(ids);}
+  if(was==='start'||was==='weiter-neu')return aufgStarten(id,was==='weiter-neu'||(aufgVon(id)||{}).laeufe?.length?{neues_fenster:true}:{},b);
+  if(was==='weiter-alt')return aufgStarten(id,{},b);
+  if(was==='kanal'){const a=aufgVon(id);if(a&&a.fenster)kanalWechseln(a.fenster);return;}
+  if(was==='fertig')return aufgFertigDialog(id);
+  if(was==='anlegen'||was==='anlegen-start'||was==='speichern'){
+    const d=aufgFormDaten();if(!d.titel){AV.querySelector('[name="titel"]').focus();fcStatus('⚠️ Ein Titel fehlt noch.');return;}
+    b.disabled=true;
+    if(was==='speichern'){const r=await aufgPost(`/api/aufgaben/${id}`,d);b.disabled=false;if(!r||!r.ok){fcStatus(aufgFehler(r));return;}v.edit=false;toast('Gespeichert.');await aufgLaden();return aufgViewZeichnen(true);}
+    const r=await aufgPost('/api/aufgaben',d);b.disabled=false;if(!r||!r.ok){fcStatus(aufgFehler(r));return;}
+    await aufgLaden();if(was==='anlegen-start')return aufgStarten(r.aufgabe.id,{},b);
+    toast('🎯 Aufgabe angelegt — sie steht in der Seitenleiste.');return aufgViewAuf('aufgabe',r.aufgabe.id);
+  }
+  if(['pause','weiter','stopp','verwerfen','zurueck','loeschen'].includes(was)){
+    e.stopPropagation();b.disabled=true;const r=await aufgAktion(id,was);b.disabled=false;if(!r)return;
+    if(v&&v.modus==='aufgabe'){v.pk=false;if(was==='loeschen')return aufgViewAuf('alle',0);}
+    return aufgViewZeichnen(true);
+  }
+});
+AV.addEventListener('keydown',e=>{const z=e.target.closest&&e.target.closest('.av-zeile[data-auf]');if(z&&e.target===z&&(e.key==='Enter'||e.key===' ')){e.preventDefault();aufgViewAuf('aufgabe',Number(z.dataset.auf));}});
+aufgZiehenAn(AV,'.av-zeile[data-auf][draggable]');
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&AUFG_VIEW&&!document.querySelector('dialog[open]')&&$('#sucheFeld').hidden){if(AUFG_VIEW.pk){AUFG_VIEW.pk=false;aufgViewZeichnen(true);}else aufgViewZu();}});
+// ── Laden (alle 5 s, solange sichtbar) ──
+async function aufgLaden(){
+  const r=await api('/api/aufgaben');if(!r||!r.ok)return;
+  AUFG=r;AUFG_OFF=(Date.parse(r.jetzt)||Date.now())-Date.now();
+  aufgLeiste();aufgKopfBtn();aufgKopfUhr();if(AUFG_VIEW)aufgViewZeichnen(false);
+}
+(function aufgInit(){if(!ME){setTimeout(aufgInit,400);return;}aufgLaden();setInterval(()=>{if(document.visibilityState!=='hidden')aufgLaden();},5000);})();
+// ── Bestehende Ansichten umhüllen (ihr Code bleibt, wie er ist) ──
+const _aufgKopfZeichnen=kopfZeichnen;kopfZeichnen=function(){_aufgKopfZeichnen();aufgKopfUhr();};
+const _aufgKanalWechseln=kanalWechseln;kanalWechseln=function(k){aufgViewZu(true);return _aufgKanalWechseln(k);};
+const _aufgBoardZeigen=boardZeigen;boardZeigen=function(){aufgViewZu(true);return _aufgBoardZeigen();};$('#boardBtn').onclick=()=>boardZeigen();
+// Nachrichten mit Aufgaben-Bezug (Fälligkeit, Autostart, Abschluss-Karte): „Aufgabe öffnen“.
+const _aufgZeige=zeige;zeige=function(m,scroll){_aufgZeige(m,scroll);let meta={};try{meta=typeof m.meta==='string'?JSON.parse(m.meta):(m.meta||{});}catch{}if(!meta||!meta.aufgabe||meta.auto)return;
+  const d=document.querySelector(`.msg[data-id="${m.id}"]`);if(!d||d.querySelector('.auf-link'))return;const b=document.createElement('button');b.type='button';b.className='knopf klein auf-link';b.style.marginTop='6px';b.textContent='🎯 Aufgabe öffnen';b.onclick=()=>aufgViewAuf('aufgabe',meta.aufgabe);d.querySelector('.t').after(b);};
+// Erinnerungen → Aufgaben: „▶ Fenster“ startet jetzt eine Aufgabe mit Zeitmessung (Server), 🎯 macht ohne Start eine daraus.
+const _aufgRemListe=remListeZeigen;remListeZeigen=async function(){await _aufgRemListe();document.querySelectorAll('#msgs .remrow').forEach(row=>{if(row.querySelector('[data-akt="aufgabe"]'))return;const s=row.querySelector('[data-akt="session"]');if(s)s.title='Als Aufgabe starten: neues Fenster mit Zeitmessung';
+  const b=document.createElement('button');b.type='button';b.className='knopf klein';b.dataset.akt='aufgabe';b.title='Zur Aufgabe machen (ohne Start) — sie steht dann in der Seitenleiste';b.setAttribute('aria-label','Zur Aufgabe machen');b.textContent='🎯';
+  b.onclick=async()=>{b.disabled=true;const r=await aufgPost(`/api/reminders/${row.dataset.id}/aufgabe`,{});if(r&&r.ok){toast('🎯 Aufgabe angelegt — sie steht in der Seitenleiste.');aufgLaden();remNeuLaden();}else{b.disabled=false;fcStatus(aufgFehler(r));}};
+  if(s)s.after(b);else row.append(b);});};
+// Board: „🎯 Als Aufgabe“ an einer Karte — Stand und Abschluss der Aufgabe landen im Verlauf der Karte.
+const _aufgKarteOeffnen=karteOeffnen;karteOeffnen=function(id){_aufgKarteOeffnen(id);if(!id)return;const k=KARTEN.find(x=>x.id===id),span=document.querySelector('#karteInhalt .reihe>span:first-child');if(!k||!span)return;
+  span.innerHTML='<button class="knopf" id="kAufgabe" title="Aufgabe mit Zeitmessung zu dieser Karte — Stand und Abschluss landen im Verlauf">🎯 Als Aufgabe</button>';
+  $('#kAufgabe').onclick=async()=>{const r=await aufgPost('/api/aufgaben',{titel:k.titel,beschreibung:k.beschreibung,karte_id:k.id});if(r&&r.ok){$('#dlgKarte').close();await aufgLaden();aufgViewAuf('aufgabe',r.aufgabe.id);}else fcStatus(aufgFehler(r));};};
+/* === /Aufgaben (1.2) === */
 gate();
 </script>
 </body>
